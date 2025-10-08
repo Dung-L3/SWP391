@@ -1,43 +1,60 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package Dal;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
+/**
+ *
+ * @author HoangAnh
+ */
 public class DBConnect {
-
-    private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=RMS;encrypt=false";
-    private static final String USER = "SWP";
-    private static final String PASS = "1";
-
-    static {
-        try {
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
+    
     public static Connection getConnection() {
         try {
-            return DriverManager.getConnection(URL, USER, PASS);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            // Load SQL Server JDBC Driver
+            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+            
+            // URL kết nối SQL Server Express
+            String url = "jdbc:sqlserver://localhost:" + portNumber + ";databaseName=" + dbName + 
+                        ";encrypt=true;trustServerCertificate=true";
+            
+            return DriverManager.getConnection(url, userID, password);
+            
+        } catch (ClassNotFoundException ex) {
+            System.err.println("Lỗi: Không tìm thấy SQL Server JDBC Driver!");
+            ex.printStackTrace();
+        } catch (SQLException ex) {
+            System.err.println("Lỗi kết nối cơ sở dữ liệu: " + ex.getMessage());
+            ex.printStackTrace();
         }
+        return null;
     }
+    
+    // Cấu hình cho SQL Server Express
+    private final static String dbName = "RMS";  // Database 
+    private final static String portNumber = "1433"; // Cổng mặc định của SQL Server
+    private final static String userID = "sa";      // Tài khoản SQL Server
+    private final static String password = "123";  // Mật khẩu 
 
-    // 🧪 Thêm hàm main để test trực tiếp
     public static void main(String[] args) {
-        System.out.println("🔄 Đang kiểm tra kết nối SQL Server...");
-        try (Connection con = getConnection()) {
-            if (con != null) {
-                System.out.println("✅ Kết nối thành công tới CSDL RMS!");
-            } else {
-                System.out.println("❌ Kết nối thất bại (Connection = null)");
+        Connection connection = getConnection();
+
+        if (connection != null) {
+            System.out.println("Kết nối thành công đến cơ sở dữ liệu RMS!");
+            try {
+                connection.close();
+                System.out.println("Đã đóng kết nối.");
+            } catch (SQLException ex) {
+                System.err.println("Lỗi khi đóng kết nối: " + ex.getMessage());
             }
-        } catch (Exception e) {
-            System.out.println("❌ Lỗi khi kết nối:");
-            e.printStackTrace();
+        } else {
+            System.err.println("Kết nối thất bại!");
         }
     }
 }
