@@ -4,8 +4,34 @@
 	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	 xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
 	 version="6.0">
- <welcome-file-list>
+    
+    <!-- Booking Servlet Mapping -->
+    <servlet>
+        <servlet-name>BookingServlet</servlet-name>
+        <servlet-class>Controller.booking.BookingServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>BookingServlet</servlet-name>
+        <url-pattern>/BookingServlet</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Get Available Tables Servlet Mapping -->
+    <servlet>
+        <servlet-name>GetAvailableTablesServlet</servlet-name>
+        <servlet-class>Controller.booking.GetAvailableTablesServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>GetAvailableTablesServlet</servlet-name>
+        <url-pattern>/GetAvailableTablesServlet</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Session Config -->
+    <session-config>
+        <session-timeout>30</session-timeout>
+    </session-config>
+    
+    <!-- Welcome File List -->
+    <welcome-file-list>
         <welcome-file>common/Homepage.jsp</welcome-file>
     </welcome-file-list>
-
 </web-app>
