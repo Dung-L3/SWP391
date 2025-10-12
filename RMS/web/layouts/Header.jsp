@@ -36,7 +36,7 @@
         <a href="<c:url value='/'/>" class="nav-item nav-link ${page=='home' ? 'active' : ''}">Home</a>
         <a href="<c:url value='/about.jsp'/>" class="nav-item nav-link ${page=='about' ? 'active' : ''}">About</a>
         <a href="<c:url value='/service.jsp'/>" class="nav-item nav-link ${page=='service' ? 'active' : ''}">Service</a>
-        <a href="<c:url value='/menu-management'/>" class="nav-item nav-link ${page=='menu' ? 'active' : ''}">Menu</a>
+        <a href="<c:url value='/menu.jsp'/>" class="nav-item nav-link ${page=='menu' ? 'active' : ''}">Menu</a>
 
         <div class="nav-item dropdown">
           <a href="#" class="nav-link dropdown-toggle ${page=='pages' ? 'active' : ''}" data-bs-toggle="dropdown">Pages</a>
