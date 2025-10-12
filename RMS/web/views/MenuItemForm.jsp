@@ -15,7 +15,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${viewMode == 'create' ? 'Thêm món mới' : (viewMode == 'edit' ? 'Chỉnh sửa món ăn' : 'Chi tiết món ăn')} - Restoran</title>
+    <title>${viewMode == 'create' ? 'Thêm món mới' : (viewMode == 'edit' ? 'Chỉnh sửa món ăn' : 'Chi tiết món ăn')} - RMSG4</title>
     
     <!-- Favicon -->
     <link href="<c:url value='/img/favicon.ico'/>" rel="icon">
