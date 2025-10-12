@@ -57,4 +57,20 @@
         <url-pattern>/dashboard</url-pattern>
     </servlet-mapping>
 
+    <!-- Menu Management Servlet -->
+    <servlet>
+        <servlet-name>MenuManagementServlet</servlet-name>
+        <servlet-class>Controller.MenuManagementServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>MenuManagementServlet</servlet-name>
+        <url-pattern>/menu-management</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>MenuManagementServlet</servlet-name>
+        <url-pattern>/menu</url-pattern>
+    </servlet-mapping>
+
 </web-app>
