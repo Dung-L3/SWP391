@@ -330,7 +330,7 @@ public class MenuManagementServlet extends HttpServlet {
             item.setCategoryId(categoryId);
             item.setAvailability(availability != null ? availability : "AVAILABLE");
             item.setPreparationTime(preparationTime);
-            item.setActive(isActive);
+            item.setActive(true); // New items are active by default
             item.setCreatedBy(currentUser.getUserId());
 
             // Save to database
@@ -405,7 +405,7 @@ public class MenuManagementServlet extends HttpServlet {
             item.setCategoryId(categoryId);
             item.setAvailability(availability != null ? availability : "AVAILABLE");
             item.setPreparationTime(preparationTime);
-            item.setActive(isActive);
+            item.setActive(true); // Keep items active
             item.setUpdatedBy(currentUser.getUserId());
 
             // Update in database
