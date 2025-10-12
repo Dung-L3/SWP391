@@ -172,7 +172,7 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form action="menu-management" method="post" enctype="multipart/form-data">
+                <form action="menu-management" method="post">
                         <input type="hidden" name="action" value="${viewMode == 'edit' ? 'update' : 'create'}">
                         <c:if test="${viewMode == 'edit' or viewMode == 'view'}">
                             <input type="hidden" name="itemId" value="${menuItem.itemId}">
@@ -276,13 +276,14 @@
                             <c:if test="${viewMode != 'view'}">
                                 <div class="form-group">
                                     <label class="form-label">
-                                        <i class="bi bi-image text-primary me-1"></i> Hình ảnh
+                                        <i class="bi bi-image text-primary me-1"></i> Hình ảnh (URL)
                                     </label>
-                                    <input type="file" 
+                                    <input type="text" 
                                            class="form-control" 
-                                           name="image" 
-                                           accept="image/*">
-                                    <small class="text-muted">Chấp nhận: JPG, PNG, GIF. Tối đa 5MB.</small>
+                                           name="imageUrl"
+                                           value="${menuItem.imageUrl}"
+                                           placeholder="https://example.com/image.jpg">
+                                    <small class="text-muted">Nhập URL hình ảnh món ăn</small>
                                 </div>
                             </c:if>
                         </div>

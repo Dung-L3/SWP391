@@ -44,6 +44,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 2rem 0;
+            margin-top: 80px;
             margin-bottom: 2rem;
         }
 
@@ -56,16 +57,22 @@
         }
 
         .menu-card {
-            border: none;
+            border: 1px solid #e0e0e0;
             border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             transition: all 0.3s ease;
             margin-bottom: 1.5rem;
+            background: white;
         }
 
         .menu-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            border-color: #4CAF50;
+        }
+
+        .menu-card .card-body {
+            padding: 1.25rem;
         }
 
         .menu-image {
@@ -264,15 +271,26 @@
                         </div>
                     </c:when>
                     <c:otherwise>
-                        <div class="row">
+                        <div class="row g-4">
                             <c:forEach var="item" items="${menuItems}">
-                                <div class="col-lg-6 col-xl-4">
+                                <div class="col-lg-6 col-xl-4 mb-3">
                                     <div class="card menu-card h-100">
                                         <div class="card-body">
                                             <div class="d-flex align-items-start">
                                                 <div class="flex-shrink-0 me-3">
-                                                    <img src="<c:url value='/img/menu-placeholder.jpg'/>" 
-                                                         alt="${item.name}" class="menu-image">
+                                                    <c:choose>
+                                                        <c:when test="${not empty item.imageUrl}">
+                                                            <img src="${item.imageUrl}" 
+                                                                 alt="${item.name}" 
+                                                                 class="menu-image"
+                                                                 onerror="this.src='<c:url value='/img/default-avatar.svg'/>'">
+                                                        </c:when>
+                                                        <c:otherwise>
+                                                            <img src="<c:url value='/img/default-avatar.svg'/>" 
+                                                                 alt="${item.name}" 
+                                                                 class="menu-image">
+                                                        </c:otherwise>
+                                                    </c:choose>
                                                 </div>
                                                 <div class="flex-grow-1">
                                                     <h6 class="card-title mb-1">${item.name}</h6>

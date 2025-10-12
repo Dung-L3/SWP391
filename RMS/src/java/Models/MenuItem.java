@@ -19,6 +19,7 @@ public class MenuItem implements Serializable {
     private String availability; // AVAILABLE, OUT_OF_STOCK, DISCONTINUED
     private int preparationTime; // in minutes
     private boolean isActive;
+    private String imageUrl; // Image URL for the menu item
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private int createdBy;
@@ -68,6 +69,9 @@ public class MenuItem implements Serializable {
 
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

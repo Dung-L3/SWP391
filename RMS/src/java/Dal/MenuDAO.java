@@ -21,10 +21,16 @@ public class MenuDAO {
         
         sql.append("SELECT mi.menu_item_id, mi.category_id, mi.name, mi.description, mi.base_price, ");
         sql.append("mi.availability, mi.preparation_time, mi.is_active, mi.image_url, ");
-        sql.append("mc.category_name, ");
+        sql.append("CASE mi.category_id ");
+        sql.append("  WHEN 1 THEN N'Khai vị' ");
+        sql.append("  WHEN 2 THEN N'Món chính' ");
+        sql.append("  WHEN 3 THEN N'Món phụ' ");
+        sql.append("  WHEN 4 THEN N'Tráng miệng' ");
+        sql.append("  WHEN 5 THEN N'Đồ uống' ");
+        sql.append("  ELSE N'Khác' ");
+        sql.append("END as category_name, ");
         sql.append("u1.first_name + ' ' + u1.last_name as created_by_name ");
         sql.append("FROM menu_items mi ");
-        sql.append("LEFT JOIN menu_categories mc ON mi.category_id = mc.category_id ");
         sql.append("LEFT JOIN users u1 ON mi.created_by = u1.user_id ");
         sql.append("WHERE mi.is_active = 1 ");
 
@@ -168,10 +174,16 @@ public class MenuDAO {
     public MenuItem getMenuItemById(int itemId) {
         String sql = "SELECT mi.menu_item_id, mi.category_id, mi.name, mi.description, mi.base_price, " +
                     "mi.availability, mi.preparation_time, mi.is_active, mi.image_url, " +
-                    "mc.category_name, " +
+                    "CASE mi.category_id " +
+                    "  WHEN 1 THEN N'Khai vị' " +
+                    "  WHEN 2 THEN N'Món chính' " +
+                    "  WHEN 3 THEN N'Món phụ' " +
+                    "  WHEN 4 THEN N'Tráng miệng' " +
+                    "  WHEN 5 THEN N'Đồ uống' " +
+                    "  ELSE N'Khác' " +
+                    "END as category_name, " +
                     "u1.first_name + ' ' + u1.last_name as created_by_name " +
                     "FROM menu_items mi " +
-                    "LEFT JOIN menu_categories mc ON mi.category_id = mc.category_id " +
                     "LEFT JOIN users u1 ON mi.created_by = u1.user_id " +
                     "WHERE mi.menu_item_id = ?";
 
@@ -196,9 +208,10 @@ public class MenuDAO {
      * Create new menu item
      */
     public boolean createMenuItem(MenuItem item) {
+        System.out.println("DAO - Creating menu item: " + item.getName());
         String sql = "INSERT INTO menu_items (category_id, name, description, base_price, " +
-                    "availability, preparation_time, is_active, created_by) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                    "availability, preparation_time, is_active, image_url, created_by) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -210,14 +223,16 @@ public class MenuDAO {
             ps.setString(5, item.getAvailability());
             ps.setInt(6, item.getPreparationTime());
             ps.setBoolean(7, item.isActive());
-            ps.setInt(8, item.getCreatedBy());
+            ps.setString(8, item.getImageUrl());
+            ps.setInt(9, item.getCreatedBy());
 
-            return ps.executeUpdate() > 0;
+            int result = ps.executeUpdate();
+            System.out.println("DAO - Insert result: " + result);
+            return result > 0;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         }
-
-        return false;
     }
 
     /**
@@ -225,7 +240,7 @@ public class MenuDAO {
      */
     public boolean updateMenuItem(MenuItem item) {
         String sql = "UPDATE menu_items SET category_id = ?, name = ?, description = ?, " +
-                    "base_price = ?, availability = ?, preparation_time = ?, is_active = ? " +
+                    "base_price = ?, availability = ?, preparation_time = ?, is_active = ?, image_url = ? " +
                     "WHERE menu_item_id = ?";
 
         try (Connection conn = DBConnect.getConnection();
@@ -238,14 +253,14 @@ public class MenuDAO {
             ps.setString(5, item.getAvailability());
             ps.setInt(6, item.getPreparationTime());
             ps.setBoolean(7, item.isActive());
-            ps.setInt(8, item.getItemId());
+            ps.setString(8, item.getImageUrl());
+            ps.setInt(9, item.getItemId());
 
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         }
-
-        return false;
     }
 
     /**
@@ -262,9 +277,8 @@ public class MenuDAO {
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         }
-
-        return false;
     }
 
     /**
@@ -282,9 +296,8 @@ public class MenuDAO {
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         }
-
-        return false;
     }
 
     /**
@@ -301,6 +314,7 @@ public class MenuDAO {
         item.setAvailability(rs.getString("availability"));
         item.setPreparationTime(rs.getInt("preparation_time"));
         item.setActive(rs.getBoolean("is_active"));
+        item.setImageUrl(rs.getString("image_url"));
         
         item.setCategoryName(rs.getString("category_name"));
         item.setCreatedByName(rs.getString("created_by_name"));

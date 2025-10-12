@@ -304,6 +304,13 @@ public class MenuManagementServlet extends HttpServlet {
         String availability = request.getParameter("availability");
         String prepTimeParam = request.getParameter("preparationTime");
         String activeParam = request.getParameter("isActive");
+        String imageUrl = request.getParameter("imageUrl");
+
+        // Debug logging
+        System.out.println("CREATE - Parameters received:");
+        System.out.println("name: " + name);
+        System.out.println("priceParam: " + priceParam);
+        System.out.println("categoryIdParam: " + categoryIdParam);
 
         // Validate required fields
         if (name == null || name.trim().isEmpty() ||
@@ -331,6 +338,7 @@ public class MenuManagementServlet extends HttpServlet {
             item.setAvailability(availability != null ? availability : "AVAILABLE");
             item.setPreparationTime(preparationTime);
             item.setActive(true); // New items are active by default
+            item.setImageUrl(imageUrl);
             item.setCreatedBy(currentUser.getUserId());
 
             // Save to database
@@ -377,6 +385,7 @@ public class MenuManagementServlet extends HttpServlet {
         String availability = request.getParameter("availability");
         String prepTimeParam = request.getParameter("preparationTime");
         String activeParam = request.getParameter("isActive");
+        String imageUrl = request.getParameter("imageUrl");
 
         // Validate required fields
         if (name == null || name.trim().isEmpty() ||
@@ -406,6 +415,7 @@ public class MenuManagementServlet extends HttpServlet {
             item.setAvailability(availability != null ? availability : "AVAILABLE");
             item.setPreparationTime(preparationTime);
             item.setActive(true); // Keep items active
+            item.setImageUrl(imageUrl);
             item.setUpdatedBy(currentUser.getUserId());
 
             // Update in database
