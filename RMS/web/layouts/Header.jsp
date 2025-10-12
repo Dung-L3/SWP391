@@ -96,7 +96,7 @@
               <!-- Role-based menu -->
               <c:choose>
                 <c:when test="${u.roleName eq 'Manager'}">
-                  <li><a class="dropdown-item" href="<c:url value='/views/Admin.jsp'/>"><i class="bi bi-speedometer2 me-2"></i>Admin Dashboard</a></li>
+                  <li><a class="dropdown-item" href="<c:url value='/admin'/>"><i class="bi bi-speedometer2 me-2"></i>Admin Dashboard</a></li>
                   <li><a class="dropdown-item" href="<c:url value='/reports'/>"><i class="bi bi-graph-up me-2"></i>Reports</a></li>
                 </c:when>
                 <c:when test="${u.roleName eq 'Receptionist'}">

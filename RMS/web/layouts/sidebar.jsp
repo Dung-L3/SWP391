@@ -44,7 +44,7 @@
   <div class="section-title">Chung</div>
   <ul class="menu">
     <li>
-      <a class="${page == 'home' ? 'active' : ''}" href="<c:url value='/'/>"><i class="bi bi-house"></i>Trang chủ</a>
+      <a class="${page == 'home' ? 'active' : ''}" href="<c:url value='/admin'/>"><i class="bi bi-house"></i>Trang chủ</a>
     </li>
     <li>
       <a class="${page == 'orders' ? 'active' : ''}" href="<c:url value='/orders'/>"><i class="bi bi-receipt-cutoff"></i>Đơn hàng</a>
@@ -97,20 +97,20 @@
         <c:when test="${not empty staffList}">
           <c:forEach var="s" items="${staffList}">
             <div class="staff-item">
-              <img src="<c:url value='${empty s.avatarUrl ? "/img/default-avatar.jpg" : s.avatarUrl}'/>" alt="avatar">
+              <img src="<c:url value='/img/default-avatar.jpg'/>" alt="avatar">
               <div class="flex-grow-1">
                 <div class="d-flex align-items-center gap-2">
-                  <span class="text-white fw-semibold">${empty s.fullName ? s.username : s.fullName}</span>
-                  <span class="role-pill">${s.roleName}</span>
+                  <span class="text-white fw-semibold">${s.firstName} ${s.lastName}</span>
+                  <span class="role-pill">${s.position}</span>
                 </div>
-                <div class="small text-muted">${empty s.phone ? s.email : s.phone}</div>
+                <div class="small text-muted">${s.email}</div>
               </div>
-              <span class="badge ${s.accountStatus == 'ACTIVE' ? 'bg-success' : 'bg-secondary'}">${s.accountStatus}</span>
+              <span class="badge ${s.status == 'ACTIVE' ? 'bg-success' : 'bg-secondary'}">${s.status}</span>
             </div>
           </c:forEach>
         </c:when>
         <c:otherwise>
-          <div class="px-3 text-muted small">Chưa có dữ liệu nhân viên. Thêm mới trong <a class="link-light" href="<c:url value='/staff'/>">Quản lý nhân viên</a>.</div>
+          <div class="px-3 text-muted small">Chưa có dữ liệu nhân viên. Thêm mới trong <a class="link-light" href="<c:url value='/staff-management'/>">Quản lý nhân viên</a>.</div>
         </c:otherwise>
       </c:choose>
     </div>

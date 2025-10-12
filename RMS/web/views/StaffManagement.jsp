@@ -1,14 +1,35 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@page import="java.util.List"%>
 <%@page import="Models.Staff"%>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+
+<%-- đánh dấu menu active cho Header.jsp --%>
+<c:set var="page" value="staff" scope="request"/>
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý nhân viên - RMS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link href="<c:url value='/img/favicon.ico'/>" rel="icon">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600&family=Nunito:wght@600;700;800&family=Pacifico&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Bootstrap -->
+    <link href="<c:url value='/css/bootstrap.min.css'/>" rel="stylesheet">
+    
+    <!-- Theme CSS -->
+    <link href="<c:url value='/css/style.css'/>" rel="stylesheet">
     <style>
         .staff-card {
             transition: transform 0.2s;
@@ -26,7 +47,13 @@
     </style>
 </head>
 <body>
-    <div class="container-fluid">
+
+<!-- ===== Header ===== -->
+<jsp:include page="/layouts/Header.jsp"/>
+
+<c:set var="u" value="${sessionScope.user}"/>
+
+<div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
             <div class="col-md-2 bg-dark text-white min-vh-100 p-0">
@@ -105,7 +132,7 @@
                                            class="btn btn-sm btn-outline-warning">
                                             <i class="fas fa-edit"></i> Sửa
                                         </a>
-                                        <% if (staff.isActive()) { %>
+                                        <% if (staff.isActive() && !"Manager".equals(staff.getPosition())) { %>
                                         <button class="btn btn-sm btn-outline-danger" 
                                                 onclick="confirmDeactivate(<%= staff.getStaffId() %>, <%= staff.getUserId() %>, '<%= staff.getFullName() %>')">
                                             <i class="fas fa-user-times"></i> Vô hiệu hóa

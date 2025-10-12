@@ -14,18 +14,16 @@ import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.util.List;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 /**
  *
  * @author donny
  */
-@WebServlet(name = "StaffManagementServlet", urlPatterns = {"/staff-management"})
 public class StaffManagementServlet extends HttpServlet {
 
     private StaffDAO staffDAO;
@@ -260,6 +258,23 @@ public class StaffManagementServlet extends HttpServlet {
         try {
             int staffId = Integer.parseInt(request.getParameter("staffId"));
             int userId = Integer.parseInt(request.getParameter("userId"));
+            
+            // Kiểm tra quyền: Manager không thể vô hiệu hóa tài khoản Manager khác
+            HttpSession session = request.getSession(false);
+            if (session != null) {
+                Models.User currentUser = (Models.User) session.getAttribute("user");
+                if (currentUser != null && "Manager".equals(currentUser.getRoleName())) {
+                    // Lấy thông tin staff cần vô hiệu hóa
+                    Models.Staff targetStaff = staffDAO.getStaffById(staffId);
+                    if (targetStaff != null) {
+                        // Kiểm tra xem staff có phải là Manager không (dựa vào position)
+                        if ("Manager".equals(targetStaff.getPosition())) {
+                            response.sendRedirect("staff-management?error=Cannot deactivate Manager accounts. Only system administrators can deactivate Manager accounts.");
+                            return;
+                        }
+                    }
+                }
+            }
             
             boolean success = staffDAO.deactivateStaff(staffId, userId);
             
