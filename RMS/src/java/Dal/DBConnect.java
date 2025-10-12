@@ -20,9 +20,9 @@ public class DBConnect {
             // Load SQL Server JDBC Driver
             Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
             
-            // URL kết nối SQL Server Express
+            // URL kết nối SQL Server Express với UTF-8 encoding
             String url = "jdbc:sqlserver://localhost:" + portNumber + ";databaseName=" + dbName + 
-                        ";encrypt=true;trustServerCertificate=true";
+                        ";encrypt=true;trustServerCertificate=true;characterEncoding=UTF-8;useUnicode=true";
             
             return DriverManager.getConnection(url, userID, password);
             

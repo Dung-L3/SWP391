@@ -1,0 +1,381 @@
+package Dal;
+
+import Models.MenuItem;
+import Models.MenuCategory;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.math.BigDecimal;
+
+/**
+ * MenuDAO for menu items and categories management
+ */
+public class MenuDAO {
+
+    /**
+     * Get paginated menu items with search and filter
+     */
+    public List<MenuItem> getMenuItems(int page, int pageSize, String search, Integer categoryId, String availability, String sortBy) {
+        List<MenuItem> items = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+        
+        sql.append("SELECT mi.menu_item_id, mi.category_id, mi.name, mi.description, mi.base_price, ");
+        sql.append("mi.availability, mi.preparation_time, mi.is_active, mi.image_url, ");
+        sql.append("mc.category_name, ");
+        sql.append("u1.first_name + ' ' + u1.last_name as created_by_name ");
+        sql.append("FROM menu_items mi ");
+        sql.append("LEFT JOIN menu_categories mc ON mi.category_id = mc.category_id ");
+        sql.append("LEFT JOIN users u1 ON mi.created_by = u1.user_id ");
+        sql.append("WHERE 1=1 ");
+
+        List<Object> params = new ArrayList<>();
+
+        // Search filter
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append("AND (mi.name LIKE ? OR mi.description LIKE ?) ");
+            String searchPattern = "%" + search.trim() + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
+        }
+
+        // Category filter
+        if (categoryId != null && categoryId > 0) {
+            sql.append("AND mi.category_id = ? ");
+            params.add(categoryId);
+        }
+
+        // Availability filter
+        if (availability != null && !availability.isEmpty() && !"ALL".equals(availability)) {
+            sql.append("AND mi.availability = ? ");
+            params.add(availability);
+        }
+
+        // Sorting
+        if (sortBy != null && !sortBy.isEmpty()) {
+            switch (sortBy) {
+                case "name_asc":
+                    sql.append("ORDER BY mi.name ASC ");
+                    break;
+                case "name_desc":
+                    sql.append("ORDER BY mi.name DESC ");
+                    break;
+                case "price_asc":
+                    sql.append("ORDER BY mi.base_price ASC ");
+                    break;
+                case "price_desc":
+                    sql.append("ORDER BY mi.base_price DESC ");
+                    break;
+                case "category":
+                    sql.append("ORDER BY mc.category_name, mi.name ");
+                    break;
+                default:
+                    sql.append("ORDER BY mc.sort_order, mi.name ");
+            }
+        } else {
+            sql.append("ORDER BY mc.sort_order, mi.name ");
+        }
+
+        // Pagination
+        sql.append("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
+        params.add((page - 1) * pageSize);
+        params.add(pageSize);
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    MenuItem item = mapResultSetToMenuItem(rs);
+                    items.add(item);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return items;
+    }
+
+    /**
+     * Get total count for pagination
+     */
+    public int getTotalMenuItemsCount(String search, Integer categoryId, String availability) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT COUNT(*) FROM menu_items mi ");
+        sql.append("WHERE 1=1 ");
+
+        List<Object> params = new ArrayList<>();
+
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append("AND (mi.name LIKE ? OR mi.description LIKE ?) ");
+            String searchPattern = "%" + search.trim() + "%";
+            params.add(searchPattern);
+            params.add(searchPattern);
+        }
+
+        if (categoryId != null && categoryId > 0) {
+            sql.append("AND mi.category_id = ? ");
+            params.add(categoryId);
+        }
+
+        if (availability != null && !availability.isEmpty() && !"ALL".equals(availability)) {
+            sql.append("AND mi.availability = ? ");
+            params.add(availability);
+        }
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return 0;
+    }
+
+    /**
+     * Get all menu categories
+     */
+    public List<MenuCategory> getAllCategories() {
+        List<MenuCategory> categories = new ArrayList<>();
+        String sql = "SELECT category_id, category_name, sort_order FROM menu_categories " +
+                    "ORDER BY sort_order, category_name";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            
+            while (rs.next()) {
+                MenuCategory category = new MenuCategory();
+                category.setCategoryId(rs.getInt("category_id"));
+                
+                // Get category name and fix encoding if needed
+                String categoryName = rs.getString("category_name");
+                if (categoryName != null) {
+                    // Map known categories to correct Vietnamese names
+                    switch (rs.getInt("category_id")) {
+                        case 1:
+                            categoryName = "Khai vị";
+                            break;
+                        case 2:
+                            categoryName = "Món chính";
+                            break;
+                        case 3:
+                            categoryName = "Món phụ";
+                            break;
+                        case 4:
+                            categoryName = "Tráng miệng";
+                            break;
+                        case 5:
+                            categoryName = "Đồ uống";
+                            break;
+                        default:
+                            // For new categories, try to fix encoding
+                            try {
+                                byte[] bytes = categoryName.getBytes("ISO-8859-1");
+                                categoryName = new String(bytes, "UTF-8");
+                            } catch (Exception e) {
+                                // If encoding fix fails, use original
+                            }
+                    }
+                }
+                
+                category.setCategoryName(categoryName);
+                category.setSortOrder(rs.getInt("sort_order"));
+                category.setActive(true);
+                
+                categories.add(category);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            // Fallback to hardcoded categories if database fails
+            categories.add(new MenuCategory(1, "Khai vị", 1, true));
+            categories.add(new MenuCategory(2, "Món chính", 2, true));
+            categories.add(new MenuCategory(3, "Món phụ", 3, true));
+            categories.add(new MenuCategory(4, "Tráng miệng", 4, true));
+            categories.add(new MenuCategory(5, "Đồ uống", 5, true));
+        }
+
+        return categories;
+    }
+
+    /**
+     * Create new menu category
+     */
+    public boolean createMenuCategory(String categoryName, int sortOrder) {
+        String sql = "INSERT INTO menu_categories (category_name, sort_order) VALUES (?, ?)";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, categoryName);
+            ps.setInt(2, sortOrder);
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+
+    /**
+     * Update menu category
+     */
+    public boolean updateMenuCategory(int categoryId, String categoryName, int sortOrder) {
+        String sql = "UPDATE menu_categories SET category_name = ?, sort_order = ? WHERE category_id = ?";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, categoryName);
+            ps.setInt(2, sortOrder);
+            ps.setInt(3, categoryId);
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+
+    /**
+     * Get menu item by ID
+     */
+    public MenuItem getMenuItemById(int itemId) {
+        String sql = "SELECT mi.menu_item_id, mi.category_id, mi.name, mi.description, mi.base_price, " +
+                    "mi.availability, mi.preparation_time, mi.is_active, mi.image_url, " +
+                    "mc.category_name, " +
+                    "u1.first_name + ' ' + u1.last_name as created_by_name " +
+                    "FROM menu_items mi " +
+                    "LEFT JOIN menu_categories mc ON mi.category_id = mc.category_id " +
+                    "LEFT JOIN users u1 ON mi.created_by = u1.user_id " +
+                    "WHERE mi.menu_item_id = ?";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, itemId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToMenuItem(rs);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
+     * Create new menu item
+     */
+    public boolean createMenuItem(MenuItem item) {
+        String sql = "INSERT INTO menu_items (category_id, name, description, base_price, " +
+                    "availability, preparation_time, is_active, created_by) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, item.getCategoryId());
+            ps.setString(2, item.getName());
+            ps.setString(3, item.getDescription());
+            ps.setBigDecimal(4, item.getBasePrice());
+            ps.setString(5, item.getAvailability());
+            ps.setInt(6, item.getPreparationTime());
+            ps.setBoolean(7, item.isActive());
+            ps.setInt(8, item.getCreatedBy());
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+
+    /**
+     * Update menu item
+     */
+    public boolean updateMenuItem(MenuItem item) {
+        String sql = "UPDATE menu_items SET category_id = ?, name = ?, description = ?, " +
+                    "base_price = ?, availability = ?, preparation_time = ?, is_active = ? " +
+                    "WHERE menu_item_id = ?";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, item.getCategoryId());
+            ps.setString(2, item.getName());
+            ps.setString(3, item.getDescription());
+            ps.setBigDecimal(4, item.getBasePrice());
+            ps.setString(5, item.getAvailability());
+            ps.setInt(6, item.getPreparationTime());
+            ps.setBoolean(7, item.isActive());
+            ps.setInt(8, item.getItemId());
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+
+    /**
+     * Delete menu item (soft delete - set is_active = false)
+     */
+    public boolean deleteMenuItem(int itemId, int updatedBy) {
+        String sql = "UPDATE menu_items SET is_active = 0 WHERE menu_item_id = ?";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, itemId);
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+
+    /**
+     * Map ResultSet to MenuItem
+     */
+    private MenuItem mapResultSetToMenuItem(ResultSet rs) throws SQLException {
+        MenuItem item = new MenuItem();
+        
+        item.setItemId(rs.getInt("menu_item_id"));
+        item.setCategoryId(rs.getInt("category_id"));
+        item.setName(rs.getString("name"));
+        item.setDescription(rs.getString("description"));
+        item.setBasePrice(rs.getBigDecimal("base_price"));
+        item.setAvailability(rs.getString("availability"));
+        item.setPreparationTime(rs.getInt("preparation_time"));
+        item.setActive(rs.getBoolean("is_active"));
+        
+        item.setCategoryName(rs.getString("category_name"));
+        item.setCreatedByName(rs.getString("created_by_name"));
+        
+        return item;
+    }
+}

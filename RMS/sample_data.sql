@@ -47,7 +47,7 @@ GO
 
 -- Tạo admin user mặc định
 INSERT INTO users (username, email, password_hash, first_name, last_name, phone, account_status) VALUES
-('admin', 'admin@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Admin', 'System', '0123456789', 'ACTIVE');
+('admin', 'admin@rms.com', 'XgvcL3qb9MCwLUtIEOhZwA==:jENIb93KR+EMfnXbl/geHrnQBAe9VfMgDQ7ueBvkXwI=', 'Admin', 'System', '0123456789', 'ACTIVE');
 GO
 
 -- Tạo staff cho admin
@@ -61,9 +61,9 @@ GO
 
 -- Tạo một số nhân viên mẫu
 INSERT INTO users (username, email, password_hash, first_name, last_name, phone, account_status) VALUES
-('waiter1', 'waiter1@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Nguyễn', 'Văn A', '0123456780', 'ACTIVE'),
-('chef1', 'chef1@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Trần', 'Thị B', '0123456781', 'ACTIVE'),
-('receptionist1', 'receptionist1@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Lê', 'Văn C', '0123456782', 'ACTIVE');
+('waiter1', 'waiter1@rms.com', 'XgvcL3qb9MCwLUtIEOhZwA==:jENIb93KR+EMfnXbl/geHrnQBAe9VfMgDQ7ueBvkXwI=', 'Nguyễn', 'Văn A', '0123456780', 'ACTIVE'),
+('chef1', 'chef1@rms.com', 'XgvcL3qb9MCwLUtIEOhZwA==:jENIb93KR+EMfnXbl/geHrnQBAe9VfMgDQ7ueBvkXwI=', 'Trần', 'Thị B', '0123456781', 'ACTIVE'),
+('receptionist1', 'receptionist1@rms.com', 'XgvcL3qb9MCwLUtIEOhZwA==:jENIb93KR+EMfnXbl/geHrnQBAe9VfMgDQ7ueBvkXwI=', 'Lê', 'Văn C', '0123456782', 'ACTIVE');
 GO
 
 -- Tạo staff cho các user trên
