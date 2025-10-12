@@ -8,4 +8,15 @@
         <welcome-file>common/Homepage.jsp</welcome-file>
     </welcome-file-list>
 
+    <!-- Staff Management Servlet -->
+    <servlet>
+        <servlet-name>StaffManagementServlet</servlet-name>
+        <servlet-class>Controller.StaffManagementServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>StaffManagementServlet</servlet-name>
+        <url-pattern>/staff-management</url-pattern>
+    </servlet-mapping>
+
 </web-app>
