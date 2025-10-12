@@ -40,7 +40,7 @@ public class DBConnect {
     private final static String dbName = "RMS";  // Database 
     private final static String portNumber = "1433"; // Cổng mặc định của SQL Server
     private final static String userID = "sa";      // Tài khoản SQL Server
-    private final static String password = "123";  // Mật khẩu 
+    private final static String password = "12345";  // Mật khẩu 
 
     public static void main(String[] args) {
         Connection connection = getConnection();
