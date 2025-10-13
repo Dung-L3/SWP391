@@ -1,6 +1,7 @@
 package Dal;
 
 import Models.User;
+import Utils.PasswordUtil;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -51,6 +52,51 @@ public class UserDAO {
                     User u = mapRowToUser(rs);
                     updateLastLogin(con, u.getUserId()); // không fail login nếu update lỗi
                     return u;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * Đăng nhập với password gốc (sẽ hash và so sánh với database)
+     * @param usernameOrEmail username hoặc email
+     * @param password       mật khẩu gốc
+     * @return User nếu đúng, null nếu sai
+     */
+    public User loginWithPassword(String usernameOrEmail, String password) {
+        final String sql = """
+            SELECT  u.user_id, u.username, u.email, u.password_hash,
+                    u.first_name, u.last_name, u.phone, u.address,
+                    u.registration_date, u.last_login, u.account_status,
+                    u.failed_login_attempts, u.lockout_until, u.created_at, u.updated_at,
+                    r.role_id, r.role_name
+            FROM dbo.users u
+            LEFT JOIN dbo.user_roles ur
+                   ON ur.user_id = u.user_id AND ur.status = N'ACTIVE'
+            LEFT JOIN dbo.roles r
+                   ON r.role_id = ur.role_id AND r.status = N'ACTIVE'
+            WHERE (u.username = ? OR u.email = ?)
+              AND u.account_status = N'ACTIVE';
+        """;
+
+        try (Connection con = DBConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, usernameOrEmail);
+            ps.setString(2, usernameOrEmail);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String storedHash = rs.getString("password_hash");
+                    // Kiểm tra password với PasswordUtil
+                    if (PasswordUtil.verifyPassword(password, storedHash)) {
+                        User u = mapRowToUser(rs);
+                        updateLastLogin(con, u.getUserId());
+                        return u;
+                    }
                 }
             }
         } catch (Exception e) {
@@ -149,7 +195,7 @@ public class UserDAO {
         u.setAddress(rs.getString("address"));
         u.setAccountStatus(rs.getString("account_status"));
         u.setFailedLoginAttempts(rs.getInt("failed_login_attempts"));
-        u.setAvatarUrl(rs.getString("avatar_url"));
+        u.setAvatarUrl(null); // avatar_url column doesn't exist in database
 
         Timestamp t;
         t = rs.getTimestamp("registration_date");

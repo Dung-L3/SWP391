@@ -233,7 +233,7 @@
                       </div>
                       <div class="card-body d-flex flex-wrap gap-2">
                           <c:if test="${u.roleName == 'ADMIN'}">
-                              <a href="<c:url value='/staff'/>" class="btn btn-outline-primary"><i class="bi bi-people me-1"></i> Nhân sự</a>
+                              <a href="<c:url value='/staff-management'/>" class="btn btn-outline-primary"><i class="bi bi-people me-1"></i> Nhân sự</a>
                               <a href="<c:url value='/inventory'/>" class="btn btn-outline-warning"><i class="bi bi-box-seam me-1"></i> Kho hàng</a>
                               <a href="<c:url value='/reports'/>" class="btn btn-outline-dark"><i class="bi bi-graph-up me-1"></i> Báo cáo</a>
                           </c:if>

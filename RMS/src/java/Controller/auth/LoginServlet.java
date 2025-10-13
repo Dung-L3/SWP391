@@ -2,13 +2,13 @@ package Controller.auth;
 
 import Dal.UserDAO;
 import Models.User;
+import Utils.PasswordUtil;
 
 import java.io.IOException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 
-@WebServlet(name = "LoginServlet", urlPatterns = {"/LoginServlet"})
 public class LoginServlet extends HttpServlet {
 
     @Override
@@ -26,10 +26,8 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
-        String passwordHash = String.valueOf(password.hashCode());
-
         UserDAO dao = new UserDAO();
-        User user = dao.login(username, passwordHash);
+        User user = dao.loginWithPassword(username, password);
 
         if (user != null) {
             //  Đăng nhập thành công
@@ -56,7 +54,7 @@ public class LoginServlet extends HttpServlet {
                 cUser.setPath(request.getContextPath());
                 response.addCookie(cUser);
             }
-            response.sendRedirect(request.getContextPath() + "/views/Admin.jsp");
+            response.sendRedirect(request.getContextPath() + "/staff-management");
         } else {
             // ❌ Sai tài khoản/mật khẩu
             request.setAttribute("loginError", "Tên đăng nhập hoặc mật khẩu sai.");
