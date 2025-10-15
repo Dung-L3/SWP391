@@ -72,5 +72,16 @@
         <servlet-name>MenuManagementServlet</servlet-name>
         <url-pattern>/menu</url-pattern>
     </servlet-mapping>
+    
+    <!-- Reservation Servlet -->
+    <servlet>
+        <servlet-name>ReservationServlet</servlet-name>
+        <servlet-class>Controller.ReservationServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>ReservationServlet</servlet-name>
+        <url-pattern>/reservation/*</url-pattern>
+    </servlet-mapping>
 
 </web-app>
