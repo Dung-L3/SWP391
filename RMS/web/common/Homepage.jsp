@@ -52,7 +52,7 @@
                     Chào mừng đến với RMSG4 - Nơi hội tụ tinh hoa ẩm thực Việt Nam. 
                     Chúng tôi mang đến cho bạn những món ăn được chế biến từ nguyên liệu tươi ngon nhất.
                 </p>
-                <a href="<c:url value='/booking.jsp'/>"
+                <a href="<c:url value='/views/guest/booking.jsp'/>"
                    class="btn btn-primary py-sm-3 px-sm-5 me-3 animated slideInLeft">Đặt bàn ngay</a>
             </div>
             <div class="col-lg-6 text-center text-lg-end overflow-hidden">

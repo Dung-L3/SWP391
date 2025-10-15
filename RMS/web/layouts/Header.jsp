@@ -41,7 +41,7 @@
         <div class="nav-item dropdown">
           <a href="#" class="nav-link dropdown-toggle ${page=='pages' ? 'active' : ''}" data-bs-toggle="dropdown">Trang</a>
           <div class="dropdown-menu m-0">
-            <a href="<c:url value='/booking.jsp'/>" class="dropdown-item">Đặt bàn</a>
+            <a href="<c:url value='/views/guest/booking.jsp'/>" class="dropdown-item">Đặt bàn</a>
             <a href="<c:url value='/team.jsp'/>" class="dropdown-item">Đội ngũ</a>
             <a href="<c:url value='/testimonial.jsp'/>" class="dropdown-item">Đánh giá</a>
           </div>
@@ -51,7 +51,7 @@
       </div>
 
       <!-- Book Button -->
-      <a href="<c:url value='/booking.jsp'/>" class="btn btn-primary py-2 px-4 me-2">Đặt bàn</a>
+      <a href="<c:url value='/views/guest/booking.jsp'/>" class="btn btn-primary py-2 px-4 me-2">Đặt bàn</a>
 
       <!-- Auth -->
       <c:choose>
