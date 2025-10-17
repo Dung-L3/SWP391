@@ -91,8 +91,24 @@ public class StaffManagementServlet extends HttpServlet {
     private void showStaffList(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        List<Staff> staffList = staffDAO.getAllStaff();
+        String q = request.getParameter("q");
+        String roleIdParam = request.getParameter("roleId");
+        Integer roleIdFilter = null;
+        try { if (roleIdParam != null && !roleIdParam.isEmpty()) roleIdFilter = Integer.parseInt(roleIdParam); } catch (Exception ignored) {}
+        
+        List<Staff> staffList;
+        if ((q != null && !q.trim().isEmpty()) || roleIdFilter != null) {
+            staffList = staffDAO.getStaffFiltered(q, roleIdFilter);
+        } else {
+            staffList = staffDAO.getAllStaff();
+        }
         request.setAttribute("staffList", staffList);
+
+        // Roles for filter
+        List<Role> roles = staffDAO.getAllRoles();
+        request.setAttribute("roles", roles);
+        request.setAttribute("q", q);
+        request.setAttribute("roleId", roleIdFilter);
         
         request.getRequestDispatcher("/views/StaffManagement.jsp").forward(request, response);
     }

@@ -88,7 +88,7 @@
             <div class="col-lg-4 text-center">
               <div class="avatar-wrap mb-3">
                 <img id="avatarPreview"
-                     src="<c:url value='${empty u.avatarUrl ? "/img/default-avatar.jpg" : u.avatarUrl}'/>"
+                     src="<c:url value='${empty u.avatarUrl ? "/img/team-1.jpg" : u.avatarUrl}'/>"
                      class="rounded-circle" style="width:140px;height:140px;object-fit:cover;border:4px solid rgba(0,0,0,.05)" alt="avatar">
                 <span class="avatar-badge"><i class="bi bi-camera"></i></span>
                 <input type="file" name="avatar" id="avatarInput" accept="image/*">

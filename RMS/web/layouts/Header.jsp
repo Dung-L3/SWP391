@@ -72,7 +72,7 @@
           <div class="dropdown">
             <a class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
                href="#" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-              <img src="<c:url value='${empty u.avatarUrl ? "/img/default-avatar.jpg" : u.avatarUrl}'/>"
+              <img src="<c:url value='${empty u.avatarUrl ? "/img/team-1.jpg" : u.avatarUrl}'/>"
                    alt="Avatar"
                    class="rounded-circle me-2"
                    style="width:36px;height:36px;object-fit:cover;border:2px solid rgba(255,255,255,.25)">
@@ -82,7 +82,7 @@
             <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
               <li class="px-3 py-2">
                 <div class="d-flex align-items-center">
-                  <img src="<c:url value='${empty u.avatarUrl ? "/img/default-avatar.jpg" : u.avatarUrl}'/>"
+                  <img src="<c:url value='${empty u.avatarUrl ? "/img/team-1.jpg" : u.avatarUrl}'/>"
                        class="rounded-circle me-2"
                        style="width:32px;height:32px;object-fit:cover;">
                   <div>

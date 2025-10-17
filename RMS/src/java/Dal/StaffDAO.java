@@ -175,6 +175,65 @@ public class StaffDAO {
         
         return staffList;
     }
+
+    /**
+     * Tìm kiếm/lọc nhân viên theo keyword và roleId
+     */
+    public List<Staff> getStaffFiltered(String keywordNullable, Integer roleIdNullable) {
+        List<Staff> staffList = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT s.staff_id, s.user_id, s.first_name, s.last_name, s.email, s.phone, ");
+        sql.append("s.position, s.hire_date, s.salary, s.status, s.manager_id, u.account_status, r.role_name ");
+        sql.append("FROM staff s ");
+        sql.append("LEFT JOIN users u ON s.user_id = u.user_id ");
+        sql.append("LEFT JOIN user_roles ur ON u.user_id = ur.user_id AND ur.status = 'ACTIVE' ");
+        sql.append("LEFT JOIN roles r ON ur.role_id = r.role_id ");
+        sql.append("WHERE 1=1 ");
+        if (keywordNullable != null && !keywordNullable.trim().isEmpty()) {
+            sql.append(" AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.email LIKE ? OR s.phone LIKE ?) ");
+        }
+        if (roleIdNullable != null) {
+            sql.append(" AND r.role_id = ? ");
+        }
+        sql.append("ORDER BY s.staff_id DESC");
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+
+            int idx = 1;
+            if (keywordNullable != null && !keywordNullable.trim().isEmpty()) {
+                String kw = "%" + keywordNullable.trim() + "%";
+                stmt.setString(idx++, kw);
+                stmt.setString(idx++, kw);
+                stmt.setString(idx++, kw);
+                stmt.setString(idx++, kw);
+            }
+            if (roleIdNullable != null) {
+                stmt.setInt(idx++, roleIdNullable);
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Staff staff = new Staff();
+                    staff.setStaffId(rs.getInt("staff_id"));
+                    staff.setUserId(rs.getInt("user_id"));
+                    staff.setFirstName(rs.getString("first_name"));
+                    staff.setLastName(rs.getString("last_name"));
+                    staff.setEmail(rs.getString("email"));
+                    staff.setPhone(rs.getString("phone"));
+                    staff.setPosition(rs.getString("position"));
+                    staff.setHireDate(rs.getDate("hire_date"));
+                    staff.setSalary(rs.getBigDecimal("salary"));
+                    staff.setStatus(rs.getString("status"));
+                    staff.setManagerId(rs.getObject("manager_id", Integer.class));
+                    staffList.add(staff);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return staffList;
+    }
     
     /**
      * Lấy thông tin nhân viên theo ID

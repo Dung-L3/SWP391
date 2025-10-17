@@ -75,6 +75,28 @@
                             </a>
                         </div>
                     </div>
+
+                    <!-- Filters -->
+                    <div class="card mb-3">
+                      <div class="card-body">
+                        <form class="row g-2" method="get" action="staff-management" id="staffFilterForm">
+                          <div class="col-md-5">
+                            <input type="text" class="form-control" name="q" value="${q}" placeholder="Tìm theo tên, email, số điện thoại" oninput="debouncedSubmit()">
+                          </div>
+                          <div class="col-md-4">
+                            <select class="form-select" name="roleId" onchange="document.getElementById('staffFilterForm').submit()">
+                              <option value="">Tất cả vai trò</option>
+                              <c:forEach var="r" items="${roles}">
+                                <option value="${r.roleId}" ${roleId == r.roleId ? 'selected' : ''}>${r.roleName}</option>
+                              </c:forEach>
+                            </select>
+                          </div>
+                          <div class="col-md-3 d-grid d-none">
+                            <button class="btn btn-outline-primary" type="submit"><i class="fas fa-search"></i> Tìm</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
                     
                     <!-- Alert Messages -->
                     <% 
@@ -204,14 +226,13 @@
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function confirmDeactivate(staffId, userId, staffName) {
-            document.getElementById('deactivateStaffId').value = staffId;
-            document.getElementById('deactivateUserId').value = userId;
-            document.getElementById('staffName').textContent = staffName;
-            
-            var modal = new bootstrap.Modal(document.getElementById('deactivateModal'));
-            modal.show();
-        }
+      let __sfTimer;
+      function debouncedSubmit() {
+        const form = document.getElementById('staffFilterForm');
+        if (!form) return;
+        clearTimeout(__sfTimer);
+        __sfTimer = setTimeout(function(){ form.submit(); }, 350);
+      }
     </script>
 </body>
 </html>
