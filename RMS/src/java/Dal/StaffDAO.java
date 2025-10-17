@@ -385,6 +385,62 @@ public class StaffDAO {
             }
         }
     }
+
+    // Activate staff/user back
+    public boolean activateStaff(int staffId, int userId) {
+        Connection conn = null;
+        PreparedStatement staffStmt = null;
+        PreparedStatement userStmt = null;
+        PreparedStatement auditStmt = null;
+
+        try {
+            conn = DBConnect.getConnection();
+            if (conn == null) return false;
+
+            conn.setAutoCommit(false);
+
+            // 1. Kích hoạt staff
+            String staffSql = "UPDATE staff SET status = 'ACTIVE' WHERE staff_id = ?";
+            staffStmt = conn.prepareStatement(staffSql);
+            staffStmt.setInt(1, staffId);
+            int staffResult = staffStmt.executeUpdate();
+
+            // 2. Kích hoạt user
+            String userSql = "UPDATE users SET account_status = 'ACTIVE' WHERE user_id = ?";
+            userStmt = conn.prepareStatement(userSql);
+            userStmt.setInt(1, userId);
+            int userResult = userStmt.executeUpdate();
+
+            if (staffResult > 0 && userResult > 0) {
+                // 3. Ghi audit log
+                String auditSql = "INSERT INTO audit_log (user_id, action, table_name, record_id, new_values) VALUES (?, ?, ?, ?, ?)";
+                auditStmt = conn.prepareStatement(auditSql);
+                auditStmt.setInt(1, userId);
+                auditStmt.setString(2, "ACTIVATE_STAFF");
+                auditStmt.setString(3, "staff");
+                auditStmt.setInt(4, staffId);
+                auditStmt.setString(5, "{\"action\":\"activate\",\"staff_id\":" + staffId + "}");
+                auditStmt.executeUpdate();
+
+                conn.commit();
+                return true;
+            } else {
+                conn.rollback();
+                return false;
+            }
+        } catch (SQLException e) {
+            try { if (conn != null) conn.rollback(); } catch (SQLException ignored) {}
+            e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (auditStmt != null) auditStmt.close();
+                if (userStmt != null) userStmt.close();
+                if (staffStmt != null) staffStmt.close();
+                if (conn != null) { conn.setAutoCommit(true); conn.close(); }
+            } catch (SQLException ignored) {}
+        }
+    }
     
     /**
      * Lấy danh sách roles

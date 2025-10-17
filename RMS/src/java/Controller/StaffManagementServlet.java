@@ -79,6 +79,9 @@ public class StaffManagementServlet extends HttpServlet {
             case "deactivate":
                 deactivateStaff(request, response);
                 break;
+            case "activate":
+                activateStaff(request, response);
+                break;
             default:
                 showStaffList(request, response);
                 break;
@@ -284,6 +287,37 @@ public class StaffManagementServlet extends HttpServlet {
                 response.sendRedirect("staff-management?error=Failed to deactivate staff");
             }
             
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.sendRedirect("staff-management?error=An error occurred: " + e.getMessage());
+        }
+    }
+
+    private void activateStaff(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        try {
+            int staffId = Integer.parseInt(request.getParameter("staffId"));
+            int userId = Integer.parseInt(request.getParameter("userId"));
+
+            // Kiểm tra quyền: Manager không thể kích hoạt tài khoản Manager khác (giữ nguyên chính sách)
+            HttpSession session = request.getSession(false);
+            if (session != null) {
+                Models.User currentUser = (Models.User) session.getAttribute("user");
+                if (currentUser != null && "Manager".equals(currentUser.getRoleName())) {
+                    Models.Staff targetStaff = staffDAO.getStaffById(staffId);
+                    if (targetStaff != null && "Manager".equals(targetStaff.getPosition())) {
+                        response.sendRedirect("staff-management?error=Cannot activate Manager accounts. Only system administrators can activate Manager accounts.");
+                        return;
+                    }
+                }
+            }
+
+            boolean success = staffDAO.activateStaff(staffId, userId);
+            if (success) {
+                response.sendRedirect("staff-management?success=Staff activated successfully");
+            } else {
+                response.sendRedirect("staff-management?error=Failed to activate staff");
+            }
         } catch (Exception e) {
             e.printStackTrace();
             response.sendRedirect("staff-management?error=An error occurred: " + e.getMessage());

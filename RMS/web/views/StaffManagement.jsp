@@ -137,6 +137,15 @@
                                                 onclick="confirmDeactivate(<%= staff.getStaffId() %>, <%= staff.getUserId() %>, '<%= staff.getFullName() %>')">
                                             <i class="fas fa-user-times"></i> Vô hiệu hóa
                                         </button>
+                                        <% } else if (!staff.isActive()) { %>
+                                        <form method="post" action="staff-management" style="display:inline-block">
+                                            <input type="hidden" name="action" value="activate"/>
+                                            <input type="hidden" name="staffId" value="<%= staff.getStaffId() %>"/>
+                                            <input type="hidden" name="userId" value="<%= staff.getUserId() %>"/>
+                                            <button class="btn btn-sm btn-success">
+                                                <i class="fas fa-user-check"></i> Kích hoạt
+                                            </button>
+                                        </form>
                                         <% } %>
                                     </div>
                                 </div>
