@@ -276,7 +276,7 @@ public class StaffManagementServlet extends HttpServlet {
         
         try {
             int staffId = Integer.parseInt(request.getParameter("staffId"));
-            int userId = Integer.parseInt(request.getParameter("userId"));
+            int userId = Integer.parseInt(request.getParameter("userId")); // target user id
             
             // Kiểm tra quyền: Manager không thể vô hiệu hóa tài khoản Manager khác
             HttpSession session = request.getSession(false);
@@ -294,8 +294,11 @@ public class StaffManagementServlet extends HttpServlet {
                     }
                 }
             }
-            
-            boolean success = staffDAO.deactivateStaff(staffId, userId);
+            int actorUserId = 0;
+            if (session != null && session.getAttribute("user") != null) {
+                actorUserId = ((Models.User) session.getAttribute("user")).getUserId();
+            }
+            boolean success = staffDAO.deactivateStaff(staffId, userId, actorUserId);
             
             if (success) {
                 response.sendRedirect("staff-management?success=Staff deactivated successfully");
@@ -313,7 +316,7 @@ public class StaffManagementServlet extends HttpServlet {
             throws ServletException, IOException {
         try {
             int staffId = Integer.parseInt(request.getParameter("staffId"));
-            int userId = Integer.parseInt(request.getParameter("userId"));
+            int userId = Integer.parseInt(request.getParameter("userId")); // target user id
 
             // Kiểm tra quyền: Manager không thể kích hoạt tài khoản Manager khác (giữ nguyên chính sách)
             HttpSession session = request.getSession(false);
@@ -327,8 +330,11 @@ public class StaffManagementServlet extends HttpServlet {
                     }
                 }
             }
-
-            boolean success = staffDAO.activateStaff(staffId, userId);
+            int actorUserId = 0;
+            if (session != null && session.getAttribute("user") != null) {
+                actorUserId = ((Models.User) session.getAttribute("user")).getUserId();
+            }
+            boolean success = staffDAO.activateStaff(staffId, userId, actorUserId);
             if (success) {
                 response.sendRedirect("staff-management?success=Staff activated successfully");
             } else {

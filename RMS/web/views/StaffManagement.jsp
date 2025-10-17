@@ -233,6 +233,21 @@
         clearTimeout(__sfTimer);
         __sfTimer = setTimeout(function(){ form.submit(); }, 350);
       }
+
+      // Show deactivate confirmation modal and set target ids
+      function confirmDeactivate(staffId, userId, staffName) {
+        var staffIdInput = document.getElementById('deactivateStaffId');
+        var userIdInput = document.getElementById('deactivateUserId');
+        var nameSpan = document.getElementById('staffName');
+        if (staffIdInput) staffIdInput.value = staffId;
+        if (userIdInput) userIdInput.value = userId;
+        if (nameSpan) nameSpan.textContent = staffName || '';
+        var modalEl = document.getElementById('deactivateModal');
+        if (modalEl && window.bootstrap && bootstrap.Modal) {
+          var modal = new bootstrap.Modal(modalEl);
+          modal.show();
+        }
+      }
     </script>
 </body>
 </html>

@@ -367,7 +367,7 @@ public class StaffDAO {
     /**
      * Vô hiệu hóa nhân viên (Deactivate)
      */
-    public boolean deactivateStaff(int staffId, int userId) {
+    public boolean deactivateStaff(int staffId, int targetUserId, int actorUserId) {
         Connection conn = null;
         PreparedStatement staffStmt = null;
         PreparedStatement userStmt = null;
@@ -391,24 +391,24 @@ public class StaffDAO {
             // 2. Vô hiệu hóa user account
             String userSql = "UPDATE users SET account_status = 'DISABLED' WHERE user_id = ?";
             userStmt = conn.prepareStatement(userSql);
-            userStmt.setInt(1, userId);
+            userStmt.setInt(1, targetUserId);
             int userResult = userStmt.executeUpdate();
             
             // 3. Revoke tất cả sessions
             String sessionSql = "UPDATE sessions SET status = 'REVOKED' WHERE user_id = ? AND status = 'ACTIVE'";
             sessionStmt = conn.prepareStatement(sessionSql);
-            sessionStmt.setInt(1, userId);
+            sessionStmt.setInt(1, targetUserId);
             sessionStmt.executeUpdate();
             
             if (staffResult > 0 && userResult > 0) {
                 // 4. Ghi audit log
                 String auditSql = "INSERT INTO audit_log (user_id, action, table_name, record_id, new_values) VALUES (?, ?, ?, ?, ?)";
                 auditStmt = conn.prepareStatement(auditSql);
-                auditStmt.setInt(1, userId);
+                auditStmt.setInt(1, actorUserId);
                 auditStmt.setString(2, "DEACTIVATE_STAFF");
                 auditStmt.setString(3, "staff");
                 auditStmt.setInt(4, staffId);
-                auditStmt.setString(5, "{\"action\":\"deactivate\",\"staff_id\":" + staffId + "}");
+                auditStmt.setString(5, "{\"action\":\"deactivate\",\"staff_id\":" + staffId + ",\"target_user_id\":" + targetUserId + "}");
                 
                 auditStmt.executeUpdate();
                 
@@ -446,7 +446,7 @@ public class StaffDAO {
     }
 
     // Activate staff/user back
-    public boolean activateStaff(int staffId, int userId) {
+    public boolean activateStaff(int staffId, int targetUserId, int actorUserId) {
         Connection conn = null;
         PreparedStatement staffStmt = null;
         PreparedStatement userStmt = null;
@@ -467,18 +467,18 @@ public class StaffDAO {
             // 2. Kích hoạt user
             String userSql = "UPDATE users SET account_status = 'ACTIVE' WHERE user_id = ?";
             userStmt = conn.prepareStatement(userSql);
-            userStmt.setInt(1, userId);
+            userStmt.setInt(1, targetUserId);
             int userResult = userStmt.executeUpdate();
 
             if (staffResult > 0 && userResult > 0) {
                 // 3. Ghi audit log
                 String auditSql = "INSERT INTO audit_log (user_id, action, table_name, record_id, new_values) VALUES (?, ?, ?, ?, ?)";
                 auditStmt = conn.prepareStatement(auditSql);
-                auditStmt.setInt(1, userId);
+                auditStmt.setInt(1, actorUserId);
                 auditStmt.setString(2, "ACTIVATE_STAFF");
                 auditStmt.setString(3, "staff");
                 auditStmt.setInt(4, staffId);
-                auditStmt.setString(5, "{\"action\":\"activate\",\"staff_id\":" + staffId + "}");
+                auditStmt.setString(5, "{\"action\":\"activate\",\"staff_id\":" + staffId + ",\"target_user_id\":" + targetUserId + "}");
                 auditStmt.executeUpdate();
 
                 conn.commit();

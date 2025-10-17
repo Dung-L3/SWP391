@@ -16,7 +16,9 @@ public class AuditLogDAO {
         public String newValues;
         public Timestamp timestamp;
         public String ipAddress;
-        public String username; // joined username
+        public String username; // actor username (who did the action)
+        public Integer targetUserId; // parsed from JSON new_values.target_user_id
+        public String targetUsername; // looked up from users
 
         // Bean getters for JSP EL
         public long getLogId() { return logId; }
@@ -29,6 +31,8 @@ public class AuditLogDAO {
         public Timestamp getTimestamp() { return timestamp; }
         public String getIpAddress() { return ipAddress; }
         public String getUsername() { return username; }
+        public Integer getTargetUserId() { return targetUserId; }
+        public String getTargetUsername() { return targetUsername; }
     }
 
     public List<AuditLogItem> list(String keyword, String action, String tableName,
@@ -36,10 +40,15 @@ public class AuditLogDAO {
         List<AuditLogItem> result = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT TOP (" + limit + ") ");
-        sql.append(" al.log_id, al.user_id, al.action, al.table_name, al.record_id, al.old_values, al.new_values, al.timestamp, al.ip_address, u.username ");
-        sql.append("FROM audit_log al LEFT JOIN users u ON u.user_id = al.user_id WHERE 1=1 ");
+        sql.append(" al.log_id, al.user_id, al.action, al.table_name, al.record_id, al.old_values, al.new_values, al.timestamp, al.ip_address, ");
+        sql.append(" u.username, ");
+        sql.append(" TRY_CAST(JSON_VALUE(al.new_values,'$.target_user_id') AS int) AS target_user_id, tu.username AS target_username ");
+        sql.append("FROM audit_log al ");
+        sql.append("LEFT JOIN users u ON u.user_id = al.user_id ");
+        sql.append("LEFT JOIN users tu ON tu.user_id = TRY_CAST(JSON_VALUE(al.new_values,'$.target_user_id') AS int) ");
+        sql.append("WHERE 1=1 ");
         if (keyword != null && !keyword.trim().isEmpty()) {
-            sql.append(" AND (al.action LIKE ? OR al.table_name LIKE ? OR u.username LIKE ?) ");
+            sql.append(" AND (al.action LIKE ? OR al.table_name LIKE ? OR u.username LIKE ? OR tu.username LIKE ?) ");
         }
         if (action != null && !action.trim().isEmpty()) {
             sql.append(" AND al.action = ? ");
@@ -60,6 +69,7 @@ public class AuditLogDAO {
             int idx = 1;
             if (keyword != null && !keyword.trim().isEmpty()) {
                 String kw = "%" + keyword.trim() + "%";
+                ps.setString(idx++, kw);
                 ps.setString(idx++, kw);
                 ps.setString(idx++, kw);
                 ps.setString(idx++, kw);
@@ -90,6 +100,8 @@ public class AuditLogDAO {
                     it.timestamp = rs.getTimestamp("timestamp");
                     it.ipAddress = rs.getString("ip_address");
                     it.username = rs.getString("username");
+                    it.targetUserId = (Integer) rs.getObject("target_user_id");
+                    it.targetUsername = rs.getString("target_username");
                     result.add(it);
                 }
             }
@@ -100,9 +112,9 @@ public class AuditLogDAO {
     }
 
     public int count(String keyword, String action, String tableName, Timestamp from, Timestamp to) {
-        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM audit_log al LEFT JOIN users u ON u.user_id = al.user_id WHERE 1=1 ");
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM audit_log al LEFT JOIN users u ON u.user_id = al.user_id LEFT JOIN users tu ON tu.user_id = TRY_CAST(JSON_VALUE(al.new_values,'$.target_user_id') AS int) WHERE 1=1 ");
         if (keyword != null && !keyword.trim().isEmpty()) {
-            sql.append(" AND (al.action LIKE ? OR al.table_name LIKE ? OR u.username LIKE ?) ");
+            sql.append(" AND (al.action LIKE ? OR al.table_name LIKE ? OR u.username LIKE ? OR tu.username LIKE ?) ");
         }
         if (action != null && !action.trim().isEmpty()) {
             sql.append(" AND al.action = ? ");
@@ -121,6 +133,7 @@ public class AuditLogDAO {
             int idx = 1;
             if (keyword != null && !keyword.trim().isEmpty()) {
                 String kw = "%" + keyword.trim() + "%";
+                ps.setString(idx++, kw);
                 ps.setString(idx++, kw);
                 ps.setString(idx++, kw);
                 ps.setString(idx++, kw);
