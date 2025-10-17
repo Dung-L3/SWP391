@@ -66,6 +66,7 @@
       <li><a class="${page == 'shifts' ? 'active' : ''}" href="<c:url value='/shifts'/>"><i class="bi bi-clock-history"></i>Phân ca</a></li>
       <li><a class="${page == 'inventory' ? 'active' : ''}" href="<c:url value='/inventory'/>"><i class="bi bi-box-seam"></i>Kho hàng</a></li>
       <li><a class="${page == 'reports' ? 'active' : ''}" href="<c:url value='/reports'/>"><i class="bi bi-graph-up"></i>Báo cáo</a></li>
+      <li><a class="${page == 'audit' ? 'active' : ''}" href="<c:url value='/audit-log'/>"><i class="bi bi-clipboard-data"></i>Nhật ký hệ thống</a></li>
       <li><a class="${page == 'settings' ? 'active' : ''}" href="<c:url value='/settings'/>"><i class="bi bi-gear"></i>Cấu hình</a></li>
     </c:if>
 
@@ -97,7 +98,7 @@
         <c:when test="${not empty staffList}">
           <c:forEach var="s" items="${staffList}">
             <div class="staff-item">
-              <img src="<c:url value='/img/default-avatar.jpg'/>" alt="avatar">
+              <img src="<c:url value='/img/team-1.jpg'/>" alt="avatar">
               <div class="flex-grow-1">
                 <div class="d-flex align-items-center gap-2">
                   <span class="text-white fw-semibold">${s.firstName} ${s.lastName}</span>

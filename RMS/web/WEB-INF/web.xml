@@ -57,4 +57,14 @@
         <url-pattern>/dashboard</url-pattern>
     </servlet-mapping>
 
+    <servlet>
+        <servlet-name>AuditLogServlet</servlet-name>
+        <servlet-class>Controller.AuditLogServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>AuditLogServlet</servlet-name>
+        <url-pattern>/audit-log</url-pattern>
+    </servlet-mapping>
+
 </web-app>
