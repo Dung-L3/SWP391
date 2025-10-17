@@ -27,6 +27,16 @@ public class LoginServlet extends HttpServlet {
         }
 
         UserDAO dao = new UserDAO();
+
+        // 1) Kiểm tra trạng thái tài khoản trước
+        Models.User authInfo = dao.getAuthInfo(username);
+        if (authInfo != null && "DISABLED".equalsIgnoreCase(authInfo.getAccountStatus())) {
+            request.setAttribute("loginError", "Tài khoản của bạn đã bị vô hiệu hóa");
+            request.getRequestDispatcher("/auth/Login.jsp").forward(request, response);
+            return;
+        }
+
+        // 2) Thực hiện đăng nhập chuẩn (chỉ với tài khoản ACTIVE)
         User user = dao.loginWithPassword(username, password);
 
         if (user != null) {

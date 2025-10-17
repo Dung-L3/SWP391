@@ -105,6 +105,34 @@ public class UserDAO {
         return null;
     }
 
+    // Lấy thông tin xác thực (password_hash, account_status) cho username/email (không lọc theo status)
+    public User getAuthInfo(String usernameOrEmail) {
+        final String sql = """
+            SELECT u.user_id, u.username, u.email, u.password_hash, u.account_status
+            FROM dbo.users u
+            WHERE (u.username = ? OR u.email = ?)
+        """;
+        try (Connection con = DBConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, usernameOrEmail);
+            ps.setString(2, usernameOrEmail);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    User u = new User();
+                    u.setUserId(rs.getInt("user_id"));
+                    u.setUsername(rs.getString("username"));
+                    u.setEmail(rs.getString("email"));
+                    u.setPasswordHash(rs.getString("password_hash"));
+                    u.setAccountStatus(rs.getString("account_status"));
+                    return u;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     /** Lấy user theo id (kèm role + avatar). */
     public User getByIdWithRole(int userId) {
         final String sql = """
