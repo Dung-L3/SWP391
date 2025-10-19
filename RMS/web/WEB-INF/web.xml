@@ -8,4 +8,93 @@
         <welcome-file>common/Homepage.jsp</welcome-file>
     </welcome-file-list>
 
+    <!-- Staff Management Servlet -->
+    <servlet>
+        <servlet-name>StaffManagementServlet</servlet-name>
+        <servlet-class>Controller.StaffManagementServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>StaffManagementServlet</servlet-name>
+        <url-pattern>/staff-management</url-pattern>
+    </servlet-mapping>
+
+    <!-- Home Servlet -->
+    <servlet>
+        <servlet-name>HomeServlet</servlet-name>
+        <servlet-class>Controller.auth.HomeServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>HomeServlet</servlet-name>
+        <url-pattern>/home</url-pattern>
+    </servlet-mapping>
+
+    <!-- Login Servlet -->
+    <servlet>
+        <servlet-name>LoginServlet</servlet-name>
+        <servlet-class>Controller.auth.LoginServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>LoginServlet</servlet-name>
+        <url-pattern>/LoginServlet</url-pattern>
+    </servlet-mapping>
+
+    <!-- Admin Dashboard Servlet -->
+    <servlet>
+        <servlet-name>AdminServlet</servlet-name>
+        <servlet-class>Controller.AdminServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>AdminServlet</servlet-name>
+        <url-pattern>/admin</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>AdminServlet</servlet-name>
+        <url-pattern>/dashboard</url-pattern>
+    </servlet-mapping>
+
+    <!-- Menu Management Servlet -->
+    <servlet>
+        <servlet-name>MenuManagementServlet</servlet-name>
+        <servlet-class>Controller.MenuManagementServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>MenuManagementServlet</servlet-name>
+        <url-pattern>/menu-management</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>MenuManagementServlet</servlet-name>
+        <url-pattern>/menu</url-pattern>
+    </servlet-mapping>
+    <context-param>
+        <param-name>smtp.host</param-name>
+        <param-value>smtp.gmail.com</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>smtp.port</param-name>
+        <param-value>587</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>smtp.username</param-name>
+        <param-value>G3Hospitalgroup6@gmail.com</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>smtp.password</param-name>
+        <param-value>zwlv ppud mzeo pwuy</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>smtp.from</param-name>
+        <param-value>Restoran Support &lt;G3Hospitalgroup6@gmail.com&gt;</param-value>
+    </context-param>
+
 </web-app>
