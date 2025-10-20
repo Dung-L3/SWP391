@@ -94,19 +94,10 @@
                     <c:when test="${empty errorMessage && not empty reservation}">
                         <h1><i class="fas fa-check-circle me-2"></i>Đặt bàn thành công!</h1>
                         <p class="lead">Cảm ơn bạn đã tin tưởng nhà hàng của chúng tôi</p>
-                        <div class="mt-4">
-                            <p class="mb-0">Mã đặt bàn của bạn</p>
-                            <h2 class="confirmation-code">${confirmationCode}</h2>
-                            <p class="text-white-50">Vui lòng lưu lại mã này để tra cứu hoặc chỉnh sửa đặt bàn</p>
-                        </div>
                     </c:when>
                     <c:otherwise>
                         <h1><i class="fas fa-exclamation-circle me-2"></i>Đặt bàn không thành công!</h1>
                         <p class="lead">Vui lòng kiểm tra lại thông tin và thử lại</p>
-                        <a href="${pageContext.request.contextPath}/views/guest/booking.jsp" 
-                           class="btn btn-light mt-3">
-                            <i class="fas fa-redo me-2"></i>Thử lại
-                        </a>
                     </c:otherwise>
                 </c:choose>
             </div>

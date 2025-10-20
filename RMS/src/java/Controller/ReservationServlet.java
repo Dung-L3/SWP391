@@ -14,52 +14,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.UUID;
 import java.util.List;
 import java.util.stream.Collectors;
-import jakarta.servlet.http.HttpSession;
 
 @WebServlet(name = "ReservationServlet", urlPatterns = {"/reservation/*"})
 public class ReservationServlet extends HttpServlet {
-    
-    private void handleSelectTable(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        try {
-            // Lấy và validate thông tin từ form
-            String customerName = request.getParameter("customer_name");
-            String phone = request.getParameter("phone");
-            String email = request.getParameter("email");
-            String partySize = request.getParameter("party_size");
-            String reservationDate = request.getParameter("reservation_date");
-            String reservationTime = request.getParameter("reservation_time");
-            String specialRequests = request.getParameter("special_requests");
-            
-            // Validate các trường bắt buộc
-            if (customerName == null || customerName.trim().isEmpty() ||
-                phone == null || !phone.matches("[0-9]{10}") ||
-                partySize == null || reservationDate == null || reservationTime == null) {
-                request.setAttribute("errorMessage", "Vui lòng điền đầy đủ thông tin bắt buộc");
-                request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
-                return;
-            }
-
-            // Lưu thông tin vào session
-            HttpSession session = request.getSession();
-            session.setAttribute("bookingInProgress", true);
-            session.setAttribute("customerName", customerName);
-            session.setAttribute("phone", phone);
-            session.setAttribute("email", email);
-            session.setAttribute("partySize", partySize);
-            session.setAttribute("reservationDate", reservationDate);
-            session.setAttribute("reservationTime", reservationTime);
-            session.setAttribute("specialRequests", specialRequests);
-            
-            // Chuyển hướng đến trang chọn bàn
-            response.sendRedirect(request.getContextPath() + "/table-layout");
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
-            request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
-        }
-    }
     
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -67,9 +24,6 @@ public class ReservationServlet extends HttpServlet {
         
         try {
             switch (pathInfo) {
-                case "/select-table":
-                    handleSelectTable(request, response);
-                    break;
                 case "/create":
                     handleCreateReservation(request, response);
                     break;
@@ -321,7 +275,7 @@ public class ReservationServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/my-reservations");
         }
     }
-    
+   
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
