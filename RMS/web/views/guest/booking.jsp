@@ -25,6 +25,9 @@
         <!-- Template Styles -->
         <link href="${pageContext.request.contextPath}/css/bootstrap.min.css" rel="stylesheet">
         <link href="${pageContext.request.contextPath}/css/style.css" rel="stylesheet">
+        
+        <!-- Booking Validation JavaScript -->
+        <script src="${pageContext.request.contextPath}/js/booking-validation.js"></script>
 
         <!-- Custom Date Picker Style -->
         <style>
@@ -133,7 +136,7 @@
                                 </div>
                             </c:if>
 
-                            <form action="${pageContext.request.contextPath}/reservation/create" method="POST">
+                            <form action="${pageContext.request.contextPath}/reservation/select-table" method="POST">
                                 <!-- Thông tin khách hàng -->
                                 <h5 class="mb-4"><i class="fas fa-user me-2"></i>Thông tin khách hàng</h5>
                                 <div class="row">
