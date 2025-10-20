@@ -322,75 +322,12 @@ public class MenuManagementServlet extends HttpServlet {
             return;
         }
 
-        // Validate name length
-        if (name.trim().length() < 3) {
-            request.setAttribute("errorMessage", "Tên món ăn phải có ít nhất 3 ký tự.");
-            handleCreateForm(request, response);
-            return;
-        }
-        
-        if (name.trim().length() > 100) {
-            request.setAttribute("errorMessage", "Tên món ăn không được vượt quá 100 ký tự.");
-            handleCreateForm(request, response);
-            return;
-        }
-
-        // Validate description length
-        if (description != null && description.trim().length() > 500) {
-            request.setAttribute("errorMessage", "Mô tả không được vượt quá 500 ký tự.");
-            handleCreateForm(request, response);
-            return;
-        }
-
         try {
             // Parse data
             BigDecimal basePrice = new BigDecimal(priceParam);
             int categoryId = Integer.parseInt(categoryIdParam);
-            int preparationTime = Integer.parseInt(prepTimeParam != null && !prepTimeParam.trim().isEmpty() ? prepTimeParam : "0");
+            int preparationTime = Integer.parseInt(prepTimeParam != null ? prepTimeParam : "0");
             boolean isActive = "on".equals(activeParam) || "true".equals(activeParam);
-
-            // Validate price
-            if (basePrice.compareTo(BigDecimal.ZERO) <= 0) {
-                request.setAttribute("errorMessage", "Giá món ăn phải lớn hơn 0.");
-                handleCreateForm(request, response);
-                return;
-            }
-
-            if (basePrice.compareTo(new BigDecimal("10000000")) > 0) {
-                request.setAttribute("errorMessage", "Giá món ăn không được vượt quá 10,000,000 VNĐ.");
-                handleCreateForm(request, response);
-                return;
-            }
-
-            // Validate category exists
-            if (categoryId < 1 || categoryId > 5) {
-                request.setAttribute("errorMessage", "Danh mục không hợp lệ.");
-                handleCreateForm(request, response);
-                return;
-            }
-
-            // Validate preparation time
-            if (preparationTime < 0) {
-                request.setAttribute("errorMessage", "Thời gian chuẩn bị không được âm.");
-                handleCreateForm(request, response);
-                return;
-            }
-
-            if (preparationTime > 300) {
-                request.setAttribute("errorMessage", "Thời gian chuẩn bị không được vượt quá 300 phút.");
-                handleCreateForm(request, response);
-                return;
-            }
-
-            // Validate image URL format (if provided)
-            if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-                String urlLower = imageUrl.trim().toLowerCase();
-                if (!urlLower.startsWith("http://") && !urlLower.startsWith("https://")) {
-                    request.setAttribute("errorMessage", "URL hình ảnh phải bắt đầu với http:// hoặc https://");
-                    handleCreateForm(request, response);
-                    return;
-                }
-            }
 
             // Create menu item
             MenuItem item = new MenuItem();
@@ -460,84 +397,13 @@ public class MenuManagementServlet extends HttpServlet {
             return;
         }
 
-        // Validate name length
-        if (name.trim().length() < 3) {
-            request.setAttribute("errorMessage", "Tên món ăn phải có ít nhất 3 ký tự.");
-            handleEditForm(request, response);
-            return;
-        }
-        
-        if (name.trim().length() > 100) {
-            request.setAttribute("errorMessage", "Tên món ăn không được vượt quá 100 ký tự.");
-            handleEditForm(request, response);
-            return;
-        }
-
-        // Validate description length
-        if (description != null && description.trim().length() > 500) {
-            request.setAttribute("errorMessage", "Mô tả không được vượt quá 500 ký tự.");
-            handleEditForm(request, response);
-            return;
-        }
-
         try {
             // Parse data
             int itemId = Integer.parseInt(itemIdParam);
             BigDecimal basePrice = new BigDecimal(priceParam);
             int categoryId = Integer.parseInt(categoryIdParam);
-            int preparationTime = Integer.parseInt(prepTimeParam != null && !prepTimeParam.trim().isEmpty() ? prepTimeParam : "0");
+            int preparationTime = Integer.parseInt(prepTimeParam != null ? prepTimeParam : "0");
             boolean isActive = "on".equals(activeParam) || "true".equals(activeParam);
-
-            // Validate price
-            if (basePrice.compareTo(BigDecimal.ZERO) <= 0) {
-                request.setAttribute("errorMessage", "Giá món ăn phải lớn hơn 0.");
-                handleEditForm(request, response);
-                return;
-            }
-
-            if (basePrice.compareTo(new BigDecimal("10000000")) > 0) {
-                request.setAttribute("errorMessage", "Giá món ăn không được vượt quá 10,000,000 VNĐ.");
-                handleEditForm(request, response);
-                return;
-            }
-
-            // Validate category exists
-            if (categoryId < 1 || categoryId > 5) {
-                request.setAttribute("errorMessage", "Danh mục không hợp lệ.");
-                handleEditForm(request, response);
-                return;
-            }
-
-            // Validate preparation time
-            if (preparationTime < 0) {
-                request.setAttribute("errorMessage", "Thời gian chuẩn bị không được âm.");
-                handleEditForm(request, response);
-                return;
-            }
-
-            if (preparationTime > 300) {
-                request.setAttribute("errorMessage", "Thời gian chuẩn bị không được vượt quá 300 phút.");
-                handleEditForm(request, response);
-                return;
-            }
-
-            // Validate image URL format (if provided)
-            if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-                String urlLower = imageUrl.trim().toLowerCase();
-                if (!urlLower.startsWith("http://") && !urlLower.startsWith("https://")) {
-                    request.setAttribute("errorMessage", "URL hình ảnh phải bắt đầu với http:// hoặc https://");
-                    handleEditForm(request, response);
-                    return;
-                }
-            }
-
-            // Verify item exists before updating
-            MenuItem existingItem = menuDAO.getMenuItemById(itemId);
-            if (existingItem == null) {
-                request.setAttribute("errorMessage", "Món ăn không tồn tại.");
-                handleListItems(request, response);
-                return;
-            }
 
             // Create menu item
             MenuItem item = new MenuItem();

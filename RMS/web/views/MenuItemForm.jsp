@@ -191,8 +191,6 @@
                                        name="name" 
                                        value="${menuItem.name}" 
                                        ${viewMode == 'view' ? 'readonly' : ''} 
-                                       minlength="3"
-                                       maxlength="100"
                                        required>
                             </div>
                             
@@ -203,7 +201,6 @@
                                 <textarea class="form-control ${viewMode == 'view' ? 'readonly-field' : ''}" 
                                           name="description" 
                                           rows="4" 
-                                          maxlength="500"
                                           ${viewMode == 'view' ? 'readonly' : ''}>${menuItem.description}</textarea>
                             </div>
                             
@@ -237,8 +234,7 @@
                                                class="form-control ${viewMode == 'view' ? 'readonly-field' : ''}" 
                                                name="basePrice" 
                                                value="${menuItem.basePrice}" 
-                                               min="1000" 
-                                               max="10000000"
+                                               min="0" 
                                                step="1000" 
                                                ${viewMode == 'view' ? 'readonly' : ''} 
                                                required>
@@ -256,8 +252,7 @@
                                                class="form-control ${viewMode == 'view' ? 'readonly-field' : ''}" 
                                                name="preparationTime" 
                                                value="${menuItem.preparationTime}" 
-                                               min="0" 
-                                               max="300"
+                                               min="1" 
                                                ${viewMode == 'view' ? 'readonly' : ''}>
                                     </div>
                                 </div>
@@ -283,13 +278,12 @@
                                     <label class="form-label">
                                         <i class="bi bi-image text-primary me-1"></i> Hình ảnh (URL)
                                     </label>
-                                    <input type="url" 
+                                    <input type="text" 
                                            class="form-control" 
                                            name="imageUrl"
                                            value="${menuItem.imageUrl}"
-                                           pattern="https?://.+"
                                            placeholder="https://example.com/image.jpg">
-                                    <small class="text-muted">Nhập URL hình ảnh món ăn (bắt đầu với http:// hoặc https://)</small>
+                                    <small class="text-muted">Nhập URL hình ảnh món ăn</small>
                                 </div>
                             </c:if>
                         </div>
