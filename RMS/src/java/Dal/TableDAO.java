@@ -3,22 +3,21 @@ package Dal;
 import Models.DiningTable;
 import Models.TableArea;
 import Models.TableSession;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import Models.Table;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * @author donny
- */
-public class TableDAO {
 
+public class TableDAO {
+    public TableDAO() {
+        // Default constructor.
+    }
+
+    // ==== Chức năng quản lý khu vực ====
     /**
-     * Lấy danh sách tất cả khu vực
+     * Lấy danh sách tất cả khu vực (List all table areas)
      */
     public List<TableArea> getAllAreas() {
         final String sql = """
@@ -46,10 +45,12 @@ public class TableDAO {
         return areas;
     }
 
+    // ==== Chức năng quản lý bàn DiningTable nâng cao (có session) ====
+
     /**
-     * Lấy danh sách bàn theo khu vực
+     * Lấy danh sách bàn theo khu vực có thông tin session (DiningTable full info for area).
      */
-    public List<DiningTable> getTablesByArea(Integer areaId) {
+    public List<DiningTable> getDiningTablesByArea(Integer areaId) {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT ");
         sql.append("  dt.table_id, dt.area_id, dt.table_number, dt.capacity, ");
@@ -62,11 +63,11 @@ public class TableDAO {
         sql.append("LEFT JOIN table_area ta ON ta.area_id = dt.area_id ");
         sql.append("LEFT JOIN table_session ts ON ts.table_id = dt.table_id AND ts.status = 'OPEN' ");
         sql.append("WHERE 1=1 ");
-        
+
         if (areaId != null) {
             sql.append("AND dt.area_id = ? ");
         }
-        
+
         sql.append("ORDER BY ta.sort_order, dt.table_number");
 
         List<DiningTable> tables = new ArrayList<>();
@@ -90,18 +91,15 @@ public class TableDAO {
                     table.setMapX(rs.getInt("map_x"));
                     table.setMapY(rs.getInt("map_y"));
                     table.setCreatedBy(rs.getInt("created_by"));
-                    
-                    // Thông tin khu vực
+                    // Area info
                     table.setAreaName(rs.getString("area_name"));
-                    
-                    // Thông tin session
+                    // Session info
                     if (rs.getLong("table_session_id") > 0) {
                         table.setCurrentSessionId(rs.getLong("table_session_id"));
                         table.setSessionStatus(rs.getString("session_status"));
-                        table.setSessionOpenTime(rs.getTimestamp("open_time").toLocalDateTime());
+                        table.setSessionOpenTime(rs.getTimestamp("open_time") != null ? rs.getTimestamp("open_time").toLocalDateTime() : null);
                         table.setCurrentOrderId(rs.getLong("current_order_id"));
                     }
-                    
                     tables.add(table);
                 }
             }
@@ -113,9 +111,9 @@ public class TableDAO {
     }
 
     /**
-     * Lấy thông tin bàn theo ID
+     * Lấy thông tin bàn kiểu DiningTable theo ID (bao gồm areaName)
      */
-    public DiningTable getTableById(int tableId) {
+    public DiningTable getDiningTableById(int tableId) {
         final String sql = """
             SELECT dt.table_id, dt.area_id, dt.table_number, dt.capacity,
                    dt.location, dt.status, dt.table_type, dt.map_x, dt.map_y,
@@ -154,6 +152,8 @@ public class TableDAO {
         return null;
     }
 
+    // ==== Chức năng quản lý table_session ====
+
     /**
      * Mở phiên bàn (seat customers)
      */
@@ -168,7 +168,7 @@ public class TableDAO {
                 INSERT INTO table_session (table_id, open_time, status)
                 VALUES (?, SYSDATETIME(), 'OPEN')
             """;
-            
+
             try (PreparedStatement ps = con.prepareStatement(insertSessionSql)) {
                 ps.setInt(1, tableId);
                 ps.executeUpdate();
@@ -180,7 +180,7 @@ public class TableDAO {
                 SET status = 'SEATED'
                 WHERE table_id = ?
             """;
-            
+
             try (PreparedStatement ps = con.prepareStatement(updateTableSql)) {
                 ps.setInt(1, tableId);
                 ps.executeUpdate();
@@ -221,7 +221,7 @@ public class TableDAO {
                 SET status = 'CLOSED', close_time = SYSDATETIME()
                 WHERE table_id = ? AND status = 'OPEN'
             """;
-            
+
             try (PreparedStatement ps = con.prepareStatement(closeSessionSql)) {
                 ps.setInt(1, tableId);
                 ps.executeUpdate();
@@ -233,7 +233,7 @@ public class TableDAO {
                 SET status = 'CLEANING'
                 WHERE table_id = ?
             """;
-            
+
             try (PreparedStatement ps = con.prepareStatement(updateTableSql)) {
                 ps.setInt(1, tableId);
                 ps.executeUpdate();
@@ -323,6 +323,220 @@ public class TableDAO {
         }
         return null;
     }
+
+    // ==== Các method TableDAO cơ bản cho dự án tổng (Table - không chứa info sessions/areaName) ====
+
+    public List<Table> getAllTables() {
+        List<Table> tables = new ArrayList<>();
+        String sql = "SELECT * FROM dining_table ORDER BY table_number";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                Table table = mapResultSetToTable(rs);
+                tables.add(table);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting all tables: " + e.getMessage());
+        }
+
+        return tables;
+    }
+
+    public List<Table> getTablesByArea(int areaId) {
+        List<Table> tables = new ArrayList<>();
+        String sql = "SELECT * FROM dining_table WHERE area_id = ? ORDER BY table_number";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, areaId);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Table table = mapResultSetToTable(rs);
+                tables.add(table);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting tables by area: " + e.getMessage());
+        }
+
+        return tables;
+    }
+
+    public List<Table> getVacantTables() {
+        List<Table> tables = new ArrayList<>();
+        String sql = "SELECT * FROM dining_table WHERE status = ? ORDER BY area_id, table_number";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, Table.STATUS_VACANT);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Table table = mapResultSetToTable(rs);
+                tables.add(table);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting vacant tables: " + e.getMessage());
+        }
+
+        return tables;
+    }
+
+    public Table getTableByNumber(String tableNumber) throws SQLException {
+        String sql = "SELECT * FROM dining_table WHERE table_number = ?";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, tableNumber);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return mapResultSetToTable(rs);
+            } else {
+                System.out.println("Table not found: " + tableNumber);
+                return null;
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting table by number: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public List<Table> getTablesByType(String tableType) {
+        List<Table> tables = new ArrayList<>();
+        String sql = "SELECT * FROM dining_table WHERE table_type = ? ORDER BY area_id, table_number";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, tableType);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Table table = mapResultSetToTable(rs);
+                tables.add(table);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting tables by type: " + e.getMessage());
+        }
+
+        return tables;
+    }
+
+    public boolean updateTableStatus(String tableNumber, String newStatus) throws SQLException {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        boolean success = false;
+
+        try {
+            conn = DBConnect.getConnection();
+            conn.setAutoCommit(false);
+
+            // First check if the table is still in expected state
+            String checkSql = "SELECT status FROM dining_table WITH (UPDLOCK) WHERE table_number = ?";
+            ps = conn.prepareStatement(checkSql);
+            ps.setString(1, tableNumber);
+
+            ResultSet rs = ps.executeQuery();
+            if (!rs.next()) {
+                throw new SQLException("Table not found: " + tableNumber);
+            }
+
+            String currentStatus = rs.getString("status");
+            // If the table already has the desired status, treat as success (idempotent)
+            if (currentStatus != null && currentStatus.equals(newStatus)) {
+                conn.commit();
+                System.out.println("Table " + tableNumber + " already in status " + newStatus);
+                return true;
+            }
+            // If requesting to set to RESERVED/HELD, allow only when current status is VACANT or HELD
+            if (newStatus.equals(Table.STATUS_RESERVED) && !Table.STATUS_VACANT.equals(currentStatus) && !Table.STATUS_RESERVED.equals(currentStatus)) {
+                throw new SQLException("Table " + tableNumber + " is not available (current status: " + currentStatus + ")");
+            }
+
+            // Then update the status
+            String updateSql = "UPDATE dining_table SET status = ? WHERE table_number = ?";
+            ps = conn.prepareStatement(updateSql);
+            ps.setString(1, newStatus);
+            ps.setString(2, tableNumber);
+
+            success = ps.executeUpdate() > 0;
+
+            if (success) {
+                conn.commit();
+                System.out.println("Successfully updated table " + tableNumber + " status to " + newStatus);
+            } else {
+                conn.rollback();
+                System.out.println("Failed to update table " + tableNumber + " status");
+            }
+
+            return success;
+
+        } catch (SQLException e) {
+            System.out.println("Error updating table status: " + e.getMessage());
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    System.out.println("Error during rollback: " + ex.getMessage());
+                }
+            }
+            throw e;
+
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    System.out.println("Error resetting connection state: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Lấy thông tin bàn đơn giản kiểu Table theo ID (cho các nơi không cần areaName/session)
+     */
+    public Table getTableById(int tableId) throws SQLException {
+        String sql = "SELECT * FROM dining_table WHERE table_id = ?";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, tableId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return mapResultSetToTable(rs);
+            } else {
+                System.out.println("Table not found with ID: " + tableId);
+                return null;
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting table by ID: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    private Table mapResultSetToTable(ResultSet rs) throws SQLException {
+        Table table = new Table();
+        table.setTableId(rs.getInt("table_id"));
+        table.setTableNumber(rs.getString("table_number"));
+        table.setCapacity(rs.getInt("capacity"));
+        table.setTableType(rs.getString("table_type"));
+        table.setAreaId(rs.getInt("area_id"));
+        table.setStatus(rs.getString("status"));
+        table.setLocation(rs.getString("location"));
+        table.setMapX(rs.getInt("map_x"));
+        table.setMapY(rs.getInt("map_y"));
+        table.setCreatedBy(rs.getInt("created_by"));
+        return table;
+    }
 }
-
-

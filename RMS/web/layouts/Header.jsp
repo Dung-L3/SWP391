@@ -22,7 +22,7 @@
 
     <!-- Brand -->
     <a href="<c:url value='/'/>" class="navbar-brand p-0">
-      <h1 class="text-primary m-0"><i class="fa fa-utensils me-3"></i>Restoran</h1>
+      <h1 class="text-primary m-0"><i class="fa fa-utensils me-3"></i>RMSG4</h1>
     </a>
 
     <!-- Toggler -->
@@ -33,31 +33,31 @@
     <!-- Nav links -->
     <div class="collapse navbar-collapse" id="navbarCollapse">
       <div class="navbar-nav ms-auto py-0 pe-4">
-        <a href="<c:url value='/'/>" class="nav-item nav-link ${page=='home' ? 'active' : ''}">Home</a>
-        <a href="<c:url value='/about.jsp'/>" class="nav-item nav-link ${page=='about' ? 'active' : ''}">About</a>
-        <a href="<c:url value='/service.jsp'/>" class="nav-item nav-link ${page=='service' ? 'active' : ''}">Service</a>
-        <a href="<c:url value='/menu.jsp'/>" class="nav-item nav-link ${page=='menu' ? 'active' : ''}">Menu</a>
+        <a href="<c:url value='/'/>" class="nav-item nav-link ${page=='home' ? 'active' : ''}">Trang chủ</a>
+        <a href="<c:url value='/about.jsp'/>" class="nav-item nav-link ${page=='about' ? 'active' : ''}">Giới thiệu</a>
+        <a href="<c:url value='/service.jsp'/>" class="nav-item nav-link ${page=='service' ? 'active' : ''}">Dịch vụ</a>
+        <a href="<c:url value='/menu-management'/>" class="nav-item nav-link ${page=='menu' ? 'active' : ''}">Thực đơn</a>
 
         <div class="nav-item dropdown">
-          <a href="#" class="nav-link dropdown-toggle ${page=='pages' ? 'active' : ''}" data-bs-toggle="dropdown">Pages</a>
+          <a href="#" class="nav-link dropdown-toggle ${page=='pages' ? 'active' : ''}" data-bs-toggle="dropdown">Trang</a>
           <div class="dropdown-menu m-0">
-            <a href="<c:url value='/booking.jsp'/>" class="dropdown-item">Booking</a>
-            <a href="<c:url value='/team.jsp'/>" class="dropdown-item">Our Team</a>
-            <a href="<c:url value='/testimonial.jsp'/>" class="dropdown-item">Testimonial</a>
+            <a href="<c:url value='/views/guest/booking.jsp'/>" class="dropdown-item">Đặt bàn</a>
+            <a href="<c:url value='/team.jsp'/>" class="dropdown-item">Đội ngũ</a>
+            <a href="<c:url value='/testimonial.jsp'/>" class="dropdown-item">Đánh giá</a>
           </div>
         </div>
 
-        <a href="<c:url value='/contact.jsp'/>" class="nav-item nav-link ${page=='contact' ? 'active' : ''}">Contact</a>
+        <a href="<c:url value='/contact.jsp'/>" class="nav-item nav-link ${page=='contact' ? 'active' : ''}">Liên hệ</a>
       </div>
 
       <!-- Book Button -->
-      <a href="<c:url value='/booking.jsp'/>" class="btn btn-primary py-2 px-4 me-2">Book A Table</a>
+      <a href="<c:url value='/views/guest/booking.jsp'/>" class="btn btn-primary py-2 px-4 me-2">Đặt bàn</a>
 
       <!-- Auth -->
       <c:choose>
         <c:when test="${empty sessionScope.user}">
           <a href="<c:url value='/LoginServlet'/>" class="btn btn-outline-light d-flex align-items-center">
-            <i class="bi bi-person-circle me-2"></i> Login
+            <i class="bi bi-person-circle me-2"></i> Đăng nhập
           </a>
         </c:when>
 
@@ -96,31 +96,31 @@
               <!-- Role-based menu -->
               <c:choose>
                 <c:when test="${u.roleName eq 'Manager'}">
-                  <li><a class="dropdown-item" href="<c:url value='/admin'/>"><i class="bi bi-speedometer2 me-2"></i>Admin Dashboard</a></li>
-                  <li><a class="dropdown-item" href="<c:url value='/reports'/>"><i class="bi bi-graph-up me-2"></i>Reports</a></li>
+                  <li><a class="dropdown-item" href="<c:url value='/admin'/>"><i class="bi bi-speedometer2 me-2"></i>Quản trị</a></li>
+                  <li><a class="dropdown-item" href="<c:url value='/reports'/>"><i class="bi bi-graph-up me-2"></i>Báo cáo</a></li>
                 </c:when>
                 <c:when test="${u.roleName eq 'Receptionist'}">
-                  <li><a class="dropdown-item" href="<c:url value='/reservations'/>"><i class="bi bi-calendar-check me-2"></i>Reservations</a></li>
+                  <li><a class="dropdown-item" href="<c:url value='/reservations'/>"><i class="bi bi-calendar-check me-2"></i>Đặt chỗ</a></li>
                 </c:when>
                 <c:when test="${u.roleName eq 'Waiter'}">
-                  <li><a class="dropdown-item" href="<c:url value='/orders'/>"><i class="bi bi-receipt-cutoff me-2"></i>Table Orders</a></li>
+                  <li><a class="dropdown-item" href="<c:url value='/orders'/>"><i class="bi bi-receipt-cutoff me-2"></i>Đơn hàng</a></li>
                 </c:when>
                 <c:when test="${u.roleName eq 'Chef'}">
-                  <li><a class="dropdown-item" href="<c:url value='/kitchen'/>"><i class="bi bi-fire me-2"></i>Kitchen</a></li>
+                  <li><a class="dropdown-item" href="<c:url value='/kitchen'/>"><i class="bi bi-fire me-2"></i>Bếp</a></li>
                 </c:when>
                 <c:when test="${u.roleName eq 'Cashier'}">
-                  <li><a class="dropdown-item" href="<c:url value='/billing'/>"><i class="bi bi-cash-coin me-2"></i>Billing</a></li>
+                  <li><a class="dropdown-item" href="<c:url value='/billing'/>"><i class="bi bi-cash-coin me-2"></i>Thu ngân</a></li>
                 </c:when>
               </c:choose>
 
               <!-- Profile & Edit Profile -->
-              <li><a class="dropdown-item" href="<c:url value='/views/profile.jsp'/>"><i class="bi bi-person me-2"></i>Profile</a></li>
-              <li><a class="dropdown-item" href="<c:url value='/views/profile-edit.jsp'/>"><i class="bi bi-pencil-square me-2"></i>Edit Profile</a></li>
+              <li><a class="dropdown-item" href="<c:url value='/views/profile.jsp'/>"><i class="bi bi-person me-2"></i>Hồ sơ</a></li>
+              <li><a class="dropdown-item" href="<c:url value='/views/profile-edit.jsp'/>"><i class="bi bi-pencil-square me-2"></i>Chỉnh sửa</a></li>
 
               <li><hr class="dropdown-divider"></li>
               <li>
                 <a class="dropdown-item text-danger" href="<c:url value='/logout'/>">
-                  <i class="bi bi-box-arrow-right me-2"></i>Logout
+                  <i class="bi bi-box-arrow-right me-2"></i>Đăng xuất
                 </a>
               </li>
             </ul>
