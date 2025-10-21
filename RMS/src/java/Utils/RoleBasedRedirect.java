@@ -29,7 +29,7 @@ public class RoleBasedRedirect {
                 response.sendRedirect(contextPath + "/tables");
                 break;
             case "Chef":
-                response.sendRedirect(contextPath + "/kitchen");
+                response.sendRedirect(contextPath + "/kds");
                 break;
             case "Receptionist":
                 response.sendRedirect(contextPath + "/reception");

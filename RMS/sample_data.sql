@@ -22,7 +22,11 @@ INSERT INTO permissions (permission_name, description, module, action) VALUES
 ('ORDER_READ', 'Xem đơn hàng', 'ORDER', 'READ'),
 ('ORDER_UPDATE', 'Cập nhật đơn hàng', 'ORDER', 'UPDATE'),
 ('MENU_READ', 'Xem thực đơn', 'MENU', 'READ'),
-('MENU_UPDATE', 'Cập nhật thực đơn', 'MENU', 'UPDATE');
+('MENU_UPDATE', 'Cập nhật thực đơn', 'MENU', 'UPDATE'),
+('KDS_READ', 'Xem Kitchen Display System', 'KDS', 'READ'),
+('KDS_UPDATE', 'Cập nhật trạng thái món ăn', 'KDS', 'UPDATE'),
+('TABLE_READ', 'Xem bản đồ bàn', 'TABLE', 'READ'),
+('TABLE_UPDATE', 'Cập nhật trạng thái bàn', 'TABLE', 'UPDATE');
 GO
 
 -- Gán permissions cho roles
@@ -31,54 +35,49 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT 1, permission_id FROM permissions;
 GO
 
--- Waiter có quyền đơn hàng và thực đơn
+-- Waiter có quyền đơn hàng, thực đơn và bàn
 INSERT INTO role_permissions (role_id, permission_id)
-SELECT 2, permission_id FROM permissions WHERE module IN ('ORDER', 'MENU') AND action = 'READ';
+SELECT 2, permission_id FROM permissions WHERE module IN ('ORDER', 'MENU', 'TABLE') AND action = 'READ';
 GO
 
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 2, permission_id FROM permissions WHERE module = 'ORDER' AND action = 'CREATE';
 GO
 
--- Chef có quyền đơn hàng và thực đơn
 INSERT INTO role_permissions (role_id, permission_id)
-SELECT 3, permission_id FROM permissions WHERE module IN ('ORDER', 'MENU') AND action = 'READ';
+SELECT 2, permission_id FROM permissions WHERE module = 'TABLE' AND action = 'UPDATE';
+GO
+
+-- Chef có quyền đơn hàng, thực đơn và KDS
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 3, permission_id FROM permissions WHERE module IN ('ORDER', 'MENU', 'KDS') AND action = 'READ';
+GO
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 3, permission_id FROM permissions WHERE module = 'KDS' AND action = 'UPDATE';
 GO
 
 -- Tạo admin user mặc định
 INSERT INTO users (username, email, password_hash, first_name, last_name, phone, account_status) VALUES
-('admin', 'admin@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Admin', 'System', '0123456789', 'ACTIVE');
+('admin', 'admin@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Admin', 'System', '0123456789', 'ACTIVE'),
+('waiter1', 'waiter1@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'John', 'Waiter', '0123456789', 'ACTIVE'),
+('chef1', 'chef1@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Master', 'Chef', '0123456789', 'ACTIVE');
 GO
 
--- Tạo staff cho admin
+-- Tạo staff cho admin, waiter và chef
 INSERT INTO staff (user_id, first_name, last_name, email, phone, position, hire_date, salary, status) VALUES
-(1, 'Admin', 'System', 'admin@rms.com', '0123456789', 'Manager', GETDATE(), 15000000, 'ACTIVE');
+(1, 'Admin', 'System', 'admin@rms.com', '0123456789', 'Manager', GETDATE(), 15000000, 'ACTIVE'),
+(2, 'John', 'Waiter', 'waiter1@rms.com', '0123456789', 'Waiter', GETDATE(), 8000000, 'ACTIVE'),
+(3, 'Master', 'Chef', 'chef1@rms.com', '0123456789', 'Chef', GETDATE(), 12000000, 'ACTIVE');
 GO
 
--- Gán role Manager cho admin
-INSERT INTO user_roles (user_id, role_id) VALUES (1, 1);
-GO
-
--- Tạo một số nhân viên mẫu
-INSERT INTO users (username, email, password_hash, first_name, last_name, phone, account_status) VALUES
-('waiter1', 'waiter1@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Nguyễn', 'Văn A', '0123456780', 'ACTIVE'),
-('chef1', 'chef1@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Trần', 'Thị B', '0123456781', 'ACTIVE'),
-('receptionist1', 'receptionist1@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Lê', 'Văn C', '0123456782', 'ACTIVE');
-GO
-
--- Tạo staff cho các user trên
-INSERT INTO staff (user_id, first_name, last_name, email, phone, position, hire_date, salary, status, manager_id) VALUES
-(2, 'Nguyễn', 'Văn A', 'waiter1@rms.com', '0123456780', 'Waiter', DATEADD(day, -30, GETDATE()), 8000000, 'ACTIVE', 1),
-(3, 'Trần', 'Thị B', 'chef1@rms.com', '0123456781', 'Chef', DATEADD(day, -60, GETDATE()), 12000000, 'ACTIVE', 1),
-(4, 'Lê', 'Văn C', 'receptionist1@rms.com', '0123456782', 'Receptionist', DATEADD(day, -15, GETDATE()), 7000000, 'ACTIVE', 1);
-GO
-
--- Gán roles cho các user
+-- Gán roles cho users
 INSERT INTO user_roles (user_id, role_id) VALUES 
-(2, 2), -- Waiter
-(3, 3), -- Chef
-(4, 4); -- Receptionist
+(1, 1), -- admin -> Manager
+(2, 2), -- waiter1 -> Waiter
+(3, 3); -- chef1 -> Chef
 GO
+
 
 -- Tạo table areas
 INSERT INTO table_area (area_name, sort_order) VALUES

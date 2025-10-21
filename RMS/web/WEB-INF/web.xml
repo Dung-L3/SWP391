@@ -132,4 +132,47 @@
         <url-pattern>/reservation/*</url-pattern>
     </servlet-mapping>
 
+    <!-- Order Management Servlet -->
+    <servlet>
+        <servlet-name>OrderServlet</servlet-name>
+        <servlet-class>Controller.OrderServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>OrderServlet</servlet-name>
+        <url-pattern>/orders</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>OrderServlet</servlet-name>
+        <url-pattern>/orders/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- Kitchen Display System Servlet -->
+    <servlet>
+        <servlet-name>KitchenServlet</servlet-name>
+        <servlet-class>Controller.KitchenServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>KitchenServlet</servlet-name>
+        <url-pattern>/kds</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>KitchenServlet</servlet-name>
+        <url-pattern>/kds/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- Order Page Servlet -->
+    <servlet>
+        <servlet-name>OrderPageServlet</servlet-name>
+        <servlet-class>Controller.OrderPageServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>OrderPageServlet</servlet-name>
+        <url-pattern>/order-page</url-pattern>
+    </servlet-mapping>
+
 </web-app>

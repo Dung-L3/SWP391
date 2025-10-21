@@ -199,6 +199,9 @@
                         `;
                     } else if (data.status === 'SEATED' || data.status === 'IN_USE') {
                         actions = `
+                            <button class="btn btn-primary" onclick="goToOrderPage()">
+                                <i class="fas fa-utensils"></i> Gọi món
+                            </button>
                             <button class="btn btn-warning" onclick="vacateTable()">
                                 <i class="fas fa-door-open"></i> Trả bàn
                             </button>
@@ -283,6 +286,10 @@
                 console.error('Error:', error);
                 alert('Lỗi khi hoàn thành dọn dẹp!');
             });
+        }
+
+        function goToOrderPage() {
+            window.location.href = '${pageContext.request.contextPath}/order-page?tableId=' + currentTableId;
         }
 
         // Lọc theo khu vực
