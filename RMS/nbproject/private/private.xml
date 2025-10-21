@@ -7,6 +7,8 @@
             <file>file:/E:/SWP/SWP391/RMS/web/views/guest/my-reservations.jsp</file>
             <file>file:/E:/SWP/SWP391/RMS/nbproject/build-impl.xml</file>
             <file>file:/E:/SWP/SWP391/RMS/src/java/Controller/AdminServlet.java</file>
+            <file>file:/E:/SWP/SWP391/RMS/src/java/Dal/ReservationDAO.java</file>
+            <file>file:/E:/SWP/SWP391/RMS/src/java/Dal/CustomerDAO.java</file>
             <file>file:/E:/SWP/SWP391/RMS/web/test-login.jsp</file>
             <file>file:/E:/SWP/SWP391/RMS/src/java/Controller/ConfirmBookingServlet.java</file>
             <file>file:/E:/SWP/SWP391/RMS/src/java/Controller/TableLayoutServlet.java</file>

@@ -178,7 +178,6 @@ public class ConfirmBookingServlet extends HttpServlet {
                 }
 
                 reservations.add(reservation);
-                tableDAO.updateTableStatus(table.getTableNumber(), Table.STATUS_RESERVED);
             }
 
             if (success) {
@@ -191,17 +190,19 @@ public class ConfirmBookingServlet extends HttpServlet {
                 session.removeAttribute("specialRequests");
                 session.removeAttribute("partySize");
 
-                session.setAttribute("successMessage", "Đặt bàn thành công! Mã đặt bàn của bạn là: " + confirmationCode);
-                session.setAttribute("reservation", reservations.get(0));
-                response.sendRedirect(request.getContextPath() + "/views/guest/confirmation.jsp");
+                request.setAttribute("successMessage", "Đặt bàn thành công! Mã đặt bàn của bạn là: " + confirmationCode);
+                request.setAttribute("reservation", reservations.get(0));
+                // Pass booked tables to the confirmation page
+                request.setAttribute("bookedTables", tables);
+                request.getRequestDispatcher("/views/guest/confirmation.jsp").forward(request, response);
             } else {
                 throw new IllegalStateException(errorMessage);
             }
 
         } catch (IllegalArgumentException e) {
             System.out.println("\nValidation error: " + e.getMessage());
-            session.setAttribute("errorMessage", e.getMessage());
-            response.sendRedirect(request.getContextPath() + "/views/guest/confirmation.jsp");
+            request.setAttribute("errorMessage", e.getMessage());
+            request.getRequestDispatcher("/views/guest/confirmation.jsp").forward(request, response);
 
         } catch (IllegalStateException e) {
             System.out.println("\nTable state error: " + e.getMessage());
@@ -241,7 +242,6 @@ public class ConfirmBookingServlet extends HttpServlet {
         }
     }
 
-    @Override
     public String getServletInfo() {
         return "Handles the confirmation of table booking requests";
     }

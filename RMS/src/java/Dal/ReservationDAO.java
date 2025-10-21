@@ -2,14 +2,13 @@ package Dal;
 
 import Models.Customer;
 import Models.Reservation;
+import Models.Table;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Time;
 import java.util.ArrayList;
 import java.util.List;
-import java.sql.Timestamp;
 
 public class ReservationDAO {
     private final CustomerDAO customerDAO;
@@ -21,9 +20,8 @@ public class ReservationDAO {
     private Integer createOrUpdateCustomer(Reservation reservation) throws SQLException {
         try {
             Customer customer = new Customer();
-            if (reservation.getCustomerId() != null) {
-                customer.setUserId(reservation.getCustomerId());
-            }
+            // Do not set the user_id here - it should only be set when we have a real user account
+            // The customer_id is different from the user_id
             customer.setFullName(reservation.getCustomerName());
             customer.setPhone(reservation.getPhone());
             
@@ -49,110 +47,128 @@ public class ReservationDAO {
         Connection conn = null;
         boolean success = false;
         
-        // Debug: Print reservation details
-        System.out.println("\nReservation Details:");
-        System.out.println("Customer Name: " + reservation.getCustomerName());
-        System.out.println("Phone: " + reservation.getPhone());
-        System.out.println("Email: " + (reservation.getEmail() != null ? reservation.getEmail() : "Not provided"));
-        System.out.println("Table ID: " + reservation.getTableId());
-        System.out.println("Date: " + reservation.getReservationDate());
-        System.out.println("Time: " + reservation.getReservationTime());
-        System.out.println("Party Size: " + reservation.getPartySize());
-        
         try {
+            // Debug: Print reservation details
+            System.out.println("\n=== Reservation Details ===");
+            System.out.println("Customer Name: " + reservation.getCustomerName());
+            System.out.println("Phone: " + reservation.getPhone());
+            System.out.println("Email: " + (reservation.getEmail() != null ? reservation.getEmail() : "Not provided"));
+            System.out.println("Table ID: " + reservation.getTableId());
+            System.out.println("Date: " + reservation.getReservationDate());
+            System.out.println("Time: " + reservation.getReservationTime());
+            System.out.println("Party Size: " + reservation.getPartySize());
+            
             System.out.println("\nGetting database connection...");
             conn = DBConnect.getConnection();
             if (conn == null) {
-                System.out.println("Connection is null");
                 throw new SQLException("Có lỗi xảy ra khi thao tác với cơ sở dữ liệu. Vui lòng thử lại sau.");
             }
+            
+            // Start transaction
             conn.setAutoCommit(false);
             
-            System.out.println("Creating/Updating customer...");
-            Integer customerId = createOrUpdateCustomer(reservation);
-            if (customerId == null) {
-                throw new SQLException("Không thể tạo hoặc cập nhật thông tin khách hàng");
-            }
+            // First verify the table exists and is available
+            boolean tableAvailable = false;
+            String tableNumber = null;
             
-            // Kiểm tra tính hợp lệ của dữ liệu đặt bàn
-            if (reservation.getReservationTime() == null) {
-                throw new SQLException("Thời gian đặt bàn không hợp lệ");
-            }
-            if (reservation.getReservationDate() == null) {
-                throw new SQLException("Ngày đặt bàn không hợp lệ");
-            }
-            if (reservation.getTableId() <= 0) {
-                throw new SQLException("ID bàn không hợp lệ");
-            }
-            
-            String checkSql = """
-                    SELECT COUNT(*) FROM reservations 
-                    WHERE table_id = ? 
-                    AND reservation_date = ? 
-                    AND CONVERT(varchar(8), reservation_time, 108) = CONVERT(varchar(8), ?, 108)
-                    AND status NOT IN ('CANCELLED', 'REJECTED')
-                    """;
-                    
-            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
-                // Log giá trị trước khi set vào PreparedStatement
-                Time resTime = reservation.getReservationTime();
-                System.out.println("\nChecking for existing reservations:");
-                System.out.println("Table ID: " + reservation.getTableId());
-                System.out.println("Date: " + reservation.getReservationDate());
-                System.out.println("Time value: " + resTime);
-                System.out.println("Time string representation: " + (resTime != null ? resTime.toString() : "null"));
+            try (PreparedStatement checkStmt = conn.prepareStatement(
+                    "SELECT table_number, status FROM dining_table WITH (UPDLOCK, HOLDLOCK) WHERE table_id = ?")) {
                 
                 checkStmt.setInt(1, reservation.getTableId());
-                checkStmt.setDate(2, reservation.getReservationDate());
-                checkStmt.setTime(3, resTime);
-                
                 ResultSet rs = checkStmt.executeQuery();
-                if (rs.next() && rs.getInt(1) > 0) {
-                    throw new SQLException("Bàn đã được đặt cho thời gian này");
+                
+                if (rs.next()) {
+                    String currentStatus = rs.getString("status");
+                    tableNumber = rs.getString("table_number");
+                    System.out.println("\n=== Current Table Status ===");
+                    System.out.println("Table: " + tableNumber);
+                    System.out.println("Status: " + currentStatus);
+                    
+                    tableAvailable = Table.STATUS_VACANT.equals(currentStatus.toUpperCase());
+                    if (!tableAvailable) {
+                        throw new SQLException("Bàn " + tableNumber + " đã được đặt (status: " + currentStatus + ")");
+                    }
+                } else {
+                    throw new SQLException("Không tìm thấy thông tin bàn");
                 }
             }
             
-            String sql = """
-                    INSERT INTO reservations (
-                        customer_id, table_id, reservation_date, reservation_time,
-                        party_size, status, special_requests, created_by,
-                        deposit_amount, deposit_status, confirmation_code,
-                        channel, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
-                    """;
-            
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setObject(1, customerId);
-                stmt.setObject(2, reservation.getTableId());
-                stmt.setDate(3, reservation.getReservationDate());
-                stmt.setTime(4, reservation.getReservationTime());
-                stmt.setInt(5, reservation.getPartySize());
-                stmt.setString(6, reservation.getStatus());
-                stmt.setString(7, reservation.getSpecialRequests());
-                stmt.setObject(8, reservation.getCreatedBy());
-                stmt.setDouble(9, reservation.getDepositAmount());
-                stmt.setString(10, reservation.getDepositStatus());
-                stmt.setString(11, reservation.getConfirmationCode());
-                stmt.setString(12, reservation.getChannel());
+            // Then check for existing reservations at the same time
+            try (PreparedStatement resCheckStmt = conn.prepareStatement(
+                    "SELECT COUNT(*) FROM reservations WHERE table_id = ? " +
+                    "AND reservation_date = ? " +
+                    "AND CONVERT(varchar(8), reservation_time, 108) = CONVERT(varchar(8), ?, 108) " +
+                    "AND status NOT IN ('CANCELLED', 'REJECTED')")) {
                 
-                success = stmt.executeUpdate() > 0;
+                resCheckStmt.setInt(1, reservation.getTableId());
+                resCheckStmt.setDate(2, reservation.getReservationDate());
+                resCheckStmt.setTime(3, reservation.getReservationTime());
+                
+                ResultSet rs = resCheckStmt.executeQuery();
+                if (rs.next() && rs.getInt(1) > 0) {
+                    throw new SQLException("Bàn " + tableNumber + " đã có người đặt cho thời gian này");
+                }
+            }
+            
+            // Process the reservation
+            System.out.println("\n=== Processing Reservation ===");
+            
+            // Create or update customer
+            System.out.println("Creating/Updating customer information...");
+            Integer custId = createOrUpdateCustomer(reservation);
+            if (custId == null) {
+                throw new SQLException("Không thể tạo hoặc cập nhật thông tin khách hàng");
+            }
+            
+            // Create the reservation
+            System.out.println("Creating reservation record...");
+            try (PreparedStatement insertStmt = conn.prepareStatement(
+                    "INSERT INTO reservations (" +
+                    "customer_id, table_id, reservation_date, reservation_time, " +
+                    "party_size, status, special_requests, created_by, " +
+                    "deposit_amount, deposit_status, confirmation_code, " +
+                    "channel, created_at, updated_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())")) {
+                
+                insertStmt.setObject(1, custId);
+                insertStmt.setObject(2, reservation.getTableId());
+                insertStmt.setDate(3, reservation.getReservationDate());
+                insertStmt.setTime(4, reservation.getReservationTime());
+                insertStmt.setInt(5, reservation.getPartySize());
+                insertStmt.setString(6, reservation.getStatus());
+                insertStmt.setString(7, reservation.getSpecialRequests());
+                insertStmt.setObject(8, reservation.getCreatedBy());
+                insertStmt.setDouble(9, reservation.getDepositAmount());
+                insertStmt.setString(10, reservation.getDepositStatus());
+                insertStmt.setString(11, reservation.getConfirmationCode());
+                insertStmt.setString(12, reservation.getChannel());
+                
+                success = insertStmt.executeUpdate() > 0;
             }
             
             if (success) {
+                // Update table status
+                System.out.println("Updating table status...");
+                try (PreparedStatement updateStmt = conn.prepareStatement(
+                        "UPDATE dining_table SET status = ? WHERE table_id = ?")) {
+                    updateStmt.setString(1, Table.STATUS_RESERVED);
+                    updateStmt.setInt(2, reservation.getTableId());
+                    updateStmt.executeUpdate();
+                }
+                
                 conn.commit();
-                System.out.println("Successfully created reservation for table " + reservation.getTableId());
+                System.out.println("Reservation completed successfully!");
             } else {
-                conn.rollback();
-                System.out.println("Failed to create reservation for table " + reservation.getTableId());
+                throw new SQLException("Không thể tạo đơn đặt bàn");
             }
-            
         } catch (SQLException e) {
-            System.out.println("Error creating reservation: " + e.getMessage());
+            System.out.println("Error during reservation process: " + e.getMessage());
             if (conn != null) {
                 try {
                     conn.rollback();
+                    System.out.println("Transaction rolled back");
                 } catch (SQLException ex) {
-                    System.out.println("Error rolling back transaction: " + ex.getMessage());
+                    System.out.println("Error during rollback: " + ex.getMessage());
                 }
             }
             throw e;
@@ -161,6 +177,7 @@ public class ReservationDAO {
                 try {
                     conn.setAutoCommit(true);
                     conn.close();
+                    System.out.println("Database connection closed");
                 } catch (SQLException e) {
                     System.out.println("Error closing connection: " + e.getMessage());
                 }
@@ -168,6 +185,66 @@ public class ReservationDAO {
         }
         
         return success;
+    }
+    
+    public List<Reservation> findByCustomerId(int customerId) throws SQLException {
+        List<Reservation> reservations = new ArrayList<>();
+        String sql = "SELECT * FROM reservations WHERE customer_id = ? ORDER BY reservation_date DESC, reservation_time DESC";
+        
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, customerId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    reservations.add(mapReservation(rs));
+                }
+            }
+        }
+        
+        return reservations;
+    }
+    
+    public List<Reservation> findActiveReservationsByTable(String tableNumber) throws SQLException {
+        List<Reservation> reservations = new ArrayList<>();
+        String sql = """
+                SELECT r.* FROM reservations r
+                INNER JOIN dining_table t ON r.table_id = t.table_id
+                WHERE t.table_number = ?
+                AND r.status NOT IN ('CANCELLED', 'REJECTED')
+                ORDER BY r.reservation_date, r.reservation_time
+                """;
+        
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, tableNumber);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    reservations.add(mapReservation(rs));
+                }
+            }
+        }
+        
+        return reservations;
+    }
+    
+    private Reservation mapReservation(ResultSet rs) throws SQLException {
+        Reservation reservation = new Reservation();
+        reservation.setReservationId(rs.getInt("reservation_id"));
+        reservation.setCustomerId(rs.getInt("customer_id"));
+        reservation.setTableId(rs.getInt("table_id"));
+        reservation.setReservationDate(rs.getDate("reservation_date"));
+        reservation.setReservationTime(rs.getTime("reservation_time"));
+        reservation.setPartySize(rs.getInt("party_size"));
+        reservation.setStatus(rs.getString("status"));
+        reservation.setSpecialRequests(rs.getString("special_requests"));
+        reservation.setCreatedBy(rs.getInt("created_by"));
+        reservation.setConfirmationCode(rs.getString("confirmation_code"));
+        reservation.setDepositAmount(rs.getDouble("deposit_amount"));
+        reservation.setDepositStatus(rs.getString("deposit_status"));
+        reservation.setChannel(rs.getString("channel"));
+        return reservation;
     }
     
     public Reservation findById(int id) throws SQLException {
@@ -186,141 +263,187 @@ public class ReservationDAO {
         return null;
     }
     
-    public List<Reservation> findByCustomerId(int customerId) throws SQLException {
-        String sql = "SELECT * FROM reservations WHERE customer_id = ? ORDER BY reservation_date DESC, reservation_time DESC";
-        List<Reservation> reservations = new ArrayList<>();
+    public boolean update(Reservation reservation) throws SQLException {
+        if (reservation == null || reservation.getReservationId() <= 0) {
+            throw new SQLException("Thông tin đặt bàn không hợp lệ");
+        }
         
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, customerId);
+        Connection conn = null;
+        boolean success = false;
+        
+        try {
+            conn = DBConnect.getConnection();
+            conn.setAutoCommit(false);
             
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    reservations.add(mapReservation(rs));
+            String sql = """
+                    UPDATE reservations 
+                    SET customer_id = ?, table_id = ?, reservation_date = ?, 
+                        reservation_time = ?, party_size = ?, status = ?, 
+                        special_requests = ?, deposit_amount = ?, deposit_status = ?,
+                        updated_at = GETDATE()
+                    WHERE reservation_id = ?
+                    """;
+            
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, reservation.getCustomerId());
+                stmt.setInt(2, reservation.getTableId());
+                stmt.setDate(3, reservation.getReservationDate());
+                stmt.setTime(4, reservation.getReservationTime());
+                stmt.setInt(5, reservation.getPartySize());
+                stmt.setString(6, reservation.getStatus());
+                stmt.setString(7, reservation.getSpecialRequests());
+                stmt.setDouble(8, reservation.getDepositAmount());
+                stmt.setString(9, reservation.getDepositStatus());
+                stmt.setInt(10, reservation.getReservationId());
+                
+                success = stmt.executeUpdate() > 0;
+            }
+            
+            if (success) {
+                conn.commit();
+            } else {
+                conn.rollback();
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Error updating reservation: " + e.getMessage());
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    System.out.println("Error rolling back: " + ex.getMessage());
+                }
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    System.out.println("Error closing connection: " + e.getMessage());
                 }
             }
         }
-        return reservations;
-    }
-    
-    public void delete(int reservationId) throws SQLException {
-        String sql = "DELETE FROM reservations WHERE reservation_id = ?";
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, reservationId);
-            stmt.executeUpdate();
-        }
-    }
-
-    public List<Reservation> findByDateAndStatus(java.sql.Date date, String status) throws SQLException {
-        String sql = "SELECT * FROM reservations WHERE reservation_date = ? AND status = ? ORDER BY reservation_time";
-        List<Reservation> reservations = new ArrayList<>();
         
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setDate(1, date);
-            stmt.setString(2, status);
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    reservations.add(mapReservation(rs));
-                }
-            }
-        }
-        return reservations;
+        return success;
     }
     
     public boolean updateStatus(int reservationId, String newStatus) throws SQLException {
-        String sql = "UPDATE reservations SET status = ?, updated_at = NOW() WHERE reservation_id = ?";
+        Connection conn = null;
+        boolean success = false;
         
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, newStatus);
-            stmt.setInt(2, reservationId);
+        try {
+            conn = DBConnect.getConnection();
+            conn.setAutoCommit(false);
             
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
-    public boolean update(Reservation reservation) throws SQLException {
-        String sql = """
-                    UPDATE reservations 
-                    SET reservation_date = ?, 
-                        reservation_time = ?,
-                        party_size = ?, 
-                        special_requests = ?,
-                        updated_at = NOW()
-                    WHERE reservation_id = ?
-                    """;
-                    
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            if (createOrUpdateCustomer(reservation) == null) {
-                return false;
+            Reservation currentReservation = findById(reservationId);
+            if (currentReservation == null) {
+                throw new SQLException("Không tìm thấy đơn đặt bàn");
             }
             
-            stmt.setDate(1, reservation.getReservationDate());
-            stmt.setTime(2, reservation.getReservationTime());
-            stmt.setInt(3, reservation.getPartySize());
-            stmt.setString(4, reservation.getSpecialRequests());
-            stmt.setInt(5, reservation.getReservationId());
+            String sql = "UPDATE reservations SET status = ?, updated_at = GETDATE() WHERE reservation_id = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, newStatus);
+                stmt.setInt(2, reservationId);
+                
+                success = stmt.executeUpdate() > 0;
+            }
             
-            return stmt.executeUpdate() > 0;
-        }
-    }
-    
-    public boolean isTableAvailable(int tableId, java.sql.Date date, java.sql.Time time) throws SQLException {
-        String sql = """
-                    SELECT COUNT(*) FROM reservations 
-                    WHERE table_id = ? 
-                    AND reservation_date = ? 
-                    AND CAST(reservation_time AS TIME) = ? 
-                    AND status IN ('PENDING', 'CONFIRMED')
-                    """;
-        
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, tableId);
-            stmt.setDate(2, date);
-            stmt.setTime(3, time);
+            // If cancelling or rejecting, update table status back to VACANT
+            if (success && ("CANCELLED".equals(newStatus) || "REJECTED".equals(newStatus))) {
+                try (PreparedStatement tableStmt = conn.prepareStatement(
+                        "UPDATE dining_table SET status = ? WHERE table_id = ?")) {
+                    tableStmt.setString(1, Table.STATUS_VACANT);
+                    tableStmt.setInt(2, currentReservation.getTableId());
+                    tableStmt.executeUpdate();
+                }
+            }
             
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1) == 0;
+            if (success) {
+                conn.commit();
+            } else {
+                conn.rollback();
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Error updating reservation status: " + e.getMessage());
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    System.out.println("Error rolling back: " + ex.getMessage());
+                }
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    System.out.println("Error closing connection: " + e.getMessage());
                 }
             }
         }
-        return false;
+        
+        return success;
     }
     
-    private Reservation mapReservation(ResultSet rs) throws SQLException {
-        Reservation reservation = new Reservation();
-        reservation.setReservationId(rs.getInt("reservation_id"));
-        reservation.setCustomerId(rs.getObject("customer_id", Integer.class));
-        reservation.setCustomerName(rs.getString("customer_name"));
-        reservation.setPhone(rs.getString("phone"));
-        reservation.setEmail(rs.getString("email"));
-        reservation.setTableId(rs.getObject("table_id", Integer.class));
-        reservation.setReservationDate(rs.getDate("reservation_date"));
-        reservation.setReservationTime(rs.getTime("reservation_time"));
-        reservation.setPartySize(rs.getInt("party_size"));
-        reservation.setStatus(rs.getString("status"));
-        reservation.setSpecialRequests(rs.getString("special_requests"));
-        reservation.setCreatedBy(rs.getObject("created_by", Integer.class));
-        reservation.setDepositAmount(rs.getDouble("deposit_amount"));
-        reservation.setDepositStatus(rs.getString("deposit_status"));
-        reservation.setConfirmationCode(rs.getString("confirmation_code"));
-        reservation.setChannel(rs.getString("channel"));        
-        Timestamp createdAt = rs.getTimestamp("created_at");
-        if (createdAt != null) {
-            reservation.setCreatedAt(createdAt.toLocalDateTime());
+    public boolean delete(int reservationId) throws SQLException {
+        Connection conn = null;
+        boolean success = false;
+        
+        try {
+            conn = DBConnect.getConnection();
+            conn.setAutoCommit(false);
+            
+            Reservation reservation = findById(reservationId);
+            if (reservation == null) {
+                throw new SQLException("Không tìm thấy đơn đặt bàn");
+            }
+            
+            String sql = "DELETE FROM reservations WHERE reservation_id = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setInt(1, reservationId);
+                success = stmt.executeUpdate() > 0;
+            }
+            
+            if (success) {
+                // Update table status back to VACANT
+                try (PreparedStatement tableStmt = conn.prepareStatement(
+                        "UPDATE dining_table SET status = ? WHERE table_id = ?")) {
+                    tableStmt.setString(1, Table.STATUS_VACANT);
+                    tableStmt.setInt(2, reservation.getTableId());
+                    tableStmt.executeUpdate();
+                }
+                
+                conn.commit();
+            } else {
+                conn.rollback();
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Error deleting reservation: " + e.getMessage());
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    System.out.println("Error rolling back: " + ex.getMessage());
+                }
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    System.out.println("Error closing connection: " + e.getMessage());
+                }
+            }
         }
         
-        Timestamp updatedAt = rs.getTimestamp("updated_at");
-        if (updatedAt != null) {
-            reservation.setUpdatedAt(updatedAt.toLocalDateTime());
-        }
-        
-        return reservation;
+        return success;
     }
 }

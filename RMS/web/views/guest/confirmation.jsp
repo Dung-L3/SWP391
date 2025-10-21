@@ -186,6 +186,29 @@
                                     </div>
                                 </div>
 
+                                <!-- Booked table(s) details -->
+                                <c:if test="${not empty bookedTables}">
+                                    <div class="p-3 rounded mb-4" style="background: rgba(240, 248, 255, 0.6);">
+                                        <h5 class="mb-3"><i class="fas fa-chair me-2"></i>Bàn đã đặt</h5>
+                                        <div class="row">
+                                            <c:forEach var="t" items="${bookedTables}">
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="border p-3 rounded">
+                                                        <div class="detail-label">Số bàn</div>
+                                                        <div class="detail-value">${t.tableNumber}</div>
+                                                        <div class="detail-label">Loại bàn</div>
+                                                        <div class="detail-value">${t.tableType}</div>
+                                                        <div class="detail-label">Sức chứa</div>
+                                                        <div class="detail-value">${t.capacity} khách</div>
+                                                        <div class="detail-label">Vị trí</div>
+                                                        <div class="detail-value">${t.location}</div>
+                                                    </div>
+                                                </div>
+                                            </c:forEach>
+                                        </div>
+                                    </div>
+                                </c:if>
+
                                 <div class="p-3 rounded mb-4" style="background: rgba(255, 215, 0, 0.05);">
                                     <h5 class="mb-3"><i class="fas fa-comment-alt me-2"></i>Yêu cầu đặc biệt</h5>
                                     <div class="detail-value">${not empty reservation.specialRequests ? reservation.specialRequests : 'Không có'}</div>

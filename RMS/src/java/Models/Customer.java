@@ -3,7 +3,7 @@ package Models;
 import java.time.LocalDateTime;
 
 public class Customer {
-    private int customerId;
+    private Integer customerId;
     private Integer userId;
     private String fullName;
     private String email;
@@ -22,11 +22,11 @@ public class Customer {
         this.customerType = TYPE_WALK_IN; // Default to WALK_IN for new customers
     }
 
-    public int getCustomerId() {
+    public Integer getCustomerId() {
         return customerId;
     }
 
-    public void setCustomerId(int customerId) {
+    public void setCustomerId(Integer customerId) {
         this.customerId = customerId;
     }
 

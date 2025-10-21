@@ -2,9 +2,10 @@ package Models;
 
 public class Table {
     // Status constants
-    public static final String STATUS_VACANT = "available";
-    public static final String STATUS_OCCUPIED = "occupied";
-    public static final String STATUS_RESERVED = "reserved";
+    public static final String STATUS_VACANT = "VACANT";
+    public static final String STATUS_OCCUPIED = "OCCUPIED";
+    // Map application 'reserved' concept to DB-allowed value 'HELD'
+    public static final String STATUS_RESERVED = "HELD";
     
     // Type constants
     public static final String TYPE_REGULAR = "REGULAR";

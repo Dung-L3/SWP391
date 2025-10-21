@@ -133,7 +133,14 @@ public class TableDAO {
             }
             
             String currentStatus = rs.getString("status");
-            if (newStatus.equals(Table.STATUS_RESERVED) && !Table.STATUS_VACANT.equals(currentStatus)) {
+            // If the table already has the desired status, treat as success (idempotent)
+            if (currentStatus != null && currentStatus.equals(newStatus)) {
+                conn.commit();
+                System.out.println("Table " + tableNumber + " already in status " + newStatus);
+                return true;
+            }
+            // If requesting to set to RESERVED/HELD, allow only when current status is VACANT or HELD
+            if (newStatus.equals(Table.STATUS_RESERVED) && !Table.STATUS_VACANT.equals(currentStatus) && !Table.STATUS_RESERVED.equals(currentStatus)) {
                 throw new SQLException("Table " + tableNumber + " is not available (current status: " + currentStatus + ")");
             }
             
@@ -175,6 +182,27 @@ public class TableDAO {
                     System.out.println("Error resetting connection state: " + e.getMessage());
                 }
             }
+        }
+    }
+
+    public Table getTableById(int tableId) throws SQLException {
+        String sql = "SELECT * FROM dining_table WHERE table_id = ?";
+        
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setInt(1, tableId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return mapResultSetToTable(rs);
+            } else {
+                System.out.println("Table not found with ID: " + tableId);
+                return null;
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting table by ID: " + e.getMessage());
+            throw e;
         }
     }
 
