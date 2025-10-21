@@ -1,0 +1,219 @@
+package Controller;
+
+import Dal.TableDAO;
+import Models.DiningTable;
+import Models.TableArea;
+import Models.TableSession;
+import Models.User;
+import Utils.RoleBasedRedirect;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.List;
+
+/**
+ * @author donny
+ */
+@WebServlet(name = "TableServlet", urlPatterns = {"/tables", "/tables/*"})
+public class TableServlet extends HttpServlet {
+
+    private TableDAO tableDAO = new TableDAO();
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
+        // Kiểm tra đăng nhập
+        User user = (User) request.getSession().getAttribute("user");
+        if (user == null) {
+            response.sendRedirect(request.getContextPath() + "/auth/Login.jsp");
+            return;
+        }
+        
+        // Kiểm tra quyền truy cập (Waiter, Manager, Supervisor)
+        if (!RoleBasedRedirect.hasAnyPermission(user, "Waiter", "Manager", "Supervisor")) {
+            request.getRequestDispatcher("/views/403.jsp").forward(request, response);
+            return;
+        }
+        
+        String pathInfo = request.getPathInfo();
+        String action = request.getParameter("action");
+        
+        if (pathInfo == null || pathInfo.equals("/")) {
+            // GET /tables - Hiển thị bản đồ bàn
+            showTableMap(request, response);
+        } else if (pathInfo.startsWith("/")) {
+            // GET /tables/{id} - Lấy thông tin bàn cụ thể
+            String tableIdStr = pathInfo.substring(1);
+            try {
+                int tableId = Integer.parseInt(tableIdStr);
+                getTableInfo(request, response, tableId);
+            } catch (NumberFormatException e) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid table ID");
+            }
+        }
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
+        // Kiểm tra đăng nhập
+        User user = (User) request.getSession().getAttribute("user");
+        if (user == null) {
+            response.sendRedirect(request.getContextPath() + "/auth/Login.jsp");
+            return;
+        }
+        
+        // Kiểm tra quyền truy cập (Waiter, Manager, Supervisor)
+        if (!RoleBasedRedirect.hasAnyPermission(user, "Waiter", "Manager", "Supervisor")) {
+            request.getRequestDispatcher("/views/403.jsp").forward(request, response);
+            return;
+        }
+        
+        String pathInfo = request.getPathInfo();
+        if (pathInfo == null) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing table ID");
+            return;
+        }
+
+        String[] pathParts = pathInfo.split("/");
+        if (pathParts.length < 3) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid path");
+            return;
+        }
+
+        try {
+            int tableId = Integer.parseInt(pathParts[1]);
+            String action = pathParts[2];
+
+            switch (action) {
+                case "seat":
+                    seatTable(request, response, tableId);
+                    break;
+                case "vacate":
+                    vacateTable(request, response, tableId);
+                    break;
+                case "clean":
+                    cleanTable(request, response, tableId);
+                    break;
+                default:
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid action");
+            }
+        } catch (NumberFormatException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid table ID");
+        }
+    }
+
+    private void showTableMap(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
+        String areaIdStr = request.getParameter("area");
+        Integer areaId = null;
+        if (areaIdStr != null && !areaIdStr.trim().isEmpty()) {
+            try {
+                areaId = Integer.parseInt(areaIdStr);
+            } catch (NumberFormatException e) {
+                // Ignore invalid area ID
+            }
+        }
+
+        List<TableArea> areas = tableDAO.getAllAreas();
+        List<DiningTable> tables = tableDAO.getTablesByArea(areaId);
+
+        request.setAttribute("areas", areas);
+        request.setAttribute("tables", tables);
+        request.setAttribute("selectedAreaId", areaId);
+
+        request.getRequestDispatcher("/views/TableMap.jsp").forward(request, response);
+    }
+
+    private void getTableInfo(HttpServletRequest request, HttpServletResponse response, int tableId)
+            throws ServletException, IOException {
+        
+        DiningTable table = tableDAO.getTableById(tableId);
+        if (table == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Table not found");
+            return;
+        }
+
+        TableSession session = tableDAO.getCurrentSession(tableId);
+        
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        json.append("\"tableId\":").append(table.getTableId()).append(",");
+        json.append("\"tableNumber\":\"").append(table.getTableNumber()).append("\",");
+        json.append("\"capacity\":").append(table.getCapacity()).append(",");
+        json.append("\"status\":\"").append(table.getStatus()).append("\",");
+        json.append("\"areaName\":\"").append(table.getAreaName()).append("\",");
+        json.append("\"hasSession\":").append(session != null).append(",");
+        if (session != null) {
+            json.append("\"sessionId\":").append(session.getTableSessionId()).append(",");
+            json.append("\"customerCount\":").append(session.getCustomerCount()).append(",");
+            json.append("\"openTime\":\"").append(session.getOpenTime()).append("\"");
+        }
+        json.append("}");
+        
+        out.print(json.toString());
+    }
+
+    private void seatTable(HttpServletRequest request, HttpServletResponse response, int tableId)
+            throws ServletException, IOException {
+        
+        HttpSession session = request.getSession();
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not logged in");
+            return;
+        }
+
+        String customerCountStr = request.getParameter("customerCount");
+        String notes = request.getParameter("notes");
+        
+        Integer customerCount = null;
+        if (customerCountStr != null && !customerCountStr.trim().isEmpty()) {
+            try {
+                customerCount = Integer.parseInt(customerCountStr);
+            } catch (NumberFormatException e) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid customer count");
+                return;
+            }
+        }
+
+        boolean success = tableDAO.seatTable(tableId, customerCount, notes, user.getUserId());
+        
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        out.print("{\"success\":" + success + "}");
+    }
+
+    private void vacateTable(HttpServletRequest request, HttpServletResponse response, int tableId)
+            throws ServletException, IOException {
+        
+        boolean success = tableDAO.vacateTable(tableId);
+        
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        out.print("{\"success\":" + success + "}");
+    }
+
+    private void cleanTable(HttpServletRequest request, HttpServletResponse response, int tableId)
+            throws ServletException, IOException {
+        
+        boolean success = tableDAO.cleanTable(tableId);
+        
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        out.print("{\"success\":" + success + "}");
+    }
+}
+

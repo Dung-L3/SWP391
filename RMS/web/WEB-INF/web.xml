@@ -51,11 +51,6 @@
         <servlet-name>AdminServlet</servlet-name>
         <url-pattern>/admin</url-pattern>
     </servlet-mapping>
-    
-    <servlet-mapping>
-        <servlet-name>AdminServlet</servlet-name>
-        <url-pattern>/dashboard</url-pattern>
-    </servlet-mapping>
 
     <servlet>
         <servlet-name>AuditLogServlet</servlet-name>
@@ -65,6 +60,33 @@
     <servlet-mapping>
         <servlet-name>AuditLogServlet</servlet-name>
         <url-pattern>/audit-log</url-pattern>
+    </servlet-mapping>
+
+    <!-- Table Management Servlet -->
+    <servlet>
+        <servlet-name>TableServlet</servlet-name>
+        <servlet-class>Controller.TableServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>TableServlet</servlet-name>
+        <url-pattern>/tables</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>TableServlet</servlet-name>
+        <url-pattern>/tables/*</url-pattern>
+    </servlet-mapping>
+
+    <!-- Dashboard Servlet -->
+    <servlet>
+        <servlet-name>DashboardServlet</servlet-name>
+        <servlet-class>Controller.DashboardServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>DashboardServlet</servlet-name>
+        <url-pattern>/dashboard</url-pattern>
     </servlet-mapping>
 
 </web-app>

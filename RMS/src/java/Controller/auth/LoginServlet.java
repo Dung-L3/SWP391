@@ -3,6 +3,7 @@ package Controller.auth;
 import Dal.UserDAO;
 import Models.User;
 import Utils.PasswordUtil;
+import Utils.RoleBasedRedirect;
 
 import java.io.IOException;
 import jakarta.servlet.ServletException;
@@ -64,7 +65,8 @@ public class LoginServlet extends HttpServlet {
                 cUser.setPath(request.getContextPath());
                 response.addCookie(cUser);
             }
-            response.sendRedirect(request.getContextPath() + "/staff-management");
+            // Redirect theo role
+            RoleBasedRedirect.redirectByRole(user, request, response);
         } else {
             // ❌ Sai tài khoản/mật khẩu
             request.setAttribute("loginError", "Tên đăng nhập hoặc mật khẩu sai.");

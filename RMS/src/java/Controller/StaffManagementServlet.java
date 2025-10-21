@@ -8,7 +8,9 @@ package Controller;
 import Dal.StaffDAO;
 import Models.Staff;
 import Models.Role;
+import Models.User;
 import Utils.PasswordUtil;
+import Utils.RoleBasedRedirect;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
@@ -38,6 +40,19 @@ public class StaffManagementServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
+        // Kiểm tra đăng nhập
+        User user = (User) request.getSession().getAttribute("user");
+        if (user == null) {
+            response.sendRedirect(request.getContextPath() + "/auth/Login.jsp");
+            return;
+        }
+        
+        // Kiểm tra quyền truy cập (chỉ Manager)
+        if (!RoleBasedRedirect.hasPermission(user, "Manager")) {
+            request.getRequestDispatcher("/views/403.jsp").forward(request, response);
+            return;
+        }
+        
         String action = request.getParameter("action");
         
         if (action == null) {
@@ -66,6 +81,19 @@ public class StaffManagementServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        
+        // Kiểm tra đăng nhập
+        User user = (User) request.getSession().getAttribute("user");
+        if (user == null) {
+            response.sendRedirect(request.getContextPath() + "/auth/Login.jsp");
+            return;
+        }
+        
+        // Kiểm tra quyền truy cập (chỉ Manager)
+        if (!RoleBasedRedirect.hasPermission(user, "Manager")) {
+            request.getRequestDispatcher("/views/403.jsp").forward(request, response);
+            return;
+        }
         
         String action = request.getParameter("action");
         
