@@ -64,6 +64,7 @@
     <c:if test="${u.roleName == 'Manager'}">
       <li><a class="${page == 'staff' ? 'active' : ''}" href="staff-management"><i class="bi bi-people"></i>Quản lý nhân viên</a></li>
       <li><a class="${page == 'menu' ? 'active' : ''}" href="menu-management"><i class="bi bi-journal-bookmark"></i>Quản lý Menu</a></li>
+      <li><a class="${page == 'voucher' ? 'active' : ''}" href="voucher-management"><i class="bi bi-percent"></i>Quản lý Voucher</a></li>
       <li><a class="${page == 'shifts' ? 'active' : ''}" href="<c:url value='/shifts'/>"><i class="bi bi-clock-history"></i>Phân ca</a></li>
       <li><a class="${page == 'inventory' ? 'active' : ''}" href="<c:url value='/inventory'/>"><i class="bi bi-box-seam"></i>Kho hàng</a></li>
       <li><a class="${page == 'reports' ? 'active' : ''}" href="<c:url value='/reports'/>"><i class="bi bi-graph-up"></i>Báo cáo</a></li>

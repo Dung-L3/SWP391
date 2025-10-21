@@ -72,6 +72,17 @@
         <servlet-name>MenuManagementServlet</servlet-name>
         <url-pattern>/menu</url-pattern>
     </servlet-mapping>
+
+    <!-- Voucher Management Servlet -->
+    <servlet>
+        <servlet-name>VoucherManagementServlet</servlet-name>
+        <servlet-class>Controller.VoucherManagementServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>VoucherManagementServlet</servlet-name>
+        <url-pattern>/voucher-management</url-pattern>
+    </servlet-mapping>
     
     <!-- Reservation Servlet -->
     <servlet>
