@@ -10,6 +10,20 @@ import java.util.Objects;
 public class DiningTable implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    // Status constants
+    public static final String STATUS_VACANT = "VACANT";
+    public static final String STATUS_OCCUPIED = "OCCUPIED";
+    public static final String STATUS_RESERVED = "HELD";
+    public static final String STATUS_SEATED = "SEATED";
+    public static final String STATUS_CLEANING = "CLEANING";
+    public static final String STATUS_OUT_OF_SERVICE = "OUT_OF_SERVICE";
+    
+    // Type constants
+    public static final String TYPE_REGULAR = "REGULAR";
+    public static final String TYPE_VIP = "VIP";
+    public static final String TYPE_OUTDOOR = "OUTDOOR";
+    public static final String TYPE_BAR = "BAR";
+
     private int tableId;
     private Integer areaId;
     private String tableNumber;

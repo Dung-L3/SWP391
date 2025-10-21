@@ -2,7 +2,7 @@ package Dal;
 
 import Models.Customer;
 import Models.Reservation;
-import Models.Table;
+import Models.DiningTable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -84,7 +84,7 @@ public class ReservationDAO {
                     System.out.println("Table: " + tableNumber);
                     System.out.println("Status: " + currentStatus);
                     
-                    tableAvailable = Table.STATUS_VACANT.equals(currentStatus.toUpperCase());
+                    tableAvailable = DiningTable.STATUS_VACANT.equals(currentStatus.toUpperCase());
                     if (!tableAvailable) {
                         throw new SQLException("Bàn " + tableNumber + " đã được đặt (status: " + currentStatus + ")");
                     }
@@ -151,7 +151,7 @@ public class ReservationDAO {
                 System.out.println("Updating table status...");
                 try (PreparedStatement updateStmt = conn.prepareStatement(
                         "UPDATE dining_table SET status = ? WHERE table_id = ?")) {
-                    updateStmt.setString(1, Table.STATUS_RESERVED);
+                    updateStmt.setString(1, DiningTable.STATUS_RESERVED);
                     updateStmt.setInt(2, reservation.getTableId());
                     updateStmt.executeUpdate();
                 }
@@ -354,7 +354,7 @@ public class ReservationDAO {
             if (success && ("CANCELLED".equals(newStatus) || "REJECTED".equals(newStatus))) {
                 try (PreparedStatement tableStmt = conn.prepareStatement(
                         "UPDATE dining_table SET status = ? WHERE table_id = ?")) {
-                    tableStmt.setString(1, Table.STATUS_VACANT);
+                    tableStmt.setString(1, DiningTable.STATUS_VACANT);
                     tableStmt.setInt(2, currentReservation.getTableId());
                     tableStmt.executeUpdate();
                 }
@@ -413,7 +413,7 @@ public class ReservationDAO {
                 // Update table status back to VACANT
                 try (PreparedStatement tableStmt = conn.prepareStatement(
                         "UPDATE dining_table SET status = ? WHERE table_id = ?")) {
-                    tableStmt.setString(1, Table.STATUS_VACANT);
+                    tableStmt.setString(1, DiningTable.STATUS_VACANT);
                     tableStmt.setInt(2, reservation.getTableId());
                     tableStmt.executeUpdate();
                 }

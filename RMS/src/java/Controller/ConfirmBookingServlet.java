@@ -3,7 +3,7 @@ package Controller;
 import Dal.ReservationDAO;
 import Dal.TableDAO;
 import Models.Reservation;
-import Models.Table;
+import Models.DiningTable;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -59,7 +59,7 @@ public class ConfirmBookingServlet extends HttpServlet {
         ReservationDAO reservationDAO = null;
         TableDAO tableDAO = null;
         List<Reservation> reservations = new ArrayList<>();
-        List<Table> tables = new ArrayList<>();
+        List<DiningTable> tables = new ArrayList<>();
 
         try {
             reservationDAO = new ReservationDAO();
@@ -115,11 +115,11 @@ public class ConfirmBookingServlet extends HttpServlet {
             // Kiểm tra bàn
             int totalCapacity = 0;
             for (String tableNumber : selectedTables) {
-                Table table = tableDAO.getTableByNumber(tableNumber);
+                DiningTable table = tableDAO.getTableByNumber(tableNumber);
                 if (table == null) {
                     throw new IllegalStateException("Bàn " + tableNumber + " không tồn tại.");
                 }
-                if (!Table.STATUS_VACANT.equals(table.getStatus())) {
+                if (!DiningTable.STATUS_VACANT.equals(table.getStatus())) {
                     throw new IllegalStateException("Bàn " + tableNumber + " đã được đặt.");
                 }
                 totalCapacity += table.getCapacity();
@@ -148,9 +148,9 @@ public class ConfirmBookingServlet extends HttpServlet {
             boolean success = true;
             String errorMessage = null;
 
-            for (Table table : tables) {
-                Table currentTable = tableDAO.getTableByNumber(table.getTableNumber());
-                if (!Table.STATUS_VACANT.equals(currentTable.getStatus())) {
+            for (DiningTable table : tables) {
+                DiningTable currentTable = tableDAO.getTableByNumber(table.getTableNumber());
+                if (!DiningTable.STATUS_VACANT.equals(currentTable.getStatus())) {
                     success = false;
                     errorMessage = "Bàn " + table.getTableNumber() + " đã được đặt bởi người khác.";
                     break;
@@ -224,9 +224,9 @@ public class ConfirmBookingServlet extends HttpServlet {
             }
 
             if (tableDAO != null && !tables.isEmpty()) {
-                for (Table t : tables) {
+                for (DiningTable t : tables) {
                     try {
-                        tableDAO.updateTableStatus(t.getTableNumber(), Table.STATUS_VACANT);
+                        tableDAO.updateTableStatus(t.getTableNumber(), DiningTable.STATUS_VACANT);
                     } catch (Exception ex) {
                         System.out.println("Error resetting table: " + ex.getMessage());
                     }

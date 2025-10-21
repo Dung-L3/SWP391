@@ -1,7 +1,7 @@
 package Controller;
 
 import Dal.TableDAO;
-import Models.Table;
+import Models.DiningTable;
 import java.io.IOException;
 import java.util.List;
 import jakarta.servlet.ServletException;
@@ -42,7 +42,7 @@ public class TableLayoutServlet extends HttpServlet {
             // Get filter type if any
             String filterType = request.getParameter("type");
             
-            List<Table> tables;
+            List<DiningTable> tables;
             if (filterType != null && !filterType.isEmpty()) {
                 tables = tableDAO.getTablesByType(filterType);
             } else {

@@ -137,32 +137,38 @@ public class TableServlet extends HttpServlet {
     private void getTableInfo(HttpServletRequest request, HttpServletResponse response, int tableId)
             throws ServletException, IOException {
         
-        DiningTable table = tableDAO.getTableById(tableId);
-        if (table == null) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Table not found");
-            return;
-        }
-
-        TableSession session = tableDAO.getCurrentSession(tableId);
-        
         response.setContentType("application/json");
         PrintWriter out = response.getWriter();
         
-        StringBuilder json = new StringBuilder();
-        json.append("{");
-        json.append("\"tableId\":").append(table.getTableId()).append(",");
-        json.append("\"tableNumber\":\"").append(table.getTableNumber()).append("\",");
-        json.append("\"capacity\":").append(table.getCapacity()).append(",");
-        json.append("\"status\":\"").append(table.getStatus()).append("\",");
-        json.append("\"areaName\":\"").append(table.getAreaName()).append("\",");
-        json.append("\"hasSession\":").append(session != null);
-        if (session != null) {
-            json.append(",\"sessionId\":").append(session.getTableSessionId());
-            json.append(",\"openTime\":\"").append(session.getOpenTime()).append("\"");
+        try {
+            DiningTable table = tableDAO.getTableById(tableId);
+            if (table == null) {
+                out.print("{\"error\":\"Table not found\"}");
+                return;
+            }
+
+            TableSession session = tableDAO.getCurrentSession(tableId);
+            
+            StringBuilder json = new StringBuilder();
+            json.append("{");
+            json.append("\"tableId\":").append(table.getTableId()).append(",");
+            json.append("\"tableNumber\":\"").append(table.getTableNumber()).append("\",");
+            json.append("\"capacity\":").append(table.getCapacity()).append(",");
+            json.append("\"status\":\"").append(table.getStatus()).append("\",");
+            json.append("\"areaName\":\"").append(table.getAreaName()).append("\",");
+            json.append("\"hasSession\":").append(session != null);
+            if (session != null) {
+                json.append(",\"sessionId\":").append(session.getTableSessionId());
+                json.append(",\"openTime\":\"").append(session.getOpenTime()).append("\"");
+            }
+            json.append("}");
+            
+            out.print(json.toString());
+        } catch (Exception e) {
+            System.err.println("Error in getTableInfo: " + e.getMessage());
+            e.printStackTrace();
+            out.print("{\"error\":\"" + e.getMessage().replace("\"", "\\\"") + "\"}");
         }
-        json.append("}");
-        
-        out.print(json.toString());
     }
 
     private void seatTable(HttpServletRequest request, HttpServletResponse response, int tableId)

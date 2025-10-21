@@ -3,7 +3,6 @@ package Dal;
 import Models.DiningTable;
 import Models.TableArea;
 import Models.TableSession;
-import Models.Table;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -326,8 +325,8 @@ public class TableDAO {
 
     // ==== Các method TableDAO cơ bản cho dự án tổng (Table - không chứa info sessions/areaName) ====
 
-    public List<Table> getAllTables() {
-        List<Table> tables = new ArrayList<>();
+    public List<DiningTable> getAllTables() {
+        List<DiningTable> tables = new ArrayList<>();
         String sql = "SELECT * FROM dining_table ORDER BY table_number";
 
         try (Connection conn = DBConnect.getConnection();
@@ -335,7 +334,7 @@ public class TableDAO {
              ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
-                Table table = mapResultSetToTable(rs);
+                DiningTable table = mapResultSetToTable(rs);
                 tables.add(table);
             }
         } catch (SQLException e) {
@@ -345,18 +344,26 @@ public class TableDAO {
         return tables;
     }
 
-    public List<Table> getTablesByArea(int areaId) {
-        List<Table> tables = new ArrayList<>();
-        String sql = "SELECT * FROM dining_table WHERE area_id = ? ORDER BY table_number";
+    public List<DiningTable> getTablesByArea(Integer areaId) {
+        List<DiningTable> tables = new ArrayList<>();
+        String sql;
+        
+        if (areaId != null) {
+            sql = "SELECT * FROM dining_table WHERE area_id = ? ORDER BY table_number";
+        } else {
+            sql = "SELECT * FROM dining_table ORDER BY area_id, table_number";
+        }
 
         try (Connection conn = DBConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, areaId);
+            if (areaId != null) {
+                ps.setInt(1, areaId);
+            }
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
-                Table table = mapResultSetToTable(rs);
+                DiningTable table = mapResultSetToTable(rs);
                 tables.add(table);
             }
         } catch (SQLException e) {
@@ -366,18 +373,18 @@ public class TableDAO {
         return tables;
     }
 
-    public List<Table> getVacantTables() {
-        List<Table> tables = new ArrayList<>();
+    public List<DiningTable> getVacantTables() {
+        List<DiningTable> tables = new ArrayList<>();
         String sql = "SELECT * FROM dining_table WHERE status = ? ORDER BY area_id, table_number";
 
         try (Connection conn = DBConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setString(1, Table.STATUS_VACANT);
+            ps.setString(1, DiningTable.STATUS_VACANT);
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
-                Table table = mapResultSetToTable(rs);
+                DiningTable table = mapResultSetToTable(rs);
                 tables.add(table);
             }
         } catch (SQLException e) {
@@ -387,7 +394,7 @@ public class TableDAO {
         return tables;
     }
 
-    public Table getTableByNumber(String tableNumber) throws SQLException {
+    public DiningTable getTableByNumber(String tableNumber) throws SQLException {
         String sql = "SELECT * FROM dining_table WHERE table_number = ?";
 
         try (Connection conn = DBConnect.getConnection();
@@ -408,8 +415,8 @@ public class TableDAO {
         }
     }
 
-    public List<Table> getTablesByType(String tableType) {
-        List<Table> tables = new ArrayList<>();
+    public List<DiningTable> getTablesByType(String tableType) {
+        List<DiningTable> tables = new ArrayList<>();
         String sql = "SELECT * FROM dining_table WHERE table_type = ? ORDER BY area_id, table_number";
 
         try (Connection conn = DBConnect.getConnection();
@@ -419,7 +426,7 @@ public class TableDAO {
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
-                Table table = mapResultSetToTable(rs);
+                DiningTable table = mapResultSetToTable(rs);
                 tables.add(table);
             }
         } catch (SQLException e) {
@@ -456,7 +463,7 @@ public class TableDAO {
                 return true;
             }
             // If requesting to set to RESERVED/HELD, allow only when current status is VACANT or HELD
-            if (newStatus.equals(Table.STATUS_RESERVED) && !Table.STATUS_VACANT.equals(currentStatus) && !Table.STATUS_RESERVED.equals(currentStatus)) {
+            if (newStatus.equals(DiningTable.STATUS_RESERVED) && !DiningTable.STATUS_VACANT.equals(currentStatus) && !DiningTable.STATUS_RESERVED.equals(currentStatus)) {
                 throw new SQLException("Table " + tableNumber + " is not available (current status: " + currentStatus + ")");
             }
 
@@ -504,7 +511,7 @@ public class TableDAO {
     /**
      * Lấy thông tin bàn đơn giản kiểu Table theo ID (cho các nơi không cần areaName/session)
      */
-    public Table getTableById(int tableId) throws SQLException {
+    public DiningTable getTableById(int tableId) throws SQLException {
         String sql = "SELECT * FROM dining_table WHERE table_id = ?";
 
         try (Connection conn = DBConnect.getConnection();
@@ -525,8 +532,8 @@ public class TableDAO {
         }
     }
 
-    private Table mapResultSetToTable(ResultSet rs) throws SQLException {
-        Table table = new Table();
+    private DiningTable mapResultSetToTable(ResultSet rs) throws SQLException {
+        DiningTable table = new DiningTable();
         table.setTableId(rs.getInt("table_id"));
         table.setTableNumber(rs.getString("table_number"));
         table.setCapacity(rs.getInt("capacity"));
