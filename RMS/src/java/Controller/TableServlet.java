@@ -155,11 +155,10 @@ public class TableServlet extends HttpServlet {
         json.append("\"capacity\":").append(table.getCapacity()).append(",");
         json.append("\"status\":\"").append(table.getStatus()).append("\",");
         json.append("\"areaName\":\"").append(table.getAreaName()).append("\",");
-        json.append("\"hasSession\":").append(session != null).append(",");
+        json.append("\"hasSession\":").append(session != null);
         if (session != null) {
-            json.append("\"sessionId\":").append(session.getTableSessionId()).append(",");
-            json.append("\"customerCount\":").append(session.getCustomerCount()).append(",");
-            json.append("\"openTime\":\"").append(session.getOpenTime()).append("\"");
+            json.append(",\"sessionId\":").append(session.getTableSessionId());
+            json.append(",\"openTime\":\"").append(session.getOpenTime()).append("\"");
         }
         json.append("}");
         
@@ -176,20 +175,7 @@ public class TableServlet extends HttpServlet {
             return;
         }
 
-        String customerCountStr = request.getParameter("customerCount");
-        String notes = request.getParameter("notes");
-        
-        Integer customerCount = null;
-        if (customerCountStr != null && !customerCountStr.trim().isEmpty()) {
-            try {
-                customerCount = Integer.parseInt(customerCountStr);
-            } catch (NumberFormatException e) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid customer count");
-                return;
-            }
-        }
-
-        boolean success = tableDAO.seatTable(tableId, customerCount, notes, user.getUserId());
+        boolean success = tableDAO.seatTable(tableId, null, null, user.getUserId());
         
         response.setContentType("application/json");
         PrintWriter out = response.getWriter();

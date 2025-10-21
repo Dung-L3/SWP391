@@ -162,34 +162,33 @@
             fetch('tables/' + tableId)
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('tableDetails').innerHTML = `
+                    let detailsHtml = `
                         <div class="row">
                             <div class="col-6"><strong>Số bàn:</strong></div>
-                            <div class="col-6">${data.tableNumber}</div>
+                            <div class="col-6">` + data.tableNumber + `</div>
                         </div>
                         <div class="row">
                             <div class="col-6"><strong>Sức chứa:</strong></div>
-                            <div class="col-6">${data.capacity} người</div>
+                            <div class="col-6">` + data.capacity + ` người</div>
                         </div>
                         <div class="row">
                             <div class="col-6"><strong>Trạng thái:</strong></div>
-                            <div class="col-6">${data.status}</div>
+                            <div class="col-6">` + data.status + `</div>
                         </div>
                         <div class="row">
                             <div class="col-6"><strong>Khu vực:</strong></div>
-                            <div class="col-6">${data.areaName}</div>
-                        </div>
-                        ${data.hasSession ? `
-                        <div class="row">
-                            <div class="col-6"><strong>Số khách:</strong></div>
-                            <div class="col-6">${data.customerCount || 'Chưa xác định'}</div>
-                        </div>
+                            <div class="col-6">` + data.areaName + `</div>
+                        </div>`;
+                    
+                    if (data.hasSession) {
+                        detailsHtml += `
                         <div class="row">
                             <div class="col-6"><strong>Mở lúc:</strong></div>
-                            <div class="col-6">${new Date(data.openTime).toLocaleString()}</div>
-                        </div>
-                        ` : ''}
-                    `;
+                            <div class="col-6">` + new Date(data.openTime).toLocaleString() + `</div>
+                        </div>`;
+                    }
+                    
+                    document.getElementById('tableDetails').innerHTML = detailsHtml;
 
                     let actions = '';
                     if (data.status === 'VACANT') {
@@ -224,18 +223,10 @@
         }
 
         function seatTable() {
-            const customerCount = prompt('Số lượng khách:', '');
-            if (customerCount === null) return;
-            
-            const notes = prompt('Ghi chú (tùy chọn):', '');
+            if (!confirm('Xác nhận đón khách cho bàn này?')) return;
             
             fetch('tables/' + currentTableId + '/seat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: 'customerCount=' + encodeURIComponent(customerCount) + 
-                      '&notes=' + encodeURIComponent(notes || '')
+                method: 'POST'
             })
             .then(response => response.json())
             .then(data => {

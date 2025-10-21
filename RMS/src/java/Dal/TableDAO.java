@@ -54,7 +54,7 @@ public class TableDAO {
         sql.append("SELECT ");
         sql.append("  dt.table_id, dt.area_id, dt.table_number, dt.capacity, ");
         sql.append("  dt.location, dt.status, dt.table_type, dt.map_x, dt.map_y, ");
-        sql.append("  dt.created_by, dt.created_at, dt.updated_at, ");
+        sql.append("  dt.created_by, ");
         sql.append("  ta.area_name, ");
         sql.append("  ts.table_session_id, ts.status as session_status, ");
         sql.append("  ts.open_time, ts.current_order_id ");
@@ -119,7 +119,7 @@ public class TableDAO {
         final String sql = """
             SELECT dt.table_id, dt.area_id, dt.table_number, dt.capacity,
                    dt.location, dt.status, dt.table_type, dt.map_x, dt.map_y,
-                   dt.created_by, dt.created_at, dt.updated_at,
+                   dt.created_by,
                    ta.area_name
             FROM dining_table dt
             LEFT JOIN table_area ta ON ta.area_id = dt.area_id
@@ -165,22 +165,19 @@ public class TableDAO {
 
             // 1. Tạo table_session mới
             String insertSessionSql = """
-                INSERT INTO table_session (table_id, open_time, status, customer_count, notes, created_by)
-                VALUES (?, SYSDATETIME(), 'OPEN', ?, ?, ?)
+                INSERT INTO table_session (table_id, open_time, status)
+                VALUES (?, SYSDATETIME(), 'OPEN')
             """;
             
             try (PreparedStatement ps = con.prepareStatement(insertSessionSql)) {
                 ps.setInt(1, tableId);
-                ps.setObject(2, customerCount);
-                ps.setString(3, notes);
-                ps.setObject(4, createdBy);
                 ps.executeUpdate();
             }
 
             // 2. Cập nhật trạng thái bàn thành SEATED
             String updateTableSql = """
                 UPDATE dining_table 
-                SET status = 'SEATED', updated_at = SYSDATETIME()
+                SET status = 'SEATED'
                 WHERE table_id = ?
             """;
             
@@ -233,7 +230,7 @@ public class TableDAO {
             // 2. Cập nhật trạng thái bàn thành CLEANING
             String updateTableSql = """
                 UPDATE dining_table 
-                SET status = 'CLEANING', updated_at = SYSDATETIME()
+                SET status = 'CLEANING'
                 WHERE table_id = ?
             """;
             
@@ -268,7 +265,7 @@ public class TableDAO {
     public boolean cleanTable(int tableId) {
         final String sql = """
             UPDATE dining_table 
-            SET status = 'VACANT', updated_at = SYSDATETIME()
+            SET status = 'VACANT'
             WHERE table_id = ? AND status = 'CLEANING'
         """;
 
@@ -292,8 +289,7 @@ public class TableDAO {
     public TableSession getCurrentSession(int tableId) {
         final String sql = """
             SELECT ts.table_session_id, ts.table_id, ts.open_time, ts.close_time,
-                   ts.status, ts.current_order_id, ts.customer_count, ts.notes,
-                   ts.created_by, ts.created_at, ts.updated_at,
+                   ts.status, ts.current_order_id,
                    dt.table_number, dt.status as table_status, dt.capacity
             FROM table_session ts
             JOIN dining_table dt ON dt.table_id = ts.table_id
@@ -315,9 +311,6 @@ public class TableDAO {
                     }
                     session.setStatus(rs.getString("status"));
                     session.setCurrentOrderId(rs.getLong("current_order_id"));
-                    session.setCustomerCount(rs.getInt("customer_count"));
-                    session.setNotes(rs.getString("notes"));
-                    session.setCreatedBy(rs.getInt("created_by"));
                     session.setTableNumber(rs.getString("table_number"));
                     session.setTableStatus(rs.getString("table_status"));
                     session.setTableCapacity(rs.getInt("capacity"));
