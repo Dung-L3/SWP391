@@ -12,7 +12,7 @@ import java.io.IOException;
 /**
  * @author donny
  */
-@WebServlet(name = "DashboardServlet", urlPatterns = {"/dashboard", "/"})
+@WebServlet(name = "DashboardServlet", urlPatterns = {"/dashboard"})
 public class DashboardServlet extends HttpServlet {
 
     @Override

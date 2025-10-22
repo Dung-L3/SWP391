@@ -1,7 +1,6 @@
 package Dal;
 
 import Models.User;
-import Utils.PasswordUtil;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,12 +16,10 @@ import java.time.LocalDateTime;
 public class UserDAO {
 
     /**
-     * Đăng nhập (username OR email) + password_hash
-     * @param usernameOrEmail username hoặc email
-     * @param passwordHash    mật khẩu đã hash
-     * @return User (kèm roleName/roleId, avatarUrl) nếu đúng, null nếu sai
+     * Đăng nhập nâng cao (username hoặc email) – kiểm tra mật khẩu ở Java.
+     * Hỗ trợ nhiều định dạng hash: "saltB64:hashB64", BCrypt ($2a$/$2b$/$2y$), SHA-256 hex, hoặc chuỗi cũ.
      */
-    public User login(String usernameOrEmail, String passwordHash) {
+    public User login(String usernameOrEmail, String rawPassword) {
         final String sql = """
             SELECT  u.user_id, u.username, u.email, u.password_hash,
                     u.first_name, u.last_name, u.phone, u.address,
@@ -36,50 +33,7 @@ public class UserDAO {
             LEFT JOIN dbo.roles r
                    ON r.role_id = ur.role_id AND r.status = N'ACTIVE'
             WHERE (u.username = ? OR u.email = ?)
-              AND u.password_hash = ?
-              AND u.account_status = N'ACTIVE';
-        """;
-
-        try (Connection con = DBConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setString(1, usernameOrEmail);
-            ps.setString(2, usernameOrEmail);
-            ps.setString(3, passwordHash);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    User u = mapRowToUser(rs);
-                    updateLastLogin(con, u.getUserId()); // không fail login nếu update lỗi
-                    return u;
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    /**
-     * Đăng nhập với password gốc (sẽ hash và so sánh với database)
-     * @param usernameOrEmail username hoặc email
-     * @param password       mật khẩu gốc
-     * @return User nếu đúng, null nếu sai
-     */
-    public User loginWithPassword(String usernameOrEmail, String password) {
-        final String sql = """
-            SELECT  u.user_id, u.username, u.email, u.password_hash,
-                    u.first_name, u.last_name, u.phone, u.address,
-                    u.registration_date, u.last_login, u.account_status,
-                    u.failed_login_attempts, u.lockout_until, u.created_at, u.updated_at,
-                    r.role_id, r.role_name
-            FROM dbo.users u
-            LEFT JOIN dbo.user_roles ur
-                   ON ur.user_id = u.user_id AND ur.status = N'ACTIVE'
-            LEFT JOIN dbo.roles r
-                   ON r.role_id = ur.role_id AND r.status = N'ACTIVE'
-            WHERE (u.username = ? OR u.email = ?)
-              AND u.account_status = N'ACTIVE';
+              AND u.account_status = N'ACTIVE'
         """;
 
         try (Connection con = DBConnect.getConnection();
@@ -90,41 +44,13 @@ public class UserDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    String storedHash = rs.getString("password_hash");
-                    // Kiểm tra password với PasswordUtil
-                    if (PasswordUtil.verifyPassword(password, storedHash)) {
+                    String stored = rs.getString("password_hash");
+                    // So khớp nhiều định dạng bằng PasswordUtil.matches()
+                    if (Utils.PasswordUtil.matches(rawPassword, stored)) {
                         User u = mapRowToUser(rs);
-                        updateLastLogin(con, u.getUserId());
+                        updateLastLogin(con, u.getUserId()); // không làm fail nếu lỗi
                         return u;
                     }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    // Lấy thông tin xác thực (password_hash, account_status) cho username/email (không lọc theo status)
-    public User getAuthInfo(String usernameOrEmail) {
-        final String sql = """
-            SELECT u.user_id, u.username, u.email, u.password_hash, u.account_status
-            FROM dbo.users u
-            WHERE (u.username = ? OR u.email = ?)
-        """;
-        try (Connection con = DBConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, usernameOrEmail);
-            ps.setString(2, usernameOrEmail);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    User u = new User();
-                    u.setUserId(rs.getInt("user_id"));
-                    u.setUsername(rs.getString("username"));
-                    u.setEmail(rs.getString("email"));
-                    u.setPasswordHash(rs.getString("password_hash"));
-                    u.setAccountStatus(rs.getString("account_status"));
-                    return u;
                 }
             }
         } catch (Exception e) {
@@ -183,7 +109,7 @@ public class UserDAO {
             UPDATE dbo.users
                SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?,
                    avatar_url = COALESCE(?, avatar_url),
-                   updated_at = GETDATE()
+                   updated_at = SYSDATETIME()
              WHERE user_id = ?
         """;
         try (Connection con = DBConnect.getConnection();
@@ -223,7 +149,7 @@ public class UserDAO {
         u.setAddress(rs.getString("address"));
         u.setAccountStatus(rs.getString("account_status"));
         u.setFailedLoginAttempts(rs.getInt("failed_login_attempts"));
-        u.setAvatarUrl(null); // avatar_url column doesn't exist in database
+        u.setAvatarUrl(rs.getString("avatar_url"));
 
         Timestamp t;
         t = rs.getTimestamp("registration_date");
@@ -255,31 +181,73 @@ public class UserDAO {
             e.printStackTrace();
         }
     }
-    
-    public boolean changePassword(int userId, String oldHash, String newHash) {
-    final String sql = """
-        UPDATE users
-           SET password_hash = ?, updated_at = GETDATE()
-         WHERE user_id = ? AND password_hash = ?
-    """;
-    try (Connection con = DBConnect.getConnection();
-         PreparedStatement ps = con.prepareStatement(sql)) {
-        ps.setString(1, newHash);
-        ps.setInt(2, userId);
-        ps.setString(3, oldHash);
-        return ps.executeUpdate() > 0; // chỉ true nếu oldHash đúng
-    } catch (Exception e) {
-        e.printStackTrace();
-        return false;
-    }
-}
 
+    public boolean changePassword(int userId, String oldHash, String newHash) {
+        final String sql = """
+            UPDATE users
+               SET password_hash = ?, updated_at = SYSDATETIME()
+             WHERE user_id = ? AND password_hash = ?
+        """;
+        try (Connection con = DBConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, newHash);
+            ps.setInt(2, userId);
+            ps.setString(3, oldHash);
+            return ps.executeUpdate() > 0; // chỉ true nếu oldHash đúng
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /** Tìm user theo username hoặc email  */
+    public User findByUsernameOrEmail(String identifier) {
+        final String sql = """
+            SELECT  u.user_id, u.username, u.email, u.password_hash,
+                    u.first_name, u.last_name, u.phone, u.address,
+                    u.registration_date, u.last_login, u.account_status,
+                    u.failed_login_attempts, u.lockout_until, u.created_at, u.updated_at,
+                    u.avatar_url,
+                    r.role_id, r.role_name
+            FROM dbo.users u
+            LEFT JOIN dbo.user_roles ur
+                   ON ur.user_id = u.user_id AND ur.status = N'ACTIVE'
+            LEFT JOIN dbo.roles r
+                   ON r.role_id = ur.role_id AND r.status = N'ACTIVE'
+            WHERE (u.username = ? OR u.email = ?)
+        """;
+        try (Connection con = DBConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, identifier);
+            ps.setString(2, identifier);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return mapRowToUser(rs);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /** Cập nhật password_hash (dùng khi reset mật khẩu xong). */
+    public boolean updatePasswordHash(int userId, String newHash) {
+        final String sql = """
+            UPDATE dbo.users
+               SET password_hash = ?, updated_at = SYSDATETIME()
+             WHERE user_id = ?
+        """;
+        try (Connection con = DBConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, newHash);
+            ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 
     private static LocalDateTime toLocal(Timestamp ts) {
         return ts == null ? null : ts.toLocalDateTime();
-    }
-
-    public boolean verifyOTP(String email, String otp) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
 }

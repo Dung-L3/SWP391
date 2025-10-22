@@ -2,86 +2,108 @@ package Controller.auth;
 
 import Dal.UserDAO;
 import Models.User;
-import Utils.PasswordUtil;
-import Utils.RoleBasedRedirect;
 
 import java.io.IOException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 
+import Utils.RoleBasedRedirect; // <-- dùng util bạn đã có
+
+@WebServlet(name = "LoginServlet", urlPatterns = {"/LoginServlet", "/login"})
 public class LoginServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        request.setCharacterEncoding("UTF-8");
+        response.setCharacterEncoding("UTF-8");
+
+        // Prefill username nếu có cookie
+        String remembered = getCookie(request.getCookies(), "username");
+        if (remembered != null && !remembered.isBlank()) {
+            request.setAttribute("rememberedUsername", remembered);
+        }
+
+        String next = safeTrim(request.getParameter("next"));
+        if (next != null && !next.isEmpty()) {
+            request.setAttribute("next", next);
+        }
+
+        request.getRequestDispatcher("/auth/Login.jsp").forward(request, response);
+    }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        request.setCharacterEncoding("UTF-8");
+        response.setCharacterEncoding("UTF-8");
 
-        String username = safeTrim(request.getParameter("username"));
-        String password = request.getParameter("password");
-        boolean remember = request.getParameter("remember") != null;
+        String usernameOrEmail = safeTrim(request.getParameter("username"));
+        String password        = request.getParameter("password"); // raw
+        boolean remember       = request.getParameter("remember") != null;
+        String next            = safeTrim(request.getParameter("next"));
 
-        // validate 
-        if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
+        if (isBlank(usernameOrEmail) || isBlank(password)) {
             request.setAttribute("loginError", "Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.");
             request.getRequestDispatcher("/auth/Login.jsp").forward(request, response);
             return;
         }
 
+        // Đăng nhập: DAO sẽ kiểm tra nhiều định dạng hash (BCrypt / salt:hash / hex / legacy)
         UserDAO dao = new UserDAO();
-
-        // 1) Kiểm tra trạng thái tài khoản trước
-        Models.User authInfo = dao.getAuthInfo(username);
-        if (authInfo != null && "DISABLED".equalsIgnoreCase(authInfo.getAccountStatus())) {
-            request.setAttribute("loginError", "Tài khoản của bạn đã bị vô hiệu hóa");
-            request.getRequestDispatcher("/auth/Login.jsp").forward(request, response);
-            return;
-        }
-
-        // 2) Thực hiện đăng nhập chuẩn (chỉ với tài khoản ACTIVE)
-        User user = dao.loginWithPassword(username, password);
+        User user = dao.login(usernameOrEmail, password);
 
         if (user != null) {
-            //  Đăng nhập thành công
+            // Ngăn session fixation
             HttpSession old = request.getSession(false);
             if (old != null) old.invalidate();
+
             HttpSession session = request.getSession(true);
             session.setAttribute("user", user);
+            session.setMaxInactiveInterval(60 * 60); // 60 phút
             session.setAttribute("loginMsg", "Đăng nhập thành công!");
 
-            // Remember me: chỉ nhớ username để autofill
-            if (remember) {
-                Cookie cUser = new Cookie("username", username);
-                cUser.setMaxAge(7 * 24 * 60 * 60); // 7 ngày
-                cUser.setHttpOnly(true);
-                cUser.setSecure(request.isSecure());
-                cUser.setPath(request.getContextPath());
-                response.addCookie(cUser);
-            } else {
-                 
-                Cookie cUser = new Cookie("username", "");
-                cUser.setMaxAge(0);
-                cUser.setHttpOnly(true);
-                cUser.setSecure(request.isSecure());
-                cUser.setPath(request.getContextPath());
-                response.addCookie(cUser);
-            }
-            // Redirect theo role
-            RoleBasedRedirect.redirectByRole(user, request, response);
-        } else {
-            // ❌ Sai tài khoản/mật khẩu
-            request.setAttribute("loginError", "Tên đăng nhập hoặc mật khẩu sai.");
-            request.getRequestDispatcher("/auth/Login.jsp").forward(request, response);
-        }
-    }
+            // (Tuỳ chọn) lưu role vào session để JSP menu/guard dễ dùng
+            // Nếu model của bạn có getter khác, đổi lại cho khớp:
+            // session.setAttribute("role", user.getPrimaryRoleName());
 
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        
+            // Remember me: chỉ lưu username để autofill
+            writeUsernameCookie(response, request.getContextPath(), request.isSecure(),
+                    remember ? usernameOrEmail : "");
+
+            // Ưu tiên 'next' nếu nội bộ hợp lệ
+            String ctx = request.getContextPath();
+            if (next != null && next.startsWith(ctx)) {
+                response.sendRedirect(next);
+                return;
+            }
+
+            // Không có 'next' -> điều hướng theo ROLE
+            RoleBasedRedirect.redirectByRole(user, request, response);
+            return; // QUAN TRỌNG: dừng lại sau khi redirect
+        }
+
+        // ❌ Sai thông tin
+        request.setAttribute("loginError", "Tên đăng nhập hoặc mật khẩu sai.");
         request.getRequestDispatcher("/auth/Login.jsp").forward(request, response);
     }
 
-    private String safeTrim(String s) {
-        return s == null ? null : s.trim();
+    private static String safeTrim(String s) { return s == null ? null : s.trim(); }
+    private static boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
+
+    private void writeUsernameCookie(HttpServletResponse resp, String ctx, boolean secure, String value) {
+        Cookie cUser = new Cookie("username", value == null ? "" : value);
+        cUser.setMaxAge((value != null && !value.isEmpty()) ? 7 * 24 * 60 * 60 : 0);
+        cUser.setHttpOnly(true);
+        cUser.setSecure(secure);
+        cUser.setPath((ctx == null || ctx.isEmpty()) ? "/" : ctx);
+        resp.addCookie(cUser);
+    }
+
+    private String getCookie(Cookie[] cookies, String name) {
+        if (cookies == null) return null;
+        for (Cookie c : cookies) if (name.equals(c.getName())) return c.getValue();
+        return null;
     }
 }

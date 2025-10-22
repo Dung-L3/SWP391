@@ -1,6 +1,7 @@
 package Controller;
 
 import Dal.KitchenDAO;
+import Models.KitchenTicket;
 import Models.User;
 import Utils.RoleBasedRedirect;
 import jakarta.servlet.ServletException;
@@ -101,7 +102,7 @@ public class KitchenServlet extends HttpServlet {
             String status = request.getParameter("status");
             
             // Lấy danh sách kitchen tickets
-            List<Object[]> tickets = kitchenDAO.getKitchenTickets(station, status);
+            List<KitchenTicket> tickets = kitchenDAO.getKitchenTickets(station, status);
             
             request.setAttribute("tickets", tickets);
             request.setAttribute("station", station);

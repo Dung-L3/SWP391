@@ -3,6 +3,7 @@ package Controller;
 import Dal.OrderDAO;
 import Dal.KitchenDAO;
 import Dal.MenuDAO;
+import Models.KitchenTicket;
 import Models.Order;
 import Models.OrderItem;
 import Models.User;

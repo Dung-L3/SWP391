@@ -23,7 +23,7 @@ public class RoleBasedRedirect {
         
         switch (roleName) {
             case "Manager":
-                response.sendRedirect(contextPath + "/dashboard");
+                response.sendRedirect(contextPath + "/admin");
                 break;
             case "Waiter":
                 response.sendRedirect(contextPath + "/tables");

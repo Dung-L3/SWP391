@@ -2,49 +2,76 @@ package Controller.auth;
 
 import Dal.UserDAO;
 import Models.User;
+import Utils.HashUtil;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
+
 import java.io.IOException;
 
 @WebServlet("/ChangePasswordServlet")
 public class ChangePasswordServlet extends HttpServlet {
-
-    private static String hash(String raw) {
-        // Giữ nguyên cơ chế hash hiện có trong dự án để tương thích DB
-        return String.valueOf(raw.hashCode());
-    }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
 
         HttpSession session = req.getSession(false);
-        User u = (session == null) ? null : (User) session.getAttribute("user");
-        if (u == null) {
+        if (session == null || session.getAttribute("user") == null) {
             resp.sendRedirect(req.getContextPath() + "/LoginServlet");
             return;
         }
 
-        req.setCharacterEncoding("UTF-8");
-        String current = req.getParameter("currentPassword");
-        String newPwd  = req.getParameter("newPassword");
-        String confirm = req.getParameter("confirmPassword");
+        User currentUser = (User) session.getAttribute("user");
 
-        if (current == null || newPwd == null || confirm == null || !newPwd.equals(confirm)) {
-            session.setAttribute("flash", "Password confirmation does not match.");
-            resp.sendRedirect(req.getContextPath() + "/views/profile.jsp");
+        String oldPassword = req.getParameter("oldPassword");
+        String newPassword = req.getParameter("newPassword");
+        String confirmPassword = req.getParameter("confirmPassword");
+
+        // Validate cơ bản
+        if (oldPassword == null || newPassword == null || confirmPassword == null ||
+            oldPassword.isBlank() || newPassword.isBlank() || confirmPassword.isBlank()) {
+            session.setAttribute("profileMsgError", "Vui lòng nhập đầy đủ các trường.");
+            resp.sendRedirect(req.getContextPath() + "/profile");
             return;
         }
 
-        UserDAO dao = new UserDAO();
-        boolean ok = dao.changePassword(u.getUserId(), hash(current), hash(newPwd));
-
-        if (ok) {
-            session.setAttribute("flash", "Password updated successfully.");
-        } else {
-            session.setAttribute("flash", "Current password is incorrect.");
+        if (!newPassword.equals(confirmPassword)) {
+            session.setAttribute("profileMsgError", "Mật khẩu xác nhận không khớp.");
+            resp.sendRedirect(req.getContextPath() + "/profile");
+            return;
         }
-        resp.sendRedirect(req.getContextPath() + "/views/profile.jsp");
+
+        try {
+            UserDAO dao = new UserDAO();
+
+            // ✅ Kiểm tra old password bằng verifyMixed (hỗ trợ cả bcrypt và hash cũ)
+            boolean oldMatch = HashUtil.verifyMixed(oldPassword, currentUser.getPasswordHash());
+            if (!oldMatch) {
+                session.setAttribute("profileMsgError", "Mật khẩu hiện tại không đúng.");
+                resp.sendRedirect(req.getContextPath() + "/profile");
+                return;
+            }
+
+            // ✅ Bcrypt mật khẩu mới
+            String newHashed = HashUtil.bcrypt(newPassword);
+
+            boolean updated = dao.updatePasswordHash(currentUser.getUserId(), newHashed);
+            if (updated) {
+                // Cập nhật lại trong session để tránh lỗi đăng nhập tiếp
+                currentUser.setPasswordHash(newHashed);
+                session.setAttribute("user", currentUser);
+                session.setAttribute("profileMsgSuccess", "Mật khẩu đã được thay đổi thành công!");
+            } else {
+                session.setAttribute("profileMsgError", "Không thể cập nhật mật khẩu. Vui lòng thử lại.");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            session.setAttribute("profileMsgError", "Lỗi máy chủ, vui lòng thử lại sau.");
+        }
+
+        resp.sendRedirect(req.getContextPath() + "/profile");
     }
 }
