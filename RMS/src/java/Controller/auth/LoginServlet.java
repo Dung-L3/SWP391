@@ -8,7 +8,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 
-import Utils.RoleBasedRedirect; // <-- dùng util bạn đã có
+import Utils.RoleBasedRedirect; 
 
 @WebServlet(name = "LoginServlet", urlPatterns = {"/LoginServlet", "/login"})
 public class LoginServlet extends HttpServlet {
@@ -19,7 +19,6 @@ public class LoginServlet extends HttpServlet {
         request.setCharacterEncoding("UTF-8");
         response.setCharacterEncoding("UTF-8");
 
-        // Prefill username nếu có cookie
         String remembered = getCookie(request.getCookies(), "username");
         if (remembered != null && !remembered.isBlank()) {
             request.setAttribute("rememberedUsername", remembered);
@@ -50,7 +49,7 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
-        // Đăng nhập: DAO sẽ kiểm tra nhiều định dạng hash (BCrypt / salt:hash / hex / legacy)
+        // Đăng nhập: kiểm tra nhiều định dạng hash (BCrypt / salt:hash / hex / legacy)
         UserDAO dao = new UserDAO();
         User user = dao.login(usernameOrEmail, password);
 
@@ -64,24 +63,18 @@ public class LoginServlet extends HttpServlet {
             session.setMaxInactiveInterval(60 * 60); // 60 phút
             session.setAttribute("loginMsg", "Đăng nhập thành công!");
 
-            // (Tuỳ chọn) lưu role vào session để JSP menu/guard dễ dùng
-            // Nếu model của bạn có getter khác, đổi lại cho khớp:
-            // session.setAttribute("role", user.getPrimaryRoleName());
-
             // Remember me: chỉ lưu username để autofill
             writeUsernameCookie(response, request.getContextPath(), request.isSecure(),
                     remember ? usernameOrEmail : "");
 
-            // Ưu tiên 'next' nếu nội bộ hợp lệ
             String ctx = request.getContextPath();
             if (next != null && next.startsWith(ctx)) {
                 response.sendRedirect(next);
                 return;
             }
 
-            // Không có 'next' -> điều hướng theo ROLE
             RoleBasedRedirect.redirectByRole(user, request, response);
-            return; // QUAN TRỌNG: dừng lại sau khi redirect
+            return;
         }
 
         // ❌ Sai thông tin

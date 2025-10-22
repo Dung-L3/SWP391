@@ -171,5 +171,29 @@
         <servlet-name>OrderPageServlet</servlet-name>
         <url-pattern>/order-page</url-pattern>
     </servlet-mapping>
+    <context-param>
+        <param-name>smtp.host</param-name>
+        <param-value>smtp.gmail.com</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>smtp.port</param-name>
+        <param-value>587</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>smtp.username</param-name>
+        <param-value>G3Hospitalgroup6@gmail.com</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>smtp.password</param-name>
+        <param-value>zwlv ppud mzeo pwuy</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>smtp.from</param-name>
+        <param-value>RMSG4 Support &lt;RMSGroup4support@gmail.com&gt;</param-value>
+    </context-param>
 
 </web-app>
