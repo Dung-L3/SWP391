@@ -34,12 +34,6 @@ public class RoleBasedRedirect {
             case "Receptionist":
                 response.sendRedirect(contextPath + "/reception");
                 break;
-            case "Cashier":
-                response.sendRedirect(contextPath + "/cashier");
-                break;
-            case "Supervisor":
-                response.sendRedirect(contextPath + "/supervisor");
-                break;
             default:
                 response.sendRedirect(contextPath + "/dashboard");
                 break;

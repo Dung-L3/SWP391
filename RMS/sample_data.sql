@@ -7,9 +7,7 @@ INSERT INTO roles (role_name, description, status) VALUES
 ('Manager', 'Quản lý hệ thống', 'ACTIVE'),
 ('Waiter', 'Nhân viên phục vụ', 'ACTIVE'),
 ('Chef', 'Đầu bếp', 'ACTIVE'),
-('Receptionist', 'Lễ tân', 'ACTIVE'),
-('Cashier', 'Thu ngân', 'ACTIVE'),
-('Supervisor', 'Giám sát', 'ACTIVE');
+('Receptionist', 'Lễ tân (bao gồm thu ngân)', 'ACTIVE');
 GO
 
 -- Thêm permissions
@@ -55,6 +53,15 @@ GO
 
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 3, permission_id FROM permissions WHERE module = 'KDS' AND action = 'UPDATE';
+GO
+
+-- Receptionist có quyền đọc tất cả và update bàn, đơn hàng
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 4, permission_id FROM permissions WHERE action = 'READ';
+GO
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT 4, permission_id FROM permissions WHERE module IN ('ORDER', 'TABLE') AND action = 'UPDATE';
 GO
 
 -- Tạo admin user mặc định
