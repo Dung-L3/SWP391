@@ -2,18 +2,24 @@ package Dal;
 
 import Models.Order;
 import Models.OrderItem;
-import Models.PricingRule;
 import Models.MenuItem;
+import Utils.PricingService;
+
 import java.sql.*;
-import java.time.DayOfWeek;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.math.BigDecimal;
 
 /**
- * @author donny
+ * OrderDAO:
+ * - Tạo order
+ * - Lấy order
+ * - Gắn món vào order
+ * - Update order và order_item
+ *
+ * Giá món (final_unit_price) sẽ được chốt tại thời điểm thêm món vào order
+ * bằng PricingService -> đảm bảo in bill sau này không thay đổi theo khung giờ nữa.
  */
 public class OrderDAO {
 
@@ -22,8 +28,19 @@ public class OrderDAO {
      */
     public Long createOrder(Order order) throws SQLException {
         String sql = """
-            INSERT INTO orders (order_type, table_id, waiter_id, status, subtotal, tax_amount, total_amount, 
-                               special_instructions, created_at, updated_at, created_by)
+            INSERT INTO orders (
+                order_type,
+                table_id,
+                waiter_id,
+                status,
+                subtotal,
+                tax_amount,
+                total_amount,
+                special_instructions,
+                created_at,
+                updated_at,
+                created_by
+            )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
 
@@ -51,6 +68,7 @@ public class OrderDAO {
                 }
             }
         }
+
         return null;
     }
 
@@ -59,7 +77,9 @@ public class OrderDAO {
      */
     public Order getOrderById(Long orderId) throws SQLException {
         String sql = """
-            SELECT o.*, dt.table_number, u.first_name + ' ' + u.last_name as waiter_name
+            SELECT o.*,
+                   dt.table_number,
+                   u.first_name + ' ' + u.last_name AS waiter_name
             FROM orders o
             LEFT JOIN dining_table dt ON dt.table_id = o.table_id
             LEFT JOIN users u ON u.user_id = o.waiter_id
@@ -70,25 +90,31 @@ public class OrderDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setLong(1, orderId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return mapResultSetToOrder(rs);
                 }
             }
         }
+
         return null;
     }
 
     /**
-     * Lấy order theo table ID
+     * Lấy order đang mở theo table_id
+     * (NEW / CONFIRMED / PREPARING / READY)
      */
     public Order getOrderByTableId(Integer tableId) throws SQLException {
         String sql = """
-            SELECT o.*, dt.table_number, u.first_name + ' ' + u.last_name as waiter_name
+            SELECT o.*,
+                   dt.table_number,
+                   u.first_name + ' ' + u.last_name AS waiter_name
             FROM orders o
             LEFT JOIN dining_table dt ON dt.table_id = o.table_id
             LEFT JOIN users u ON u.user_id = o.waiter_id
-            WHERE o.table_id = ? AND o.status IN ('NEW', 'CONFIRMED', 'PREPARING', 'READY')
+            WHERE o.table_id = ?
+              AND o.status IN ('NEW', 'CONFIRMED', 'PREPARING', 'READY')
             ORDER BY o.created_at DESC
         """;
 
@@ -96,28 +122,58 @@ public class OrderDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, tableId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return mapResultSetToOrder(rs);
                 }
             }
         }
+
         return null;
     }
 
     /**
-     * Thêm item vào order
+     * Thêm item vào order:
+     * - Lấy giá hiện hành từ PricingService (happy hour, khuyến mãi...)
+     * - Ghi cả base_unit_price và final_unit_price vào DB
+     * - Tính total_price = final_unit_price * quantity
+     *
+     * Chú ý:
+     *  - baseUnitPrice = giá gốc (menu_items.base_price) tại thời điểm order
+     *  - finalUnitPrice = giá sau khi áp dụng rule
      */
     public Long addOrderItem(OrderItem orderItem) throws SQLException {
-        // Tính final price với pricing rules
-        BigDecimal finalPrice = calculateFinalPrice(orderItem.getMenuItemId(), orderItem.getBaseUnitPrice());
+
+        // 1. Lấy baseUnitPrice (bạn đã set sẵn vào orderItem ở tầng trên khi user chọn món)
+        BigDecimal basePrice = orderItem.getBaseUnitPrice();
+
+        // 2. Tính final price với PricingService (dựa vào menu_item_id)
+        PricingService pricingService = new PricingService();
+        BigDecimal finalPrice = pricingService.getCurrentPrice(
+                buildTempMenuItem(orderItem.getMenuItemId(), basePrice)
+        );
+
+        // 3. set vào orderItem để lưu DB
         orderItem.setFinalUnitPrice(finalPrice);
         orderItem.setTotalPrice(finalPrice.multiply(BigDecimal.valueOf(orderItem.getQuantity())));
 
         String sql = """
-            INSERT INTO order_items (order_id, menu_item_id, quantity, special_instructions, priority, 
-                                   course, base_unit_price, final_unit_price, total_price, status, 
-                                   created_at, updated_at, created_by)
+            INSERT INTO order_items (
+                order_id,
+                menu_item_id,
+                quantity,
+                special_instructions,
+                priority,
+                course,
+                base_unit_price,
+                final_unit_price,
+                total_price,
+                status,
+                created_at,
+                updated_at,
+                created_by
+            )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
 
@@ -130,9 +186,9 @@ public class OrderDAO {
             ps.setString(4, orderItem.getSpecialInstructions());
             ps.setString(5, orderItem.getPriority());
             ps.setString(6, orderItem.getCourse());
-            ps.setBigDecimal(7, orderItem.getBaseUnitPrice());
-            ps.setBigDecimal(8, orderItem.getFinalUnitPrice());
-            ps.setBigDecimal(9, orderItem.getTotalPrice());
+            ps.setBigDecimal(7, orderItem.getBaseUnitPrice());   // giá gốc lúc order
+            ps.setBigDecimal(8, orderItem.getFinalUnitPrice());  // giá sau rule
+            ps.setBigDecimal(9, orderItem.getTotalPrice());      // final * qty
             ps.setString(10, orderItem.getStatus());
             ps.setTimestamp(11, Timestamp.valueOf(LocalDateTime.now()));
             ps.setTimestamp(12, Timestamp.valueOf(LocalDateTime.now()));
@@ -147,43 +203,55 @@ public class OrderDAO {
                 }
             }
         }
+
         return null;
     }
 
     /**
-     * Lấy danh sách items của order
+     * Lấy toàn bộ order_items trong 1 order (bao gồm tên món, thời gian chế biến)
      */
     public List<OrderItem> getOrderItems(Long orderId) throws SQLException {
         String sql = """
-            SELECT oi.*, mi.name as menu_item_name, mi.description as menu_item_description, 
+            SELECT oi.*,
+                   mi.name AS menu_item_name,
+                   mi.description AS menu_item_description,
                    mi.preparation_time
             FROM order_items oi
-            LEFT JOIN menu_items mi ON mi.item_id = oi.menu_item_id
+            LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id
             WHERE oi.order_id = ?
             ORDER BY oi.course, oi.created_at
         """;
 
         List<OrderItem> items = new ArrayList<>();
+
         try (Connection conn = DBConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setLong(1, orderId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     items.add(mapResultSetToOrderItem(rs));
                 }
             }
         }
+
         return items;
     }
 
     /**
-     * Cập nhật order
+     * Update order tổng (status, tiền, note,...)
      */
     public boolean updateOrder(Order order) throws SQLException {
         String sql = """
-            UPDATE orders SET status = ?, subtotal = ?, tax_amount = ?, total_amount = ?, 
-                            special_instructions = ?, updated_at = ?, updated_by = ?
+            UPDATE orders
+            SET status = ?,
+                subtotal = ?,
+                tax_amount = ?,
+                total_amount = ?,
+                special_instructions = ?,
+                updated_at = ?,
+                updated_by = ?
             WHERE order_id = ?
         """;
 
@@ -204,13 +272,23 @@ public class OrderDAO {
     }
 
     /**
-     * Cập nhật order item
+     * Update 1 item trong order (số lượng, note,...)
+     * Lưu ý: Ở đây mình KHÔNG tự động re-calc finalUnitPrice nữa,
+     * vì giá đã chốt tại thời điểm thêm món. Nếu bạn muốn cho phép cập nhật lại giá,
+     * bạn phải gọi PricingService lại trước khi gọi hàm này và set finalUnitPrice mới.
      */
     public boolean updateOrderItem(OrderItem orderItem) throws SQLException {
         String sql = """
-            UPDATE order_items SET quantity = ?, special_instructions = ?, priority = ?, 
-                                 course = ?, final_unit_price = ?, total_price = ?, status = ?, 
-                                 updated_at = ?, updated_by = ?
+            UPDATE order_items
+            SET quantity = ?,
+                special_instructions = ?,
+                priority = ?,
+                course = ?,
+                final_unit_price = ?,
+                total_price = ?,
+                status = ?,
+                updated_at = ?,
+                updated_by = ?
             WHERE order_item_id = ?
         """;
 
@@ -232,73 +310,13 @@ public class OrderDAO {
         }
     }
 
-    /**
-     * Tính final price với pricing rules
-     */
-    private BigDecimal calculateFinalPrice(Integer menuItemId, BigDecimal basePrice) throws SQLException {
-        List<PricingRule> rules = getApplicablePricingRules(menuItemId);
-        BigDecimal finalPrice = basePrice;
+    // ---------------------------------
+    // Helpers mapping ResultSet -> Model
+    // ---------------------------------
 
-        for (PricingRule rule : rules) {
-            if (rule.isActive() && rule.isTimeInRange(LocalTime.now()) && 
-                rule.isDayMatch(LocalDateTime.now().getDayOfWeek())) {
-                
-                if (rule.isPercentage()) {
-                    BigDecimal adjustment = finalPrice.multiply(rule.getAdjustmentValue()).divide(BigDecimal.valueOf(100));
-                    if (rule.isIncrease()) {
-                        finalPrice = finalPrice.add(adjustment);
-                    } else {
-                        finalPrice = finalPrice.subtract(adjustment);
-                    }
-                } else if (rule.isFixedAmount()) {
-                    if (rule.isIncrease()) {
-                        finalPrice = finalPrice.add(rule.getAdjustmentValue());
-                    } else {
-                        finalPrice = finalPrice.subtract(rule.getAdjustmentValue());
-                    }
-                }
-            }
-        }
-
-        return finalPrice.max(BigDecimal.ZERO); // Không cho phép giá âm
-    }
-
-    /**
-     * Lấy pricing rules áp dụng cho menu item
-     */
-    private List<PricingRule> getApplicablePricingRules(Integer menuItemId) throws SQLException {
-        String sql = """
-            SELECT * FROM pricing_rules 
-            WHERE status = 'ACTIVE' 
-            AND (menu_item_id = ? OR menu_item_id IS NULL)
-            AND (valid_from IS NULL OR valid_from <= ?)
-            AND (valid_to IS NULL OR valid_to >= ?)
-            ORDER BY priority DESC, created_at DESC
-        """;
-
-        List<PricingRule> rules = new ArrayList<>();
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            LocalDateTime now = LocalDateTime.now();
-            ps.setInt(1, menuItemId);
-            ps.setTimestamp(2, Timestamp.valueOf(now));
-            ps.setTimestamp(3, Timestamp.valueOf(now));
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    rules.add(mapResultSetToPricingRule(rs));
-                }
-            }
-        }
-        return rules;
-    }
-
-    /**
-     * Map ResultSet to Order
-     */
     private Order mapResultSetToOrder(ResultSet rs) throws SQLException {
         Order order = new Order();
+
         order.setOrderId(rs.getLong("order_id"));
         order.setOrderType(rs.getString("order_type"));
         order.setTableId(rs.getInt("table_id"));
@@ -308,19 +326,22 @@ public class OrderDAO {
         order.setTaxAmount(rs.getBigDecimal("tax_amount"));
         order.setTotalAmount(rs.getBigDecimal("total_amount"));
         order.setSpecialInstructions(rs.getString("special_instructions"));
-        order.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
-        order.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
+
+        Timestamp cAt = rs.getTimestamp("created_at");
+        Timestamp uAt = rs.getTimestamp("updated_at");
+        if (cAt != null) order.setCreatedAt(cAt.toLocalDateTime());
+        if (uAt != null) order.setUpdatedAt(uAt.toLocalDateTime());
+
         order.setCreatedBy(rs.getInt("created_by"));
         order.setTableNumber(rs.getString("table_number"));
         order.setWaiterName(rs.getString("waiter_name"));
+
         return order;
     }
 
-    /**
-     * Map ResultSet to OrderItem
-     */
     private OrderItem mapResultSetToOrderItem(ResultSet rs) throws SQLException {
         OrderItem item = new OrderItem();
+
         item.setOrderItemId(rs.getLong("order_item_id"));
         item.setOrderId(rs.getLong("order_id"));
         item.setMenuItemId(rs.getInt("menu_item_id"));
@@ -332,46 +353,33 @@ public class OrderDAO {
         item.setFinalUnitPrice(rs.getBigDecimal("final_unit_price"));
         item.setTotalPrice(rs.getBigDecimal("total_price"));
         item.setStatus(rs.getString("status"));
-        item.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
-        item.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
+
+        Timestamp cAt = rs.getTimestamp("created_at");
+        Timestamp uAt = rs.getTimestamp("updated_at");
+        if (cAt != null) item.setCreatedAt(cAt.toLocalDateTime());
+        if (uAt != null) item.setUpdatedAt(uAt.toLocalDateTime());
+
         item.setCreatedBy(rs.getInt("created_by"));
         item.setMenuItemName(rs.getString("menu_item_name"));
         item.setMenuItemDescription(rs.getString("menu_item_description"));
         item.setPreparationTime(rs.getInt("preparation_time"));
+
         return item;
     }
 
     /**
-     * Map ResultSet to PricingRule
+     * Helper nội bộ:
+     * Xây dựng 1 MenuItem "ảo" chỉ với itemId + basePrice hiện tại
+     * để đưa vào PricingService.getCurrentPrice().
+     *
+     * Vì PricingService cần MenuItem (có itemId và basePrice),
+     * nhưng ở luồng addOrderItem chúng ta chỉ có menuItemId và baseUnitPrice,
+     * chưa chắc đã load đầy đủ MenuItem từ DB.
      */
-    private PricingRule mapResultSetToPricingRule(ResultSet rs) throws SQLException {
-        PricingRule rule = new PricingRule();
-        rule.setPricingRuleId(rs.getLong("pricing_rule_id"));
-        rule.setRuleName(rs.getString("rule_name"));
-        rule.setRuleType(rs.getString("rule_type"));
-        rule.setDayOfWeek(rs.getString("day_of_week"));
-        if (rs.getTime("start_time") != null) {
-            rule.setStartTime(rs.getTime("start_time").toLocalTime());
-        }
-        if (rs.getTime("end_time") != null) {
-            rule.setEndTime(rs.getTime("end_time").toLocalTime());
-        }
-        rule.setAdjustmentValue(rs.getBigDecimal("adjustment_value"));
-        rule.setAdjustmentType(rs.getString("adjustment_type"));
-        rule.setMenuItemId(rs.getInt("menu_item_id"));
-        rule.setCategoryId(rs.getInt("category_id"));
-        rule.setStatus(rs.getString("status"));
-        rule.setDescription(rs.getString("description"));
-        rule.setPriority(rs.getInt("priority"));
-        if (rs.getTimestamp("valid_from") != null) {
-            rule.setValidFrom(rs.getTimestamp("valid_from").toLocalDateTime());
-        }
-        if (rs.getTimestamp("valid_to") != null) {
-            rule.setValidTo(rs.getTimestamp("valid_to").toLocalDateTime());
-        }
-        rule.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
-        rule.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
-        rule.setCreatedBy(rs.getInt("created_by"));
-        return rule;
+    private MenuItem buildTempMenuItem(int menuItemId, BigDecimal basePrice) {
+        MenuItem mi = new MenuItem();
+        mi.setItemId(menuItemId);
+        mi.setBasePrice(basePrice);
+        return mi;
     }
 }
