@@ -106,6 +106,7 @@
         <servlet-name>MenuManagementServlet</servlet-name>
         <url-pattern>/menu</url-pattern>
     </servlet-mapping>
+    
 
     <!-- Voucher Management Servlet -->
     <servlet>
