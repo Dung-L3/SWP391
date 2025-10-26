@@ -4,6 +4,7 @@ import Dal.ReservationDAO;
 import Dal.TableDAO;
 import Models.Reservation;
 import Models.DiningTable;
+import Controller.auth.EmailServices;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -17,6 +18,7 @@ import java.sql.Time;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import javax.mail.MessagingException;
 
 @WebServlet(urlPatterns = {"/confirm-booking"})
 public class ConfirmBookingServlet extends HttpServlet {
@@ -181,6 +183,38 @@ public class ConfirmBookingServlet extends HttpServlet {
             }
 
             if (success) {
+                // Prepare all attributes before sending email
+                request.setAttribute("successMessage", "Đặt bàn thành công! Mã đặt bàn của bạn là: " + confirmationCode);
+                request.setAttribute("reservation", reservations.get(0));
+                request.setAttribute("bookedTables", tables);
+
+                // Send confirmation email
+                try {
+                    Controller.auth.EmailServices emailService = new Controller.auth.EmailServices(getServletContext());
+                    StringBuilder tableIds = new StringBuilder();
+                    for (DiningTable table : tables) {
+                        if (tableIds.length() > 0) {
+                            tableIds.append(", ");
+                        }
+                        tableIds.append(table.getTableNumber());
+                    }
+                    emailService.sendReservationConfirmation(
+                        email, 
+                        confirmationCode,
+                        customerName,
+                        dateStr,
+                        timeStr,
+                        numOfPeople,
+                        tableIds.toString()
+                    );
+                    System.out.println("Confirmation email sent successfully to: " + email);
+                } catch (Exception e) {
+                    System.out.println("Warning: Could not send confirmation email: " + e.getMessage());
+                    e.printStackTrace();
+                    // Continue with the booking process even if email fails
+                }
+
+                // Clear session attributes after email is sent
                 session.removeAttribute("bookingInProgress");
                 session.removeAttribute("customerName");
                 session.removeAttribute("phone");
@@ -190,11 +224,15 @@ public class ConfirmBookingServlet extends HttpServlet {
                 session.removeAttribute("specialRequests");
                 session.removeAttribute("partySize");
 
-                request.setAttribute("successMessage", "Đặt bàn thành công! Mã đặt bàn của bạn là: " + confirmationCode);
-                request.setAttribute("reservation", reservations.get(0));
-                // Pass booked tables to the confirmation page
-                request.setAttribute("bookedTables", tables);
-                request.getRequestDispatcher("/views/guest/confirmation.jsp").forward(request, response);
+                // Store confirmation data in session
+                request.getSession().setAttribute("confirmationSuccess", true);
+                request.getSession().setAttribute("confirmationCode", confirmationCode);
+                request.getSession().setAttribute("reservation", reservations.get(0));
+                request.getSession().setAttribute("bookedTables", tables);
+                request.getSession().setAttribute("successMessage", "Đặt bàn thành công! Mã đặt bàn của bạn là: " + confirmationCode);
+                
+                // Redirect to confirmation page
+                response.sendRedirect(request.getContextPath() + "/views/guest/confirmation.jsp");
             } else {
                 throw new IllegalStateException(errorMessage);
             }

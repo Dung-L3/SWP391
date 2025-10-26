@@ -1,18 +1,22 @@
 package Controller;
 
+import Controller.auth.EmailServices;
 import Dal.ReservationDAO;
 import Models.Reservation;
 import Models.User;
 import java.io.IOException;
 import java.sql.Date;
 import java.sql.Time;
+import java.util.UUID;
+import java.util.List;
+import javax.mail.MessagingException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.UUID;
-import java.util.List;
+import jakarta.servlet.http.HttpSession;
 import java.util.stream.Collectors;
 import jakarta.servlet.http.HttpSession;
 
@@ -192,10 +196,30 @@ public class ReservationServlet extends HttpServlet {
                     request.setAttribute("reservations", reservations);
                 }
                 
+                // Gửi email xác nhận đặt bàn
+                try {
+                    EmailServices emailService = new EmailServices(getServletContext());
+                    emailService.sendReservationConfirmation(
+                            reservation.getEmail(),
+                            reservation.getConfirmationCode(),
+                            reservation.getCustomerName(),
+                            reservation.getReservationDate().toString(),
+                            reservation.getReservationTime().toString(),
+                            reservation.getPartySize(),
+                            String.valueOf(reservation.getTableId())
+                    );
+                } catch (MessagingException e) {
+                    // Log lỗi chi tiết
+                    System.out.println("Không thể gửi email xác nhận đến: " + reservation.getEmail());
+                    System.out.println("Thông tin đặt bàn: " + reservation.getConfirmationCode());
+                    System.out.println("Lỗi: " + e.getMessage());
+                    e.printStackTrace(); // In stack trace để debug
+                } catch (Exception e) {
+                    System.out.println("Lỗi không xác định khi gửi email: " + e.getMessage());
+                    e.printStackTrace();
+                }
+
                 request.getRequestDispatcher("/views/guest/confirmation.jsp").forward(request, response);
-                
-                // TODO: Gửi email xác nhận
-                
             } else {
                 request.setAttribute("errorMessage", 
                         "Không thể đặt bàn. Vui lòng thử lại sau.");
