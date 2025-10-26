@@ -104,6 +104,11 @@ public class KitchenServlet extends HttpServlet {
             // Lấy danh sách kitchen tickets
             List<KitchenTicket> tickets = kitchenDAO.getKitchenTickets(station, status);
             
+            System.out.println("KDS Debug: Found " + tickets.size() + " tickets");
+            for (KitchenTicket t : tickets) {
+                System.out.println("Ticket: ID=" + t.getKitchenTicketId() + ", Station=" + t.getStation() + ", Status=" + t.getPreparationStatus());
+            }
+            
             request.setAttribute("tickets", tickets);
             request.setAttribute("station", station);
             request.setAttribute("status", status);

@@ -41,6 +41,7 @@ public class KitchenTicket implements Serializable {
     private LocalDateTime updatedAt;
     private Integer createdBy;
     private Integer updatedBy;
+    private Integer chefId;
     
     // Join fields
     private String orderNumber;
@@ -50,6 +51,7 @@ public class KitchenTicket implements Serializable {
     private String specialInstructions;
     private String priority;
     private String course;
+    private Long orderId;
 
     // Constructors
     public KitchenTicket() {}
@@ -110,8 +112,14 @@ public class KitchenTicket implements Serializable {
     public Integer getUpdatedBy() { return updatedBy; }
     public void setUpdatedBy(Integer updatedBy) { this.updatedBy = updatedBy; }
 
+    public Integer getChefId() { return chefId; }
+    public void setChefId(Integer chefId) { this.chefId = chefId; }
+
     public String getOrderNumber() { return orderNumber; }
     public void setOrderNumber(String orderNumber) { this.orderNumber = orderNumber; }
+    
+    public Long getOrderId() { return orderId; }
+    public void setOrderId(Long orderId) { this.orderId = orderId; }
 
     public String getTableNumber() { return tableNumber; }
     public void setTableNumber(String tableNumber) { this.tableNumber = tableNumber; }

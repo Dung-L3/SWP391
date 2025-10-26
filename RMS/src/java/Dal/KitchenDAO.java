@@ -92,35 +92,33 @@ public class KitchenDAO {
      * Cập nhật status của kitchen ticket
      */
     public boolean updateKitchenTicketStatus(Long ticketId, String status, Integer updatedBy) throws SQLException {
-        String sql = "UPDATE kitchen_tickets SET preparation_status = ?, updated_at = ?, updated_by = ?";
+        StringBuilder sql = new StringBuilder("UPDATE kitchen_tickets SET preparation_status = ?");
         LocalDateTime now = LocalDateTime.now();
 
         // Cập nhật thời gian tương ứng với status
         switch (status) {
             case KitchenTicket.STATUS_COOKING:
-                sql += ", start_time = ?";
+                sql.append(", start_time = ?");
                 break;
             case KitchenTicket.STATUS_READY:
-                sql += ", ready_time = ?";
+                sql.append(", ready_time = ?");
                 break;
             case KitchenTicket.STATUS_PICKED:
-                sql += ", picked_time = ?";
+                sql.append(", picked_time = ?");
                 break;
             case KitchenTicket.STATUS_SERVED:
-                sql += ", served_time = ?";
+                sql.append(", served_time = ?");
                 break;
         }
 
-        sql += " WHERE kitchen_ticket_id = ?";
+        sql.append(" WHERE kt_id = ?");
 
         try (Connection conn = DBConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
 
             ps.setString(1, status);
-            ps.setTimestamp(2, Timestamp.valueOf(now));
-            ps.setInt(3, updatedBy);
 
-            int paramIndex = 4;
+            int paramIndex = 2;
             switch (status) {
                 case KitchenTicket.STATUS_COOKING:
                     ps.setTimestamp(paramIndex++, Timestamp.valueOf(now));
@@ -172,7 +170,7 @@ public class KitchenDAO {
             JOIN orders o ON o.order_id = oi.order_id
             LEFT JOIN dining_table dt ON dt.table_id = o.table_id
             LEFT JOIN menu_items mi ON mi.item_id = oi.menu_item_id
-            WHERE kt.kitchen_ticket_id = ?
+            WHERE kt.kt_id = ?
         """;
 
         try (Connection conn = DBConnect.getConnection();
