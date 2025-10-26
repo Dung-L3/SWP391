@@ -62,15 +62,16 @@
   <ul class="menu">
     <!-- ADMIN -->
     <c:if test="${u.roleName == 'Manager'}">
-      <li><a class="${page == 'staff' ? 'active' : ''}" href="staff-management"><i class="bi bi-people"></i>Quản lý nhân viên</a></li>
-      <li><a class="${page == 'menu' ? 'active' : ''}" href="menu-management"><i class="bi bi-journal-bookmark"></i>Quản lý Menu</a></li>
-      <li><a class="${page == 'voucher' ? 'active' : ''}" href="voucher-management"><i class="bi bi-percent"></i>Quản lý Voucher</a></li>
-      <li><a class="${page == 'shifts' ? 'active' : ''}" href="<c:url value='/shifts'/>"><i class="bi bi-clock-history"></i>Phân ca</a></li>
-      <li><a class="${page == 'inventory' ? 'active' : ''}" href="<c:url value='/inventory'/>"><i class="bi bi-box-seam"></i>Kho hàng</a></li>
-      <li><a class="${page == 'reports' ? 'active' : ''}" href="<c:url value='/reports'/>"><i class="bi bi-graph-up"></i>Báo cáo</a></li>
-      <li><a class="${page == 'audit' ? 'active' : ''}" href="<c:url value='/audit-log'/>"><i class="bi bi-clipboard-data"></i>Nhật ký hệ thống</a></li>
-      <li><a class="${page == 'settings' ? 'active' : ''}" href="<c:url value='/settings'/>"><i class="bi bi-gear"></i>Cấu hình</a></li>
-    </c:if>
+        <li><a class="${page == 'staff' ? 'active' : ''}" href="staff-management"><i class="bi bi-people"></i>Quản lý nhân viên</a></li>
+        <li><a class="${page == 'menu' ? 'active' : ''}" href="menu-management"><i class="bi bi-journal-bookmark"></i>Quản lý Menu</a></li>
+        <li><a class="${page == 'pricing' ? 'active' : ''}" href="pricing-rules"><i class="bi bi-hourglass-split"></i>Quản lý giá giờ</a></li>
+        <li><a class="${page == 'voucher' ? 'active' : ''}" href="voucher-management"><i class="bi bi-percent"></i>Quản lý Voucher</a></li>
+        <li><a class="${page == 'shifts' ? 'active' : ''}" href="<c:url value='/shifts'/>"><i class="bi bi-clock-history"></i>Phân ca</a></li>
+        <li><a class="${page == 'inventory' ? 'active' : ''}" href="<c:url value='/inventory'/>"><i class="bi bi-box-seam"></i>Kho hàng</a></li>
+        <li><a class="${page == 'reports' ? 'active' : ''}" href="<c:url value='/reports'/>"><i class="bi bi-graph-up"></i>Báo cáo</a></li>
+        <li><a class="${page == 'audit' ? 'active' : ''}" href="<c:url value='/audit-log'/>"><i class="bi bi-clipboard-data"></i>Nhật ký hệ thống</a></li>
+        <li><a class="${page == 'settings' ? 'active' : ''}" href="<c:url value='/settings'/>"><i class="bi bi-gear"></i>Cấu hình</a></li>
+        </c:if>
 
     <!-- CHEF / BẾP -->
     <c:if test="${u.roleName == 'CHEF' || u.roleName == 'BEP' || u.roleName == 'ĐẦU BẾP'}">
