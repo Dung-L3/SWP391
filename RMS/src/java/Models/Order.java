@@ -17,13 +17,14 @@ public class Order implements Serializable {
     public static final String TYPE_DELIVERY = "DELIVERY";
     
     // Order status
-    public static final String STATUS_NEW = "NEW";
-    public static final String STATUS_CONFIRMED = "CONFIRMED";
-    public static final String STATUS_PREPARING = "PREPARING";
+    public static final String STATUS_OPEN = "OPEN";
+    public static final String STATUS_SENT_TO_KITCHEN = "SENT_TO_KITCHEN";
+    public static final String STATUS_COOKING = "COOKING";
+    public static final String STATUS_PARTIAL_READY = "PARTIAL_READY";
     public static final String STATUS_READY = "READY";
     public static final String STATUS_SERVED = "SERVED";
-    public static final String STATUS_COMPLETED = "COMPLETED";
     public static final String STATUS_CANCELLED = "CANCELLED";
+    public static final String STATUS_SETTLED = "SETTLED";
 
     private Long orderId;
     private String orderType;
@@ -51,7 +52,7 @@ public class Order implements Serializable {
         this.orderType = orderType;
         this.tableId = tableId;
         this.waiterId = waiterId;
-        this.status = STATUS_NEW;
+        this.status = STATUS_OPEN;
         this.subtotal = BigDecimal.ZERO;
         this.taxAmount = BigDecimal.ZERO;
         this.totalAmount = BigDecimal.ZERO;
@@ -107,11 +108,12 @@ public class Order implements Serializable {
     public void setOrderItems(List<OrderItem> orderItems) { this.orderItems = orderItems; }
 
     // Helper methods
-    public boolean isNew() { return STATUS_NEW.equals(status); }
-    public boolean isConfirmed() { return STATUS_CONFIRMED.equals(status); }
-    public boolean isPreparing() { return STATUS_PREPARING.equals(status); }
+    public boolean isOpen() { return STATUS_OPEN.equals(status); }
+    public boolean isSentToKitchen() { return STATUS_SENT_TO_KITCHEN.equals(status); }
+    public boolean isCooking() { return STATUS_COOKING.equals(status); }
+    public boolean isPartialReady() { return STATUS_PARTIAL_READY.equals(status); }
     public boolean isReady() { return STATUS_READY.equals(status); }
     public boolean isServed() { return STATUS_SERVED.equals(status); }
-    public boolean isCompleted() { return STATUS_COMPLETED.equals(status); }
     public boolean isCancelled() { return STATUS_CANCELLED.equals(status); }
+    public boolean isSettled() { return STATUS_SETTLED.equals(status); }
 }

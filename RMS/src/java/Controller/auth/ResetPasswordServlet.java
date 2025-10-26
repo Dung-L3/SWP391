@@ -48,7 +48,7 @@ public class ResetPasswordServlet extends HttpServlet {
 
         try {
             UserDAO userDAO = new UserDAO();
-            boolean ok = userDAO.updatePasswordHash(userId, HashUtil.bcrypt(pw));
+            boolean ok = false; // userDAO.updatePasswordHash(userId, HashUtil.bcrypt(pw));
 
             if (ok) {
                 PasswordResetDAO prDAO = new PasswordResetDAO();

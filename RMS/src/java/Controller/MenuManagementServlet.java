@@ -175,6 +175,37 @@ public class MenuManagementServlet extends HttpServlet {
             mi.setDisplayPrice(pricingService.getCurrentPrice(mi));
         }
 
+        // Check if JSON response is requested
+        String format = request.getParameter("format");
+        if ("json".equals(format)) {
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            
+            StringBuilder json = new StringBuilder();
+            json.append("{");
+            json.append("\"menuItems\":[");
+            for (int i = 0; i < menuItems.size(); i++) {
+                MenuItem mi = menuItems.get(i);
+                if (i > 0) json.append(",");
+                json.append("{");
+                json.append("\"itemId\":").append(mi.getItemId()).append(",");
+                json.append("\"menuItemId\":").append(mi.getItemId()).append(",");
+                json.append("\"categoryId\":").append(mi.getCategoryId()).append(",");
+                json.append("\"name\":\"").append(escapeJson(mi.getName())).append("\",");
+                json.append("\"description\":\"").append(escapeJson(mi.getDescription())).append("\",");
+                json.append("\"basePrice\":").append(mi.getBasePrice().doubleValue()).append(",");
+                json.append("\"displayPrice\":").append(mi.getDisplayPrice() != null ? mi.getDisplayPrice().doubleValue() : mi.getBasePrice().doubleValue()).append(",");
+                json.append("\"imageUrl\":\"").append(escapeJson(mi.getImageUrl() != null ? mi.getImageUrl() : "")).append("\",");
+                json.append("\"categoryName\":\"").append(escapeJson(mi.getCategoryName() != null ? mi.getCategoryName() : "")).append("\"");
+                json.append("}");
+            }
+            json.append("]");
+            json.append("}");
+            
+            response.getWriter().write(json.toString());
+            return;
+        }
+
         // Pagination info
         int totalItems = menuDAO.getTotalMenuItemsCount(search, categoryId, availability);
         int totalPages = (int) Math.ceil((double) totalItems / pageSize);
@@ -474,5 +505,14 @@ public class MenuManagementServlet extends HttpServlet {
         } catch (NumberFormatException nfe) {
             response.sendRedirect(request.getContextPath() + "/menu-management");
         }
+    }
+
+    private String escapeJson(String str) {
+        if (str == null) return "";
+        return str.replace("\\", "\\\\")
+                  .replace("\"", "\\\"")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t");
     }
 }

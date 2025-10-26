@@ -29,35 +29,27 @@ public class OrderDAO {
     public Long createOrder(Order order) throws SQLException {
         String sql = """
             INSERT INTO orders (
+                order_code,
                 order_type,
                 table_id,
                 waiter_id,
                 status,
-                subtotal,
-                tax_amount,
-                total_amount,
-                special_instructions,
-                created_at,
-                updated_at,
-                created_by
+                notes,
+                opened_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """;
 
         try (Connection conn = DBConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            ps.setString(1, order.getOrderType());
-            ps.setInt(2, order.getTableId());
-            ps.setInt(3, order.getWaiterId());
-            ps.setString(4, order.getStatus());
-            ps.setBigDecimal(5, order.getSubtotal());
-            ps.setBigDecimal(6, order.getTaxAmount());
-            ps.setBigDecimal(7, order.getTotalAmount());
-            ps.setString(8, order.getSpecialInstructions());
-            ps.setTimestamp(9, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setTimestamp(10, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setInt(11, order.getCreatedBy());
+            ps.setString(1, "ORD" + System.currentTimeMillis());
+            ps.setString(2, order.getOrderType());
+            ps.setInt(3, order.getTableId());
+            ps.setInt(4, order.getWaiterId());
+            ps.setString(5, order.getStatus());
+            ps.setString(6, order.getSpecialInstructions());
+            ps.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
 
             int rows = ps.executeUpdate();
             if (rows > 0) {
@@ -114,8 +106,8 @@ public class OrderDAO {
             LEFT JOIN dining_table dt ON dt.table_id = o.table_id
             LEFT JOIN users u ON u.user_id = o.waiter_id
             WHERE o.table_id = ?
-              AND o.status IN ('NEW', 'CONFIRMED', 'PREPARING', 'READY')
-            ORDER BY o.created_at DESC
+              AND o.status IN ('OPEN', 'SENT_TO_KITCHEN', 'COOKING', 'PARTIAL_READY', 'READY')
+            ORDER BY o.opened_at DESC
         """;
 
         try (Connection conn = DBConnect.getConnection();
@@ -322,17 +314,23 @@ public class OrderDAO {
         order.setTableId(rs.getInt("table_id"));
         order.setWaiterId(rs.getInt("waiter_id"));
         order.setStatus(rs.getString("status"));
-        order.setSubtotal(rs.getBigDecimal("subtotal"));
-        order.setTaxAmount(rs.getBigDecimal("tax_amount"));
-        order.setTotalAmount(rs.getBigDecimal("total_amount"));
-        order.setSpecialInstructions(rs.getString("special_instructions"));
+        
+        // Set default values
+        order.setSubtotal(BigDecimal.ZERO);
+        order.setTaxAmount(BigDecimal.ZERO);
+        order.setTotalAmount(BigDecimal.ZERO);
+        
+        // Use notes column instead of special_instructions
+        order.setSpecialInstructions(rs.getString("notes"));
 
-        Timestamp cAt = rs.getTimestamp("created_at");
-        Timestamp uAt = rs.getTimestamp("updated_at");
-        if (cAt != null) order.setCreatedAt(cAt.toLocalDateTime());
-        if (uAt != null) order.setUpdatedAt(uAt.toLocalDateTime());
+        // Use opened_at instead of created_at
+        Timestamp openedAt = rs.getTimestamp("opened_at");
+        if (openedAt != null) order.setCreatedAt(openedAt.toLocalDateTime());
+        
+        // Use closed_at instead of updated_at
+        Timestamp closedAt = rs.getTimestamp("closed_at");
+        if (closedAt != null) order.setUpdatedAt(closedAt.toLocalDateTime());
 
-        order.setCreatedBy(rs.getInt("created_by"));
         order.setTableNumber(rs.getString("table_number"));
         order.setWaiterName(rs.getString("waiter_name"));
 
@@ -364,7 +362,102 @@ public class OrderDAO {
         item.setMenuItemDescription(rs.getString("menu_item_description"));
         item.setPreparationTime(rs.getInt("preparation_time"));
 
+        // Served fields
+        Integer servedBy = rs.getObject("served_by", Integer.class);
+        if (servedBy != null) item.setServedBy(servedBy);
+        
+        Timestamp servedAt = rs.getTimestamp("served_at");
+        if (servedAt != null) item.setServedAt(servedAt.toLocalDateTime());
+
         return item;
+    }
+
+    /**
+     * Lấy order item theo ID
+     * @author donny
+     */
+    public OrderItem getOrderItemById(Long orderItemId) throws SQLException {
+        String sql = """
+            SELECT oi.*,
+                   mi.name AS menu_item_name,
+                   mi.description AS menu_item_description,
+                   mi.preparation_time
+            FROM order_items oi
+            LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id
+            WHERE oi.order_item_id = ?
+        """;
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, orderItemId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToOrderItem(rs);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Mark order item as served
+     * @author donny
+     */
+    public boolean markOrderItemAsServed(Long orderItemId, Integer servedBy) throws SQLException {
+        String sql = """
+            UPDATE order_items
+            SET status = 'SERVED',
+                served_by = ?,
+                served_at = ?,
+                updated_at = ?,
+                updated_by = ?
+            WHERE order_item_id = ?
+        """;
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, servedBy);
+            ps.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setTimestamp(3, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setInt(4, servedBy);
+            ps.setLong(5, orderItemId);
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * Check if all items in an order are served
+     * @author donny
+     */
+    public boolean areAllItemsServed(Long orderId) throws SQLException {
+        String sql = """
+            SELECT COUNT(*) as total,
+                   SUM(CASE WHEN status = 'SERVED' THEN 1 ELSE 0 END) as served_count
+            FROM order_items
+            WHERE order_id = ?
+              AND status != 'CANCELLED'
+        """;
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, orderId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int total = rs.getInt("total");
+                    int servedCount = rs.getInt("served_count");
+                    return total > 0 && total == servedCount;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

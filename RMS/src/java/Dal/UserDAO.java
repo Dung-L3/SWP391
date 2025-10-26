@@ -6,7 +6,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
-import java.sql.Types;
 import java.time.LocalDateTime;
 
 /**
@@ -25,7 +24,6 @@ public class UserDAO {
                     u.first_name, u.last_name, u.phone, u.address,
                     u.registration_date, u.last_login, u.account_status,
                     u.failed_login_attempts, u.lockout_until, u.created_at, u.updated_at,
-                    u.avatar_url,
                     r.role_id, r.role_name
             FROM dbo.users u
             LEFT JOIN dbo.user_roles ur
@@ -59,12 +57,12 @@ public class UserDAO {
         return null;
     }
 
-    /** Lấy user theo id (kèm role + avatar). */
+    /** Lấy user theo id (kèm role). */
     public User getByIdWithRole(int userId) {
         final String sql = """
             SELECT u.user_id, u.username, u.email, u.first_name, u.last_name,
                    u.phone, u.address, u.registration_date, u.last_login,
-                   u.account_status, u.avatar_url,
+                   u.account_status,
                    ur.role_id, r.role_name
             FROM dbo.users u
             LEFT JOIN dbo.user_roles ur ON ur.user_id = u.user_id AND ur.status = N'ACTIVE'
@@ -90,7 +88,7 @@ public class UserDAO {
                         rs.getString("account_status"),
                         (Integer) rs.getObject("role_id"),
                         rs.getString("role_name"),
-                        rs.getString("avatar_url")
+                        null
                     );
                 }
             }
@@ -101,14 +99,13 @@ public class UserDAO {
     }
 
     /**
-     * Cập nhật hồ sơ cơ bản. Nếu avatarUrlNullable = null thì giữ nguyên avatar cũ.
+     * Cập nhật hồ sơ cơ bản.
      */
     public boolean updateProfile(int userId, String firstName, String lastName, String email,
                                  String phone, String address, String avatarUrlNullable) {
         final String sql = """
             UPDATE dbo.users
                SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?,
-                   avatar_url = COALESCE(?, avatar_url),
                    updated_at = SYSDATETIME()
              WHERE user_id = ?
         """;
@@ -120,12 +117,7 @@ public class UserDAO {
             ps.setString(3, email);
             ps.setString(4, phone);
             ps.setString(5, address);
-            if (avatarUrlNullable == null) {
-                ps.setNull(6, Types.VARCHAR);
-            } else {
-                ps.setString(6, avatarUrlNullable);
-            }
-            ps.setInt(7, userId);
+            ps.setInt(6, userId);
 
             return ps.executeUpdate() > 0;
         } catch (Exception e) {
@@ -149,7 +141,7 @@ public class UserDAO {
         u.setAddress(rs.getString("address"));
         u.setAccountStatus(rs.getString("account_status"));
         u.setFailedLoginAttempts(rs.getInt("failed_login_attempts"));
-        u.setAvatarUrl(rs.getString("avatar_url"));
+        u.setAvatarUrl(null);
 
         Timestamp t;
         t = rs.getTimestamp("registration_date");
@@ -207,7 +199,6 @@ public class UserDAO {
                     u.first_name, u.last_name, u.phone, u.address,
                     u.registration_date, u.last_login, u.account_status,
                     u.failed_login_attempts, u.lockout_until, u.created_at, u.updated_at,
-                    u.avatar_url,
                     r.role_id, r.role_name
             FROM dbo.users u
             LEFT JOIN dbo.user_roles ur

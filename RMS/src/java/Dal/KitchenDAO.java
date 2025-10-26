@@ -16,9 +16,8 @@ public class KitchenDAO {
      */
     public Long createKitchenTicket(KitchenTicket ticket) throws SQLException {
         String sql = """
-            INSERT INTO kitchen_tickets (order_item_id, station, preparation_status, received_time, 
-                                       estimated_minutes, created_at, updated_at, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO kitchen_tickets (order_item_id, station, preparation_status, received_time, chef_id)
+            VALUES (?, ?, ?, ?, ?)
         """;
 
         try (Connection conn = DBConnect.getConnection();
@@ -27,11 +26,8 @@ public class KitchenDAO {
             ps.setLong(1, ticket.getOrderItemId());
             ps.setString(2, ticket.getStation());
             ps.setString(3, ticket.getPreparationStatus());
-            ps.setTimestamp(4, Timestamp.valueOf(ticket.getReceivedTime()));
-            ps.setInt(5, ticket.getEstimatedMinutes());
-            ps.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setInt(8, ticket.getCreatedBy());
+            ps.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now())); // received_time
+            ps.setObject(5, ticket.getChefId()); // chef_id can be null
 
             int rows = ps.executeUpdate();
             if (rows > 0) {
@@ -50,13 +46,15 @@ public class KitchenDAO {
      */
     public List<KitchenTicket> getKitchenTickets(String station, String status) throws SQLException {
         StringBuilder sql = new StringBuilder();
-        sql.append("SELECT kt.*, o.order_id, dt.table_number, mi.name as menu_item_name, ");
-        sql.append("oi.quantity, oi.special_instructions, oi.priority, oi.course ");
+        sql.append("SELECT kt.kt_id, kt.order_item_id, kt.station, kt.preparation_status, ");
+        sql.append("kt.received_time, kt.start_time, kt.ready_time, kt.picked_time, kt.served_time, kt.chef_id, ");
+        sql.append("o.order_id, dt.table_number as table_number, mi.name as menu_item_name, ");
+        sql.append("oi.quantity, oi.special_instructions, oi.priority, oi.course_no as course ");
         sql.append("FROM kitchen_tickets kt ");
         sql.append("JOIN order_items oi ON oi.order_item_id = kt.order_item_id ");
         sql.append("JOIN orders o ON o.order_id = oi.order_id ");
         sql.append("LEFT JOIN dining_table dt ON dt.table_id = o.table_id ");
-        sql.append("LEFT JOIN menu_items mi ON mi.item_id = oi.menu_item_id ");
+        sql.append("LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id ");
         sql.append("WHERE 1=1 ");
 
         List<Object> params = new ArrayList<>();
@@ -71,7 +69,7 @@ public class KitchenDAO {
             params.add(status);
         }
 
-        sql.append("ORDER BY kt.priority DESC, kt.received_time ASC");
+        sql.append("ORDER BY oi.priority DESC, kt.received_time ASC");
 
         List<KitchenTicket> tickets = new ArrayList<>();
         try (Connection conn = DBConnect.getConnection();
@@ -223,7 +221,7 @@ public class KitchenDAO {
      */
     private KitchenTicket mapResultSetToKitchenTicket(ResultSet rs) throws SQLException {
         KitchenTicket ticket = new KitchenTicket();
-        ticket.setKitchenTicketId(rs.getLong("kitchen_ticket_id"));
+        ticket.setKitchenTicketId(rs.getLong("kt_id"));
         ticket.setOrderItemId(rs.getLong("order_item_id"));
         ticket.setStation(rs.getString("station"));
         ticket.setPreparationStatus(rs.getString("preparation_status"));
@@ -244,22 +242,16 @@ public class KitchenDAO {
             ticket.setServedTime(rs.getTimestamp("served_time").toLocalDateTime());
         }
         
-        ticket.setNotes(rs.getString("notes"));
-        ticket.setEstimatedMinutes(rs.getInt("estimated_minutes"));
-        ticket.setActualMinutes(rs.getInt("actual_minutes"));
-        ticket.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
-        ticket.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
-        ticket.setCreatedBy(rs.getInt("created_by"));
-        ticket.setUpdatedBy(rs.getInt("updated_by"));
-        
-        // Join fields
-        ticket.setOrderNumber(rs.getString("order_id"));
+        // Set additional fields from join
         ticket.setTableNumber(rs.getString("table_number"));
         ticket.setMenuItemName(rs.getString("menu_item_name"));
         ticket.setQuantity(rs.getInt("quantity"));
         ticket.setSpecialInstructions(rs.getString("special_instructions"));
         ticket.setPriority(rs.getString("priority"));
         ticket.setCourse(rs.getString("course"));
+        if (rs.getObject("chef_id") != null) {
+            ticket.setChefId(rs.getInt("chef_id"));
+        }
         
         return ticket;
     }

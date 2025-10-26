@@ -106,6 +106,15 @@ public class OrderServlet extends HttpServlet {
             } catch (NumberFormatException e) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid order ID");
             }
+        } else if (pathInfo.matches("/items/\\d+/serve")) {
+            // POST /orders/items/{itemId}/serve - Đánh dấu món đã phục vụ
+            String itemIdStr = pathInfo.substring(pathInfo.lastIndexOf("/") + 1);
+            try {
+                Long itemId = Long.parseLong(itemIdStr);
+                markItemAsServed(request, response, itemId, user);
+            } catch (NumberFormatException e) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid item ID");
+            }
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not found");
         }
@@ -206,17 +215,18 @@ public class OrderServlet extends HttpServlet {
         PrintWriter out = response.getWriter();
         
         try {
-            Integer tableId = Integer.parseInt(request.getParameter("tableId"));
+            String tableIdStr = request.getParameter("tableId");
+            if (tableIdStr == null || tableIdStr.trim().isEmpty()) {
+                out.print("{\"error\":\"Table ID is required\"}");
+                return;
+            }
+            
+            Integer tableId = Integer.parseInt(tableIdStr);
             String orderType = request.getParameter("orderType");
             if (orderType == null) orderType = Order.TYPE_DINE_IN;
             
-            // Kiểm tra xem table đã có order chưa
-            Order existingOrder = orderDAO.getOrderByTableId(tableId);
-            if (existingOrder != null) {
-                out.print("{\"error\":\"Table already has an active order\",\"orderId\":" + existingOrder.getOrderId() + "}");
-                return;
-            }
-
+            // Tạo order mới mỗi lần gọi món
+            // Khi thanh toán, tất cả order của bàn đó sẽ được gộp lại
             Order order = new Order(orderType, tableId, user.getUserId());
             order.setCreatedBy(user.getUserId());
             
@@ -226,6 +236,9 @@ public class OrderServlet extends HttpServlet {
             } else {
                 out.print("{\"error\":\"Failed to create order\"}");
             }
+        } catch (NumberFormatException e) {
+            System.err.println("Error parsing tableId: " + e.getMessage());
+            out.print("{\"error\":\"Invalid table ID\"}");
         } catch (Exception e) {
             System.err.println("Error creating order: " + e.getMessage());
             e.printStackTrace();
@@ -265,7 +278,18 @@ public class OrderServlet extends HttpServlet {
             
             Long orderItemId = orderDAO.addOrderItem(orderItem);
             if (orderItemId != null) {
-                out.print("{\"success\":true,\"orderItemId\":" + orderItemId + "}");
+                // Tự động tạo kitchen ticket sau khi thêm order item
+                KitchenTicket ticket = new KitchenTicket();
+                ticket.setOrderItemId(orderItemId);
+                ticket.setStation(determineStation(orderItem)); // HOT, COLD, GRILL, etc.
+                ticket.setPreparationStatus(KitchenTicket.STATUS_RECEIVED);
+                
+                Long ticketId = kitchenDAO.createKitchenTicket(ticket);
+                if (ticketId != null) {
+                    out.print("{\"success\":true,\"orderItemId\":" + orderItemId + ",\"ticketId\":" + ticketId + "}");
+                } else {
+                    out.print("{\"success\":true,\"orderItemId\":" + orderItemId + ",\"warning\":\"Failed to create kitchen ticket\"}");
+                }
             } else {
                 out.print("{\"error\":\"Failed to add item to order\"}");
             }
@@ -311,7 +335,7 @@ public class OrderServlet extends HttpServlet {
             // Cập nhật order status
             Order order = orderDAO.getOrderById(orderId);
             if (order != null) {
-                order.setStatus(Order.STATUS_PREPARING);
+                order.setStatus(Order.STATUS_COOKING); // Changed from STATUS_PREPARING
                 order.setUpdatedBy(user.getUserId());
                 orderDAO.updateOrder(order);
             }
@@ -331,5 +355,49 @@ public class OrderServlet extends HttpServlet {
         // TODO: Implement logic to determine station based on menu item category
         // For now, return default station
         return KitchenTicket.STATION_HOT;
+    }
+
+    /**
+     * Mark order item as served
+     * @author donny
+     */
+    private void markItemAsServed(HttpServletRequest request, HttpServletResponse response, Long itemId, User user)
+            throws ServletException, IOException {
+        
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        
+        try {
+            // Get order item to retrieve orderId
+            OrderItem item = orderDAO.getOrderItemById(itemId);
+            if (item == null) {
+                out.print("{\"error\":\"Order item not found\"}");
+                return;
+            }
+            
+            // Mark item as served
+            boolean success = orderDAO.markOrderItemAsServed(itemId, user.getUserId());
+            
+            if (success) {
+                // Check if all items in the order are served
+                boolean allServed = orderDAO.areAllItemsServed(item.getOrderId());
+                
+                if (allServed) {
+                    // Update order status to SERVED
+                    Order order = orderDAO.getOrderById(item.getOrderId());
+                    order.setStatus(Order.STATUS_SERVED);
+                    order.setUpdatedBy(user.getUserId());
+                    orderDAO.updateOrder(order);
+                }
+                
+                out.print("{\"success\":true,\"allServed\":" + allServed + "}");
+            } else {
+                out.print("{\"error\":\"Failed to mark item as served\"}");
+            }
+        } catch (Exception e) {
+            System.err.println("Error marking item as served: " + e.getMessage());
+            e.printStackTrace();
+            out.print("{\"error\":\"" + e.getMessage().replace("\"", "\\\"") + "\"}");
+        }
     }
 }

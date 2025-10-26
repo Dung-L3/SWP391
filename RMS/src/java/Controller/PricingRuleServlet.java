@@ -68,9 +68,9 @@ public class PricingRuleServlet extends HttpServlet {
                     "name_asc"  // sort
             );
             // gán displayPrice hiện tại cho từng món
-            for (MenuItem mi : menuItems) {
-                mi.setDisplayPrice(pricingService.getCurrentPrice(mi));
-            }
+            // for (MenuItem mi : menuItems) {
+            //     mi.setDisplayPrice(pricingService.getCurrentPrice(mi));
+            // }
             req.setAttribute("menuItems", menuItems);
 
             // kiểm tra xem có chọn 1 món cụ thể không
@@ -87,7 +87,7 @@ public class PricingRuleServlet extends HttpServlet {
                     }
 
                     // giá hiển thị của món đó (áp dụng rule hiện tại)
-                    item.setDisplayPrice(pricingService.getCurrentPrice(item));
+                    // item.setDisplayPrice(pricingService.getCurrentPrice(item));
 
                     // danh sách rule của món đó
                     List<PricingRule> rules = ruleDAO.getRulesByMenuItem(itemId);

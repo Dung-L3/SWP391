@@ -301,8 +301,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Get table ID and waiter info from URL parameters or session
             const urlParams = new URLSearchParams(window.location.search);
-            currentTableId = urlParams.get('tableId') || 1;
+            const tableIdStr = urlParams.get('tableId');
+            currentTableId = tableIdStr ? parseInt(tableIdStr) : 1;
             currentWaiterId = 1; // TODO: Get from session
+            
+            console.log('Initial currentTableId:', currentTableId);
             
             document.getElementById('tableNumber').textContent = currentTableId;
             
@@ -334,75 +337,50 @@
 
         // Load menu items
         function loadMenuItems() {
-            // Sample menu data - TODO: Load from API
-            menuItems = [
-                {
-                    itemId: 1,
-                    name: 'Phở Bò',
-                    description: 'Phở bò truyền thống với thịt bò tái, bánh phở mềm',
-                    price: 15.99,
-                    image: '${pageContext.request.contextPath}/img/menu-1.jpg',
-                    category: 'MAIN'
-                },
-                {
-                    itemId: 2,
-                    name: 'Chả Giò',
-                    description: 'Nem rán giòn tan với tôm và thịt heo',
-                    price: 8.99,
-                    image: '${pageContext.request.contextPath}/img/menu-2.jpg',
-                    category: 'APPETIZER'
-                },
-                {
-                    itemId: 3,
-                    name: 'Cà Phê Sữa Đá',
-                    description: 'Cà phê phin truyền thống với sữa đặc',
-                    price: 4.99,
-                    image: '${pageContext.request.contextPath}/img/menu-3.jpg',
-                    category: 'BEVERAGE'
-                },
-                {
-                    itemId: 4,
-                    name: 'Thịt Nướng',
-                    description: 'Thịt heo nướng với nước mắm pha chế đặc biệt',
-                    price: 22.99,
-                    image: '${pageContext.request.contextPath}/img/menu-4.jpg',
-                    category: 'MAIN'
-                },
-                {
-                    itemId: 5,
-                    name: 'Bánh Flan',
-                    description: 'Bánh flan caramel ngọt ngào',
-                    price: 6.99,
-                    image: '${pageContext.request.contextPath}/img/menu-5.jpg',
-                    category: 'DESSERT'
-                },
-                {
-                    itemId: 6,
-                    name: 'Bò Steak',
-                    description: 'Bò steak nướng vừa tái với khoai tây chiên',
-                    price: 28.99,
-                    image: '${pageContext.request.contextPath}/img/menu-6.jpg',
-                    category: 'MAIN'
-                },
-                {
-                    itemId: 7,
-                    name: 'Trà Đá',
-                    description: 'Trà đá mát lạnh giải nhiệt',
-                    price: 3.99,
-                    image: '${pageContext.request.contextPath}/img/menu-7.jpg',
-                    category: 'BEVERAGE'
-                },
-                {
-                    itemId: 8,
-                    name: 'Bánh Mì Pate',
-                    description: 'Bánh mì pate với chả lụa và rau thơm',
-                    price: 7.99,
-                    image: '${pageContext.request.contextPath}/img/menu-8.jpg',
-                    category: 'MAIN'
-                }
-            ];
-            
-            displayMenuItems();
+            fetch('${pageContext.request.contextPath}/menu?action=list&page=1&pageSize=1000&format=json')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('API Response:', data);
+                    console.log('Menu Items Count:', data.menuItems ? data.menuItems.length : 0);
+                    
+                    if (data.menuItems && data.menuItems.length > 0) {
+                        // Map server data to client format
+                        menuItems = data.menuItems.map(item => {
+                            console.log('Mapping item:', item);
+                            const mappedItem = {
+                                itemId: item.itemId || item.menuItemId || 0,
+                                name: item.name || 'Tên món',
+                                description: item.description || '',
+                                price: Number(item.basePrice || item.displayPrice || 0),
+                                image: item.imageUrl || '${pageContext.request.contextPath}/img/menu-1.jpg',
+                                category: item.categoryId || 1
+                            };
+                            console.log('Mapped item:', mappedItem);
+                            return mappedItem;
+                        });
+                        console.log('Mapped menuItems:', menuItems);
+                    } else {
+                        console.log('No menu items found from API, using sample data');
+                        // Fallback to sample data if API returns empty
+                        menuItems = [
+                            {itemId: 1, name: 'Phở Bò', description: 'Phở bò truyền thống', price: 15.99, image: '${pageContext.request.contextPath}/img/menu-1.jpg', category: 2},
+                            {itemId: 2, name: 'Chả Giò', description: 'Nem rán giòn tan', price: 8.99, image: '${pageContext.request.contextPath}/img/menu-2.jpg', category: 1},
+                            {itemId: 3, name: 'Cà Phê Sữa Đá', description: 'Cà phê phin truyền thống', price: 4.99, image: '${pageContext.request.contextPath}/img/menu-3.jpg', category: 5}
+                        ];
+                    }
+                    
+                    displayMenuItems();
+                })
+                .catch(error => {
+                    console.error('Error loading menu items:', error);
+                    // Fallback to sample data
+                    menuItems = [
+                        {itemId: 1, name: 'Phở Bò', description: 'Phở bò truyền thống', price: 15.99, image: '${pageContext.request.contextPath}/img/menu-1.jpg', category: 2},
+                        {itemId: 2, name: 'Chả Giò', description: 'Nem rán giòn tan', price: 8.99, image: '${pageContext.request.contextPath}/img/menu-2.jpg', category: 1},
+                        {itemId: 3, name: 'Cà Phê Sữa Đá', description: 'Cà phê phin truyền thống', price: 4.99, image: '${pageContext.request.contextPath}/img/menu-3.jpg', category: 5}
+                    ];
+                    displayMenuItems();
+                });
         }
 
         // Display menu items
@@ -410,37 +388,47 @@
             const container = document.getElementById('menuContainer');
             container.innerHTML = '';
 
-            // Group items by category
-            const categories = {
-                'APPETIZER': { name: 'Khai Vị', items: [] },
-                'MAIN': { name: 'Món Chính', items: [] },
-                'BEVERAGE': { name: 'Đồ Uống', items: [] },
-                'DESSERT': { name: 'Tráng Miệng', items: [] }
+            // Map category ID to names
+            const categoryNames = {
+                1: 'Khai Vị',
+                2: 'Món Chính', 
+                3: 'Món Phụ',
+                4: 'Tráng Miệng',
+                5: 'Đồ Uống'
             };
 
+            // Group items by category ID
+            const categories = {};
             menuItems.forEach(item => {
-                if (categories[item.category]) {
-                    categories[item.category].items.push(item);
+                const catId = item.category || 1;
+                if (!categories[catId]) {
+                    categories[catId] = [];
                 }
+                categories[catId].push(item);
             });
 
+            // Sort categories by ID
+            const sortedCatIds = Object.keys(categories).sort((a, b) => parseInt(a) - parseInt(b));
+
             // Display each category
-            Object.keys(categories).forEach(categoryKey => {
-                const category = categories[categoryKey];
-                if (category.items.length === 0) return;
+            sortedCatIds.forEach(catId => {
+                const items = categories[catId];
+                if (items.length === 0) return;
+
+                const catName = categoryNames[catId] || 'Khác';
 
                 // Category header
                 const categoryDiv = document.createElement('div');
                 categoryDiv.className = 'col-12';
                 categoryDiv.innerHTML = `
                     <div class="menu-category">
-                        <h4><i class="fas fa-utensils"></i> ${category.name}</h4>
+                        <h4><i class="fas fa-utensils"></i> ${catName}</h4>
                     </div>
                 `;
                 container.appendChild(categoryDiv);
 
                 // Items in category
-                category.items.forEach(item => {
+                items.forEach(item => {
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'col-md-6 col-lg-4 col-xl-3';
                     itemDiv.innerHTML = createMenuItemHTML(item);
@@ -449,37 +437,34 @@
             });
         }
 
+        // Format price helper
+        function formatPrice(price) {
+            return Number(price).toFixed(2);
+        }
+
         // Create menu item HTML
         function createMenuItemHTML(item) {
             const cartItem = cart.find(ci => ci.itemId === item.itemId);
             const quantity = cartItem ? cartItem.quantity : 0;
+            const priceFormatted = formatPrice(item.price);
 
-            return `
-                <div class="menu-item-card">
-                    <img src="${item.image}" alt="${item.name}" class="menu-item-image" 
-                         onerror="this.src='${pageContext.request.contextPath}/img/menu-1.jpg'">
-                    <div class="menu-item-name">${item.name}</div>
-                    <div class="menu-item-description">${item.description}</div>
-                    <div class="menu-item-price">$${item.price.toFixed(2)}</div>
-                    
-                    <div class="quantity-controls">
-                        <button class="quantity-btn" onclick="decreaseQuantity(${item.itemId})">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                        <input type="number" class="quantity-input" id="qty-${item.itemId}" 
-                               value="${quantity}" min="0" onchange="updateQuantity(${item.itemId}, this.value)">
-                        <button class="quantity-btn" onclick="increaseQuantity(${item.itemId})">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                    
-                    <button class="btn add-to-cart-btn w-100 mt-2" 
-                            onclick="addToCart(${item.itemId})" 
-                            ${quantity > 0 ? 'style="display:none;"' : ''}>
-                        <i class="fas fa-plus"></i> Thêm Vào Giỏ
-                    </button>
-                </div>
-            `;
+            const buttonText = quantity > 0 ? 'Cập nhật (' + quantity + ')' : 'Thêm Vào Giỏ';
+            const html = '<div class="menu-item-card">' +
+                '<img src="' + item.image + '" alt="' + item.name + '" class="menu-item-image" ' +
+                'onerror="this.src=\'${pageContext.request.contextPath}/img/menu-1.jpg\'">' +
+                '<div class="menu-item-name">' + item.name + '</div>' +
+                '<div class="menu-item-description">' + item.description + '</div>' +
+                '<div class="menu-item-price">$' + priceFormatted + '</div>' +
+                '<div class="quantity-controls">' +
+                '<button class="quantity-btn" onclick="decreaseQuantity(' + item.itemId + ')"><i class="fas fa-minus"></i></button>' +
+                '<input type="number" class="quantity-input" id="qty-' + item.itemId + '" ' +
+                'value="' + quantity + '" min="0" onchange="updateQuantity(' + item.itemId + ', this.value)">' +
+                '<button class="quantity-btn" onclick="increaseQuantity(' + item.itemId + ')"><i class="fas fa-plus"></i></button>' +
+                '</div>' +
+                '<button class="btn add-to-cart-btn w-100 mt-2" onclick="addToCart(' + item.itemId + ')">' +
+                '<i class="fas fa-plus"></i> ' + buttonText + '</button>' +
+                '</div>';
+            return html;
         }
 
         // Cart functions
@@ -494,14 +479,42 @@
                 cart.push({
                     itemId: item.itemId,
                     name: item.name,
-                    price: item.price,
+                    price: Number(item.price),
                     quantity: 1,
                     specialInstructions: ''
                 });
             }
 
             updateCartDisplay();
+            updateMenuItemUI(itemId);
             saveCartToStorage();
+        }
+
+        function updateMenuItemUI(itemId) {
+            const cartItem = cart.find(ci => ci.itemId === itemId);
+            const qtyInput = document.getElementById('qty-' + itemId);
+            
+            // Find the parent card element
+            let cardElement = null;
+            if (qtyInput) {
+                cardElement = qtyInput.closest('.menu-item-card');
+            }
+            
+            if (cardElement) {
+                if (qtyInput) {
+                    qtyInput.value = cartItem ? cartItem.quantity : 0;
+                }
+                
+                // Update button text to show current quantity
+                const addBtn = cardElement.querySelector('.add-to-cart-btn');
+                if (addBtn) {
+                    if (cartItem && cartItem.quantity > 0) {
+                        addBtn.innerHTML = '<i class="fas fa-plus"></i> Cập nhật (' + cartItem.quantity + ')';
+                    } else {
+                        addBtn.innerHTML = '<i class="fas fa-plus"></i> Thêm Vào Giỏ';
+                    }
+                }
+            }
         }
 
         function increaseQuantity(itemId) {
@@ -513,6 +526,7 @@
                 return;
             }
             updateCartDisplay();
+            updateMenuItemUI(itemId);
             saveCartToStorage();
         }
 
@@ -525,6 +539,7 @@
                 }
             }
             updateCartDisplay();
+            updateMenuItemUI(itemId);
             saveCartToStorage();
         }
 
@@ -542,6 +557,7 @@
                     newItem.quantity = qty;
                 }
             }
+            updateMenuItemUI(itemId);
             updateCartDisplay();
             saveCartToStorage();
         }
@@ -556,33 +572,30 @@
             if (cart.length === 0) {
                 cartItemsContainer.innerHTML = '<p class="text-center text-muted">Giỏ hàng trống</p>';
             } else {
-                cartItemsContainer.innerHTML = cart.map(item => `
-                    <div class="cart-item">
-                        <div class="cart-item-name">${item.name}</div>
-                        <div class="cart-item-details">
-                            $${item.price.toFixed(2)} x ${item.quantity} = $${(item.price * item.quantity).toFixed(2)}
-                        </div>
-                        <div class="cart-item-controls">
-                            <div class="quantity-controls">
-                                <button class="quantity-btn" onclick="decreaseQuantity(${item.itemId})">
-                                    <i class="fas fa-minus"></i>
-                                </button>
-                                <span>${item.quantity}</span>
-                                <button class="quantity-btn" onclick="increaseQuantity(${item.itemId})">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                            <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${item.itemId})">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
+                cartItemsContainer.innerHTML = cart.map(item => {
+                    const itemPrice = formatPrice(item.price);
+                    const itemTotal = formatPrice(item.price * item.quantity);
+                    const html = [
+                        '<div class="cart-item">',
+                        '<div class="cart-item-name">' + item.name + '</div>',
+                        '<div class="cart-item-details">$' + itemPrice + ' x ' + item.quantity + ' = $' + itemTotal + '</div>',
+                        '<div class="cart-item-controls">',
+                        '<div class="quantity-controls">',
+                        '<button class="quantity-btn" onclick="decreaseQuantity(' + item.itemId + ')"><i class="fas fa-minus"></i></button>',
+                        '<span>' + item.quantity + '</span>',
+                        '<button class="quantity-btn" onclick="increaseQuantity(' + item.itemId + ')"><i class="fas fa-plus"></i></button>',
+                        '</div>',
+                        '<button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(' + item.itemId + ')"><i class="fas fa-trash"></i></button>',
+                        '</div>',
+                        '</div>'
+                    ].join('');
+                    return html;
+                }).join('');
             }
 
             // Update total
             const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            document.getElementById('cartTotal').textContent = total.toFixed(2);
+            document.getElementById('cartTotal').textContent = formatPrice(total);
 
             // Update menu display
             displayMenuItems();
@@ -617,18 +630,31 @@
                 return;
             }
 
+            // Get tableId directly from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const tableId = urlParams.get('tableId');
+            
+            if (!tableId) {
+                alert('Không tìm thấy thông tin bàn!');
+                return;
+            }
+
+            console.log('Creating order with tableId:', tableId);
+
             const specialInstructions = document.getElementById('specialInstructions').value;
             const priority = document.getElementById('orderPriority').value;
 
             // Create order
-            const formData = new FormData();
-            formData.append('tableId', currentTableId);
-            formData.append('orderType', 'DINE_IN');
-            formData.append('specialInstructions', specialInstructions);
+            const params = new URLSearchParams();
+            params.append('tableId', tableId);
+            params.append('orderType', 'DINE_IN');
 
             fetch('${pageContext.request.contextPath}/orders', {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: params
             })
             .then(response => response.json())
             .then(data => {
@@ -650,19 +676,30 @@
             let totalItems = cart.length;
 
             cart.forEach(item => {
-                const formData = new FormData();
-                formData.append('menuItemId', item.itemId);
-                formData.append('quantity', item.quantity);
-                formData.append('priority', priority);
-                formData.append('course', 'MAIN'); // TODO: Determine course based on category
-                formData.append('specialInstructions', item.specialInstructions);
+                const params = new URLSearchParams();
+                params.append('menuItemId', item.itemId);
+                params.append('quantity', item.quantity);
+                params.append('priority', priority);
+                params.append('course', 'MAIN'); // TODO: Determine course based on category
+                params.append('specialInstructions', item.specialInstructions || '');
 
-                fetch(`${pageContext.request.contextPath}/orders/${orderId}/items`, {
+                fetch('${pageContext.request.contextPath}/orders/' + orderId + '/items', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    if (data.error) {
+                        console.error('Error adding item to order:', data.error);
+                    }
                     completed++;
                     if (completed === totalItems) {
                         alert('Đơn hàng đã được tạo thành công!');
@@ -670,6 +707,8 @@
                         updateCartDisplay();
                         saveCartToStorage();
                         toggleCart();
+                        // Reload page to reset menu display
+                        window.location.reload();
                     }
                 })
                 .catch(error => {

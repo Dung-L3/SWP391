@@ -145,25 +145,30 @@ GO
 -- 2. USERS AND STAFF
 -- ============================================
 
--- Insert users (will get IDs 1, 2, 3)
+-- Insert users (will get IDs 1, 2, 3, 4)
+-- Password for all users: "test"
+-- Hash format: Base64(salt):Base64(SHA256(salt + password))
 INSERT INTO users (username, email, password_hash, first_name, last_name, phone, account_status) VALUES
-('admin', 'admin@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Admin', 'System', '0123456789', 'ACTIVE'),
-('waiter1', 'waiter1@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'John', 'Waiter', '0123456789', 'ACTIVE'),
-('chef1', 'chef1@rms.com', 'dGVzdA==:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Master', 'Chef', '0123456789', 'ACTIVE');
+('admin', 'admin@rms.com', 'XgvcL3qb9MCwLUtIEOhZwA==:jENIb93KR+EMfnXbl/geHrnQBAe9VfMgDQ7ueBvkXwI=', 'Admin', 'System', '0123456789', 'ACTIVE'),
+('waiter1', 'waiter1@rms.com', 'XgvcL3qb9MCwLUtIEOhZwA==:jENIb93KR+EMfnXbl/geHrnQBAe9VfMgDQ7ueBvkXwI=', 'John', 'Waiter', '0123456789', 'ACTIVE'),
+('chef1', 'chef1@rms.com', 'XgvcL3qb9MCwLUtIEOhZwA==:jENIb93KR+EMfnXbl/geHrnQBAe9VfMgDQ7ueBvkXwI=', 'Master', 'Chef', '0123456789', 'ACTIVE'),
+('receptionist1', 'receptionist1@rms.com', 'XgvcL3qb9MCwLUtIEOhZwA==:jENIb93KR+EMfnXbl/geHrnQBAe9VfMgDQ7ueBvkXwI=', 'Jane', 'Receptionist', '0123456789', 'ACTIVE');
 GO
 
--- Insert staff (will get IDs 1, 2, 3)
+-- Insert staff (will get IDs 1, 2, 3, 4)
 INSERT INTO staff (user_id, first_name, last_name, email, phone, position, hire_date, salary, status) VALUES
 (1, 'Admin', 'System', 'admin@rms.com', '0123456789', 'Manager', GETDATE(), 15000000, 'ACTIVE'),
 (2, 'John', 'Waiter', 'waiter1@rms.com', '0123456789', 'Waiter', GETDATE(), 8000000, 'ACTIVE'),
-(3, 'Master', 'Chef', 'chef1@rms.com', '0123456789', 'Chef', GETDATE(), 12000000, 'ACTIVE');
+(3, 'Master', 'Chef', 'chef1@rms.com', '0123456789', 'Chef', GETDATE(), 12000000, 'ACTIVE'),
+(4, 'Jane', 'Receptionist', 'receptionist1@rms.com', '0123456789', 'Receptionist', GETDATE(), 9000000, 'ACTIVE');
 GO
 
 -- Gán roles cho users
 INSERT INTO user_roles (user_id, role_id, status) VALUES 
 (1, 1, 'ACTIVE'), -- admin -> Manager
 (2, 2, 'ACTIVE'), -- waiter1 -> Waiter
-(3, 3, 'ACTIVE'); -- chef1 -> Chef
+(3, 3, 'ACTIVE'), -- chef1 -> Chef
+(4, 4, 'ACTIVE'); -- receptionist1 -> Receptionist
 GO
 
 -- ============================================
@@ -261,6 +266,6 @@ VALUES
 GO
 
 PRINT 'Complete sample data for RMS System has been inserted successfully!'
-PRINT 'Users: admin/admin (Manager), waiter1/waiter1 (Waiter), chef1/chef1 (Chef)'
+PRINT 'Users: admin/test (Manager), waiter1/test (Waiter), chef1/test (Chef)'
 PRINT 'Password for all users: test'
 GO
