@@ -56,6 +56,7 @@ public class KitchenDAO {
         sql.append("LEFT JOIN dining_table dt ON dt.table_id = o.table_id ");
         sql.append("LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id ");
         sql.append("WHERE 1=1 ");
+        sql.append("AND kt.preparation_status IN ('RECEIVED', 'COOKING') ");
 
         List<Object> params = new ArrayList<>();
 
@@ -77,6 +78,48 @@ public class KitchenDAO {
 
             for (int i = 0; i < params.size(); i++) {
                 ps.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    tickets.add(mapResultSetToKitchenTicket(rs));
+                }
+            }
+        }
+        return tickets;
+    }
+
+    /**
+     * Lấy danh sách món đã xong (READY, trong 30 phút gần đây)
+     */
+    public List<KitchenTicket> getCompletedTickets(String station) throws SQLException {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT kt.kt_id, kt.order_item_id, kt.station, kt.preparation_status, ");
+        sql.append("kt.received_time, kt.start_time, kt.ready_time, kt.picked_time, kt.served_time, kt.chef_id, ");
+        sql.append("o.order_id, dt.table_number as table_number, mi.name as menu_item_name, ");
+        sql.append("oi.quantity, oi.special_instructions, oi.priority, oi.course_no as course ");
+        sql.append("FROM kitchen_tickets kt ");
+        sql.append("JOIN order_items oi ON oi.order_item_id = kt.order_item_id ");
+        sql.append("JOIN orders o ON o.order_id = oi.order_id ");
+        sql.append("LEFT JOIN dining_table dt ON dt.table_id = o.table_id ");
+        sql.append("LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id ");
+        sql.append("WHERE kt.preparation_status = 'READY' ");
+        sql.append("AND kt.ready_time IS NOT NULL ");
+        sql.append("AND DATEADD(MINUTE, 30, kt.ready_time) > GETDATE() ");
+
+        if (station != null && !station.isEmpty()) {
+            sql.append("AND kt.station = ? ");
+        }
+
+        sql.append("ORDER BY kt.ready_time DESC");
+
+        List<KitchenTicket> tickets = new ArrayList<>();
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            int paramIndex = 1;
+            if (station != null && !station.isEmpty()) {
+                ps.setString(paramIndex++, station);
             }
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -136,10 +179,66 @@ public class KitchenDAO {
 
             ps.setLong(paramIndex, ticketId);
 
-            return ps.executeUpdate() > 0;
+            int rowsUpdated = ps.executeUpdate();
+            
+            // Nếu cập nhật thành công và status là READY, cập nhật order_item status
+            if (rowsUpdated > 0 && KitchenTicket.STATUS_READY.equals(status)) {
+                // Get order item ID from ticket
+                Long orderItemId = getOrderItemIdByTicketId(ticketId);
+                if (orderItemId != null) {
+                    updateOrderItemStatusToReady(orderItemId);
+                }
+            }
+            
+            return rowsUpdated > 0;
+        }
+    }
+    
+    /**
+     * Lấy order item ID từ ticket ID
+     */
+    private Long getOrderItemIdByTicketId(Long ticketId) throws SQLException {
+        String sql = "SELECT order_item_id FROM kitchen_tickets WHERE kt_id = ?";
+        
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, ticketId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong("order_item_id");
+                }
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Cập nhật order item status thành READY
+     */
+    private void updateOrderItemStatusToReady(Long orderItemId) throws SQLException {
+        String sql = "UPDATE order_items SET status = 'READY' WHERE order_item_id = ?";
+        
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, orderItemId);
+            ps.executeUpdate();
         }
     }
 
+    /**
+     * Cập nhật kitchen ticket status thành SERVED dựa trên order_item_id
+     */
+    public boolean updateTicketStatusToServed(Long orderItemId) throws SQLException {
+        String sql = "UPDATE kitchen_tickets SET preparation_status = 'SERVED', served_time = ? WHERE order_item_id = ?";
+        
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setLong(2, orderItemId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+    
     /**
      * Cập nhật order item status khi kitchen ticket thay đổi
      */

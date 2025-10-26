@@ -157,16 +157,13 @@ public class OrderDAO {
                 quantity,
                 special_instructions,
                 priority,
-                course,
+                course_no,
                 base_unit_price,
                 final_unit_price,
-                total_price,
                 status,
-                created_at,
-                updated_at,
-                created_by
+                created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
 
         try (Connection conn = DBConnect.getConnection();
@@ -177,14 +174,24 @@ public class OrderDAO {
             ps.setInt(3, orderItem.getQuantity());
             ps.setString(4, orderItem.getSpecialInstructions());
             ps.setString(5, orderItem.getPriority());
-            ps.setString(6, orderItem.getCourse());
+            
+            // Convert course string to tinyint (course_no)
+            int courseNo = 1; // Default to 1
+            if ("APPETIZER".equalsIgnoreCase(orderItem.getCourse())) {
+                courseNo = 1;
+            } else if ("MAIN".equalsIgnoreCase(orderItem.getCourse())) {
+                courseNo = 2;
+            } else if ("DESSERT".equalsIgnoreCase(orderItem.getCourse())) {
+                courseNo = 3;
+            } else if ("BEVERAGE".equalsIgnoreCase(orderItem.getCourse())) {
+                courseNo = 4;
+            }
+            ps.setInt(6, courseNo);
+            
             ps.setBigDecimal(7, orderItem.getBaseUnitPrice());   // giá gốc lúc order
             ps.setBigDecimal(8, orderItem.getFinalUnitPrice());  // giá sau rule
-            ps.setBigDecimal(9, orderItem.getTotalPrice());      // final * qty
-            ps.setString(10, orderItem.getStatus());
-            ps.setTimestamp(11, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setTimestamp(12, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setInt(13, orderItem.getCreatedBy());
+            ps.setString(9, orderItem.getStatus());
+            ps.setTimestamp(10, Timestamp.valueOf(LocalDateTime.now()));
 
             int rows = ps.executeUpdate();
             if (rows > 0) {
@@ -232,18 +239,90 @@ public class OrderDAO {
     }
 
     /**
+     * Lấy danh sách món sẵn sàng (READY) cho một bàn
+     */
+    public List<OrderItem> getReadyItemsForTable(Integer tableId) throws SQLException {
+        String sql = """
+            SELECT oi.order_item_id, oi.order_id, oi.menu_item_id, oi.quantity,
+                   oi.special_instructions, oi.priority, oi.course_no, oi.status,
+                   oi.served_by, oi.served_at,
+                   mi.name AS menu_item_name,
+                   dt.table_number, o.order_id
+            FROM order_items oi
+            JOIN orders o ON o.order_id = oi.order_id
+            LEFT JOIN dining_table dt ON dt.table_id = o.table_id
+            LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id
+            WHERE o.table_id = ?
+              AND oi.status = 'READY'
+              AND oi.served_at IS NULL
+            ORDER BY oi.order_item_id ASC
+        """;
+        
+        List<OrderItem> items = new ArrayList<>();
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, tableId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    items.add(mapResultSetToOrderItem(rs));
+                }
+            }
+        }
+        return items;
+    }
+    
+    /**
+     * Lấy lịch sử order items của một bàn (tất cả món đã gọi, trạng thái hiện tại)
+     * @author donny
+     */
+    public List<OrderItem> getTableHistory(Integer tableId) throws SQLException {
+        String sql = """
+            SELECT oi.order_item_id, oi.order_id, oi.menu_item_id, oi.quantity,
+                   oi.special_instructions, oi.priority, oi.course_no, oi.status,
+                   oi.served_by, oi.served_at, oi.created_at,
+                   oi.base_unit_price, oi.final_unit_price,
+                   mi.name AS menu_item_name,
+                   dt.table_number,
+                   o.order_id, o.opened_at AS order_time,
+                   u.username AS waiter_name
+            FROM order_items oi
+            JOIN orders o ON o.order_id = oi.order_id
+            LEFT JOIN dining_table dt ON dt.table_id = o.table_id
+            LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id
+            LEFT JOIN users u ON u.user_id = o.waiter_id
+            WHERE o.table_id = ?
+            ORDER BY oi.order_item_id DESC
+        """;
+        
+        List<OrderItem> items = new ArrayList<>();
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, tableId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    OrderItem item = mapResultSetToOrderItem(rs);
+                    // Map additional fields for history
+                    item.setTableNumber(rs.getString("table_number"));
+                    Timestamp orderTime = rs.getTimestamp("order_time");
+                    if (orderTime != null) {
+                        item.setCreatedAt(orderTime.toLocalDateTime());
+                    }
+                    items.add(item);
+                    System.out.println("📦 Added item to history: " + item.getMenuItemName() + ", Status: " + item.getStatus());
+                }
+            }
+        }
+        System.out.println("📊 Total items in table history: " + items.size());
+        return items;
+    }
+
+    /**
      * Update order tổng (status, tiền, note,...)
      */
     public boolean updateOrder(Order order) throws SQLException {
         String sql = """
             UPDATE orders
-            SET status = ?,
-                subtotal = ?,
-                tax_amount = ?,
-                total_amount = ?,
-                special_instructions = ?,
-                updated_at = ?,
-                updated_by = ?
+            SET status = ?
             WHERE order_id = ?
         """;
 
@@ -251,13 +330,7 @@ public class OrderDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, order.getStatus());
-            ps.setBigDecimal(2, order.getSubtotal());
-            ps.setBigDecimal(3, order.getTaxAmount());
-            ps.setBigDecimal(4, order.getTotalAmount());
-            ps.setString(5, order.getSpecialInstructions());
-            ps.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setInt(7, order.getUpdatedBy());
-            ps.setLong(8, order.getOrderId());
+            ps.setLong(2, order.getOrderId());
 
             return ps.executeUpdate() > 0;
         }
@@ -346,21 +419,75 @@ public class OrderDAO {
         item.setQuantity(rs.getInt("quantity"));
         item.setSpecialInstructions(rs.getString("special_instructions"));
         item.setPriority(rs.getString("priority"));
-        item.setCourse(rs.getString("course"));
+        
+        // Check for course_no first, fallback to course
+        String course = null;
+        try {
+            course = rs.getString("course_no");
+        } catch (Exception e) {
+            course = rs.getString("course");
+        }
+        item.setCourse(course);
         item.setBaseUnitPrice(rs.getBigDecimal("base_unit_price"));
         item.setFinalUnitPrice(rs.getBigDecimal("final_unit_price"));
-        item.setTotalPrice(rs.getBigDecimal("total_price"));
+        // total_price column doesn't exist in order_items table
+        BigDecimal totalPrice = null;
+        try {
+            totalPrice = rs.getBigDecimal("total_price");
+        } catch (Exception e) {
+            // Calculate total price if not in result set
+            if (item.getFinalUnitPrice() != null && item.getQuantity() != null) {
+                totalPrice = item.getFinalUnitPrice().multiply(new BigDecimal(item.getQuantity()));
+            }
+        }
+        item.setTotalPrice(totalPrice);
         item.setStatus(rs.getString("status"));
 
         Timestamp cAt = rs.getTimestamp("created_at");
-        Timestamp uAt = rs.getTimestamp("updated_at");
         if (cAt != null) item.setCreatedAt(cAt.toLocalDateTime());
+        
+        Timestamp uAt = null;
+        try {
+            uAt = rs.getTimestamp("updated_at");
+        } catch (Exception e) {
+            // updated_at doesn't exist
+        }
         if (uAt != null) item.setUpdatedAt(uAt.toLocalDateTime());
 
-        item.setCreatedBy(rs.getInt("created_by"));
-        item.setMenuItemName(rs.getString("menu_item_name"));
-        item.setMenuItemDescription(rs.getString("menu_item_description"));
-        item.setPreparationTime(rs.getInt("preparation_time"));
+        Integer createdBy = null;
+        try {
+            createdBy = rs.getObject("created_by", Integer.class);
+        } catch (Exception e) {
+            // created_by doesn't exist
+        }
+        if (createdBy != null) item.setCreatedBy(createdBy);
+        
+        String menuItemName = rs.getString("menu_item_name");
+        if (menuItemName != null) item.setMenuItemName(menuItemName);
+        
+        String menuItemDesc = null;
+        try {
+            menuItemDesc = rs.getString("menu_item_description");
+        } catch (Exception e) {
+            // menu_item_description doesn't exist in result set
+        }
+        if (menuItemDesc != null) item.setMenuItemDescription(menuItemDesc);
+        
+        Integer prepTime = null;
+        try {
+            prepTime = rs.getObject("preparation_time", Integer.class);
+        } catch (Exception e) {
+            // preparation_time doesn't exist in result set
+        }
+        if (prepTime != null) item.setPreparationTime(prepTime);
+        
+        // Try to get table_number (may not exist in all queries)
+        try {
+            String tableNumber = rs.getString("table_number");
+            if (tableNumber != null) item.setTableNumber(tableNumber);
+        } catch (Exception e) {
+            // table_number doesn't exist in this result set
+        }
 
         // Served fields
         Integer servedBy = rs.getObject("served_by", Integer.class);
@@ -411,9 +538,7 @@ public class OrderDAO {
             UPDATE order_items
             SET status = 'SERVED',
                 served_by = ?,
-                served_at = ?,
-                updated_at = ?,
-                updated_by = ?
+                served_at = ?
             WHERE order_item_id = ?
         """;
 
@@ -422,9 +547,7 @@ public class OrderDAO {
 
             ps.setInt(1, servedBy);
             ps.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setTimestamp(3, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setInt(4, servedBy);
-            ps.setLong(5, orderItemId);
+            ps.setLong(3, orderItemId);
 
             return ps.executeUpdate() > 0;
         }

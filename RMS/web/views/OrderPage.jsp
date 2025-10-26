@@ -204,6 +204,7 @@
     </style>
 </head>
 <body>
+    <jsp:include page="../layouts/WaiterHeader.jsp" />
     <div class="container-fluid">
         <!-- Header -->
         <div class="row">

@@ -60,6 +60,9 @@ public class OrderServlet extends HttpServlet {
             } catch (NumberFormatException e) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid order ID");
             }
+        } else if (pathInfo.matches("/ready")) {
+            // GET /orders/ready - Lấy danh sách món sẵn sàng
+            getReadyItems(request, response);
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not found");
         }
@@ -85,9 +88,35 @@ public class OrderServlet extends HttpServlet {
         String pathInfo = request.getPathInfo();
         String action = request.getParameter("action");
         
+        System.out.println("POST pathInfo: " + pathInfo);
+        
         if (pathInfo == null || pathInfo.equals("/")) {
             // POST /orders - Tạo order mới
             createOrder(request, response, user);
+        } else if (pathInfo.matches("/items/\\d+/serve")) {
+            // POST /orders/items/{itemId}/serve - Đánh dấu món đã phục vụ
+            System.out.println("Processing /orders/items/{id}/serve, pathInfo: " + pathInfo);
+            String itemIdStr = pathInfo.substring(pathInfo.lastIndexOf("/") + 1);
+            System.out.println("Serving item ID: " + itemIdStr);
+            try {
+                Long itemId = Long.parseLong(itemIdStr);
+                markItemAsServed(request, response, itemId, user);
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid item ID: " + itemIdStr);
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid item ID: " + itemIdStr);
+            }
+        } else if (pathInfo.matches("/\\d+/serve")) {
+            // POST /orders/{itemId}/serve - Alternative pattern
+            System.out.println("Processing /orders/{id}/serve, pathInfo: " + pathInfo);
+            String itemIdStr = pathInfo.substring(1, pathInfo.indexOf("/serve"));
+            System.out.println("Serving item ID (alt): " + itemIdStr);
+            try {
+                Long itemId = Long.parseLong(itemIdStr);
+                markItemAsServed(request, response, itemId, user);
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid item ID: " + itemIdStr);
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid item ID: " + itemIdStr);
+            }
         } else if (pathInfo.matches("/\\d+/items")) {
             // POST /orders/{id}/items - Thêm item vào order
             String orderIdStr = pathInfo.substring(1, pathInfo.lastIndexOf("/"));
@@ -106,17 +135,19 @@ public class OrderServlet extends HttpServlet {
             } catch (NumberFormatException e) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid order ID");
             }
-        } else if (pathInfo.matches("/items/\\d+/serve")) {
-            // POST /orders/items/{itemId}/serve - Đánh dấu món đã phục vụ
-            String itemIdStr = pathInfo.substring(pathInfo.lastIndexOf("/") + 1);
+        } else if (pathInfo.matches("/\\d+/serve")) {
+            // POST /orders/{itemId}/serve - Đánh dấu món đã phục vụ
+            String itemIdStr = pathInfo.substring(1, pathInfo.indexOf("/serve"));
+            System.out.println("Serving item ID from /{itemId}/serve: " + itemIdStr);
             try {
                 Long itemId = Long.parseLong(itemIdStr);
                 markItemAsServed(request, response, itemId, user);
             } catch (NumberFormatException e) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid item ID");
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid item ID: " + itemIdStr);
             }
         } else {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not found");
+            System.err.println("Unmatched pathInfo: " + pathInfo);
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not found: " + pathInfo);
         }
     }
 
@@ -134,6 +165,48 @@ public class OrderServlet extends HttpServlet {
             out.print("{\"orders\":[]}");
         } catch (Exception e) {
             System.err.println("Error getting orders: " + e.getMessage());
+            e.printStackTrace();
+            out.print("{\"error\":\"" + e.getMessage().replace("\"", "\\\"") + "\"}");
+        }
+    }
+
+    /**
+     * Lấy danh sách món sẵn sàng
+     */
+    private void getReadyItems(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        
+        try {
+            String tableIdStr = request.getParameter("tableId");
+            if (tableIdStr == null || tableIdStr.trim().isEmpty()) {
+                out.print("{\"error\":\"Table ID is required\"}");
+                return;
+            }
+            
+            Integer tableId = Integer.parseInt(tableIdStr);
+            List<OrderItem> readyItems = orderDAO.getReadyItemsForTable(tableId);
+            
+            // Convert to JSON
+            StringBuilder json = new StringBuilder();
+            json.append("{\"readyItems\":[");
+            for (int i = 0; i < readyItems.size(); i++) {
+                OrderItem item = readyItems.get(i);
+                json.append("{");
+                json.append("\"orderItemId\":").append(item.getOrderItemId()).append(",");
+                json.append("\"menuItemName\":\"").append(item.getMenuItemName() != null ? item.getMenuItemName() : "").append("\",");
+                json.append("\"quantity\":").append(item.getQuantity()).append(",");
+                json.append("\"tableNumber\":\"").append(item.getTableNumber() != null ? item.getTableNumber() : "").append("\"");
+                json.append("}");
+                if (i < readyItems.size() - 1) json.append(",");
+            }
+            json.append("]}");
+            
+            out.print(json.toString());
+        } catch (Exception e) {
+            System.err.println("Error getting ready items: " + e.getMessage());
             e.printStackTrace();
             out.print("{\"error\":\"" + e.getMessage().replace("\"", "\\\"") + "\"}");
         }
@@ -283,11 +356,14 @@ public class OrderServlet extends HttpServlet {
                 ticket.setOrderItemId(orderItemId);
                 ticket.setStation(determineStation(orderItem)); // HOT, COLD, GRILL, etc.
                 ticket.setPreparationStatus(KitchenTicket.STATUS_RECEIVED);
+                ticket.setChefId(null); // Set chef_id to null initially
                 
                 Long ticketId = kitchenDAO.createKitchenTicket(ticket);
                 if (ticketId != null) {
+                    System.out.println("Created kitchen ticket ID: " + ticketId + " for order item ID: " + orderItemId);
                     out.print("{\"success\":true,\"orderItemId\":" + orderItemId + ",\"ticketId\":" + ticketId + "}");
                 } else {
+                    System.err.println("Failed to create kitchen ticket for order item ID: " + orderItemId);
                     out.print("{\"success\":true,\"orderItemId\":" + orderItemId + ",\"warning\":\"Failed to create kitchen ticket\"}");
                 }
             } else {
@@ -364,40 +440,80 @@ public class OrderServlet extends HttpServlet {
     private void markItemAsServed(HttpServletRequest request, HttpServletResponse response, Long itemId, User user)
             throws ServletException, IOException {
         
-        response.setContentType("application/json");
-        PrintWriter out = response.getWriter();
+        System.out.println("markItemAsServed called for itemId: " + itemId);
         
         try {
             // Get order item to retrieve orderId
             OrderItem item = orderDAO.getOrderItemById(itemId);
             if (item == null) {
-                out.print("{\"error\":\"Order item not found\"}");
+                System.err.println("Order item not found: " + itemId);
+                request.setAttribute("error", "Order item not found");
+                response.sendRedirect(request.getContextPath() + "/tables");
                 return;
             }
             
+            System.out.println("Order item found: " + item.getMenuItemName() + ", status: " + item.getStatus());
+            
+            Order order = orderDAO.getOrderById(item.getOrderId());
+            if (order == null) {
+                System.err.println("Order not found: " + item.getOrderId());
+                request.setAttribute("error", "Order not found");
+                response.sendRedirect(request.getContextPath() + "/tables");
+                return;
+            }
+            
+            System.out.println("Order found: " + order.getOrderId() + ", tableId: " + order.getTableId());
+            
             // Mark item as served
             boolean success = orderDAO.markOrderItemAsServed(itemId, user.getUserId());
+            System.out.println("markOrderItemAsServed result: " + success);
             
             if (success) {
+                // Cập nhật kitchen ticket status thành SERVED
+                KitchenDAO kitchenDAO = new KitchenDAO();
+                kitchenDAO.updateTicketStatusToServed(itemId);
+                
                 // Check if all items in the order are served
                 boolean allServed = orderDAO.areAllItemsServed(item.getOrderId());
                 
                 if (allServed) {
                     // Update order status to SERVED
-                    Order order = orderDAO.getOrderById(item.getOrderId());
                     order.setStatus(Order.STATUS_SERVED);
                     order.setUpdatedBy(user.getUserId());
                     orderDAO.updateOrder(order);
                 }
                 
-                out.print("{\"success\":true,\"allServed\":" + allServed + "}");
+                // Redirect back to table history
+                System.out.println("Redirecting to table-history with tableId: " + order.getTableId());
+                response.sendRedirect(request.getContextPath() + "/table-history?tableId=" + order.getTableId() + "&success=Served+successfully");
             } else {
-                out.print("{\"error\":\"Failed to mark item as served\"}");
+                System.err.println("markOrderItemAsServed returned false");
+                response.sendRedirect(request.getContextPath() + "/table-history?tableId=" + order.getTableId() + "&error=Failed+to+mark+as+served");
             }
         } catch (Exception e) {
             System.err.println("Error marking item as served: " + e.getMessage());
             e.printStackTrace();
-            out.print("{\"error\":\"" + e.getMessage().replace("\"", "\\\"") + "\"}");
+            
+            // Try to get tableId from request parameter or session
+            String tableIdParam = request.getParameter("tableId");
+            if (tableIdParam == null || tableIdParam.isEmpty()) {
+                // Try to get from referrer URL
+                String referer = request.getHeader("Referer");
+                if (referer != null && referer.contains("tableId=")) {
+                    int startIdx = referer.indexOf("tableId=") + 8;
+                    int endIdx = referer.indexOf("&", startIdx);
+                    if (endIdx == -1) endIdx = referer.length();
+                    tableIdParam = referer.substring(startIdx, endIdx);
+                }
+            }
+            
+            if (tableIdParam != null && !tableIdParam.isEmpty()) {
+                System.out.println("Redirecting to table-history with tableId from param: " + tableIdParam);
+                response.sendRedirect(request.getContextPath() + "/table-history?tableId=" + tableIdParam + "&error=An+error+occurred");
+            } else {
+                System.err.println("Could not determine tableId, redirecting to /tables");
+                response.sendRedirect(request.getContextPath() + "/tables");
+            }
         }
     }
 }
