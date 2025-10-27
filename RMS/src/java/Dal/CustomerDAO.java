@@ -56,13 +56,9 @@ public class CustomerDAO {
             }
             fullName = fullName.trim();
             
-            // Chuẩn hóa email cho registered users
-            String email = null;
-            if (customer.getUserId() != null) {
-                email = customer.getEmail();
-                if (email == null || email.trim().isEmpty()) {
-                    throw new SQLException("Email không được để trống cho khách hàng có tài khoản");
-                }
+            // Chuẩn hóa email
+            String email = customer.getEmail();
+            if (email != null && !email.trim().isEmpty()) {
                 email = email.trim().toLowerCase();
             }
             

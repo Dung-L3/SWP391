@@ -1,9 +1,11 @@
 package Controller;
 
+import Dal.CustomerDAO;
 import Dal.ReservationDAO;
 import Dal.TableDAO;
-import Models.Reservation;
+import Models.Customer;
 import Models.DiningTable;
+import Models.Reservation;
 import Controller.auth.EmailServices;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -158,11 +160,21 @@ public class ConfirmBookingServlet extends HttpServlet {
                     break;
                 }
 
+                // Tạo hoặc cập nhật thông tin khách hàng
+                Customer customer = new Customer();
+                customer.setFullName(customerName);
+                customer.setPhone(phoneNumber);
+                customer.setEmail(email);
+                
+                CustomerDAO customerDAO = new CustomerDAO();
+                int customerId = customerDAO.createOrUpdate(customer);
+                
                 Reservation reservation = new Reservation();
+                reservation.setCustomerId(customerId);  // Set customer_id từ customer vừa tạo
                 reservation.setTableId(table.getTableId());
                 reservation.setCustomerName(customerName);
                 reservation.setPhone(phoneNumber);
-                reservation.setEmail(email);
+                reservation.setEmail(email);  // Vẫn set email để tiện sử dụng
                 reservation.setReservationDate(reservationDate);
                 reservation.setReservationTime(reservationTime);
                 reservation.setPartySize(numOfPeople);

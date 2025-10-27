@@ -196,4 +196,20 @@
         <param-value>RMSG4 Support &lt;RMSGroup4support@gmail.com&gt;</param-value>
     </context-param>
 
+    <!-- Cancel Reservation Servlet -->
+    <servlet>
+        <servlet-name>CancelReservationServlet</servlet-name>
+        <servlet-class>Controller.CancelReservationServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>CancelReservationServlet</servlet-name>
+        <url-pattern>/cancel-reservation</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>CancelReservationServlet</servlet-name>
+        <url-pattern>/view-reservation</url-pattern>
+    </servlet-mapping>
+
 </web-app>

@@ -446,4 +446,67 @@ public class ReservationDAO {
         
         return success;
     }
+
+    public Reservation getReservationByConfirmationCode(String confirmationCode) throws SQLException {
+        Connection conn = null;
+        try {
+            conn = DBConnect.getConnection();
+            String sql = "SELECT r.reservation_id, r.customer_id, r.table_id, " +
+                        "r.reservation_date, r.reservation_time, r.party_size, " +
+                        "r.status, r.special_requests, r.deposit_amount, " +
+                        "r.deposit_status, r.confirmation_code, " +
+                        "c.full_name, c.phone, c.email " +
+                        "FROM reservations r " +
+                        "LEFT JOIN customers c ON c.customer_id = r.customer_id " +
+                        "WHERE r.confirmation_code = ?";
+            
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, confirmationCode);
+                System.out.println("Executing query for confirmation code: " + confirmationCode);
+                
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        Reservation reservation = new Reservation();
+                        int customerId = rs.getInt("customer_id");
+                        String customerEmail = rs.getString("email");
+                        String customerName = rs.getString("full_name");
+                        String phone = rs.getString("phone");
+                        
+                        System.out.println("=== Found Reservation Details ===");
+                        System.out.println("Customer ID: " + customerId);
+                        System.out.println("Customer Name: " + customerName);
+                        System.out.println("Email: " + customerEmail);
+                        System.out.println("Phone: " + phone);
+                        System.out.println("Confirmation Code: " + rs.getString("confirmation_code"));
+                        System.out.println("============================");
+                        
+                        reservation.setReservationId(rs.getInt("reservation_id"));
+                        reservation.setCustomerId(customerId);
+                        reservation.setCustomerName(rs.getString("full_name"));
+                        reservation.setPhone(rs.getString("phone"));
+                        reservation.setEmail(customerEmail);  // Set email từ customer
+                        reservation.setReservationDate(rs.getDate("reservation_date"));
+                        reservation.setReservationTime(rs.getTime("reservation_time"));
+                        reservation.setPartySize(rs.getInt("party_size"));
+                        reservation.setStatus(rs.getString("status"));
+                        reservation.setSpecialRequests(rs.getString("special_requests"));
+                        reservation.setTableId(rs.getInt("table_id"));
+                        reservation.setConfirmationCode(rs.getString("confirmation_code"));
+                        reservation.setDepositAmount(rs.getDouble("deposit_amount"));
+                        reservation.setDepositStatus(rs.getString("deposit_status"));
+                        return reservation;
+                    }
+                }
+            }
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.close();
+                } catch (SQLException e) {
+                    System.out.println("Error closing connection: " + e.getMessage());
+                }
+            }
+        }
+        return null;
+    }
 }
