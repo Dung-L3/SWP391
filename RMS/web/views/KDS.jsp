@@ -90,6 +90,7 @@
     </style>
 </head>
 <body>
+    <jsp:include page="../layouts/ChefHeader.jsp" />
     <div class="kds-container">
         <div class="container-fluid">
             <!-- Header -->
@@ -144,63 +145,67 @@
                 </div>
             </div>
 
-            <!-- Tickets Display -->
-            <div class="row" id="ticketsContainer">
-                <c:choose>
-                    <c:when test="${not empty tickets}">
-                        <c:forEach var="ticket" items="${tickets}">
+            <!-- Active Tickets (RECEIVED, COOKING) -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h3 class="text-center mb-3"><i class="fas fa-clipboard-list"></i> Món đang làm</h3>
+                </div>
+                <div class="row" id="ticketsContainer">
+                    <c:choose>
+                        <c:when test="${not empty tickets}">
+                            <c:forEach var="ticket" items="${tickets}">
                             <div class="col-md-6 col-lg-4">
-                                <div class="ticket-card" data-ticket-id="${ticket[0]}" data-status="${ticket[2]}">
+                                <div class="ticket-card" data-ticket-id="${ticket.kitchenTicketId}" data-status="${ticket.preparationStatus}">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h5 class="mb-0">#${ticket[0]}</h5>
-                                        <span class="status-badge status-${ticket[2].toLowerCase()}">${ticket[2]}</span>
+                                        <h5 class="mb-0">#${ticket.kitchenTicketId}</h5>
+                                        <span class="status-badge status-${ticket.preparationStatus.toLowerCase()}">${ticket.preparationStatus}</span>
                                     </div>
                                     
                                     <div class="mb-2">
-                                        <strong>Table:</strong> ${ticket[1]}<br>
-                                        <strong>Item:</strong> ${ticket[3]}<br>
-                                        <strong>Qty:</strong> ${ticket[4]}<br>
-                                        <strong>Station:</strong> ${ticket[5]}
+                                        <strong>Table:</strong> ${ticket.tableNumber}<br>
+                                        <strong>Item:</strong> ${ticket.menuItemName}<br>
+                                        <strong>Qty:</strong> ${ticket.quantity}<br>
+                                        <strong>Station:</strong> ${ticket.station}
                                     </div>
                                     
-                                    <c:if test="${not empty ticket[6]}">
+                                    <c:if test="${not empty ticket.specialInstructions}">
                                         <div class="mb-2">
-                                            <strong>Notes:</strong> ${ticket[6]}
+                                            <strong>Notes:</strong> ${ticket.specialInstructions}
                                         </div>
                                     </c:if>
                                     
                                     <div class="mb-2">
                                         <strong>Priority:</strong> 
-                                        <span class="priority-${ticket[7].toLowerCase()}">${ticket[7]}</span>
+                                        <span class="priority-${ticket.priority.toLowerCase()}">${ticket.priority}</span>
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <strong>Course:</strong> ${ticket[8]}
+                                        <strong>Course:</strong> ${ticket.course}
                                     </div>
                                     
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <div class="timer" id="timer-${ticket[0]}">
+                                        <div class="timer" id="timer-${ticket.kitchenTicketId}">
                                             <i class="fas fa-clock"></i> 00:00
                                         </div>
                                         <div>
                                             <c:choose>
-                                                <c:when test="${ticket[2] == 'RECEIVED'}">
-                                                    <button class="btn btn-kds btn-sm" onclick="updateStatus(${ticket[0]}, 'COOKING')">
+                                                <c:when test="${ticket.preparationStatus == 'RECEIVED'}">
+                                                    <button class="btn btn-kds btn-sm" onclick="updateStatus(${ticket.kitchenTicketId}, 'COOKING')">
                                                         <i class="fas fa-play"></i> Start
                                                     </button>
                                                 </c:when>
-                                                <c:when test="${ticket[2] == 'COOKING'}">
-                                                    <button class="btn btn-kds btn-sm" onclick="updateStatus(${ticket[0]}, 'READY')">
+                                                <c:when test="${ticket.preparationStatus == 'COOKING'}">
+                                                    <button class="btn btn-kds btn-sm" onclick="updateStatus(${ticket.kitchenTicketId}, 'READY')">
                                                         <i class="fas fa-check"></i> Ready
                                                     </button>
                                                 </c:when>
-                                                <c:when test="${ticket[2] == 'READY'}">
-                                                    <button class="btn btn-kds btn-sm" onclick="updateStatus(${ticket[0]}, 'PICKED')">
+                                                <c:when test="${ticket.preparationStatus == 'READY'}">
+                                                    <button class="btn btn-kds btn-sm" onclick="updateStatus(${ticket.kitchenTicketId}, 'PICKED')">
                                                         <i class="fas fa-hand-paper"></i> Picked
                                                     </button>
                                                 </c:when>
-                                                <c:when test="${ticket[2] == 'PICKED'}">
-                                                    <button class="btn btn-kds btn-sm" onclick="updateStatus(${ticket[0]}, 'SERVED')">
+                                                <c:when test="${ticket.preparationStatus == 'PICKED'}">
+                                                    <button class="btn btn-kds btn-sm" onclick="updateStatus(${ticket.kitchenTicketId}, 'SERVED')">
                                                         <i class="fas fa-check-double"></i> Served
                                                     </button>
                                                 </c:when>
@@ -214,17 +219,75 @@
                                     </div>
                                 </div>
                             </div>
-                        </c:forEach>
-                    </c:when>
-                    <c:otherwise>
-                        <div class="col-12 text-center">
-                            <div class="ticket-card">
-                                <h3><i class="fas fa-utensils"></i></h3>
-                                <p>No tickets found for the selected criteria.</p>
+                            </c:forEach>
+                        </c:when>
+                        <c:otherwise>
+                            <div class="col-12 text-center">
+                                <div class="ticket-card">
+                                    <h3><i class="fas fa-utensils"></i></h3>
+                                    <p>Không có món nào đang làm.</p>
+                                </div>
                             </div>
-                        </div>
-                    </c:otherwise>
-                </c:choose>
+                        </c:otherwise>
+                    </c:choose>
+                </div>
+            </div>
+
+            <!-- Completed Tickets (READY) -->
+            <div class="row">
+                <div class="col-12">
+                    <h3 class="text-center mb-3"><i class="fas fa-check-circle"></i> Món đã xong</h3>
+                </div>
+                <div class="row" id="completedContainer">
+                    <c:choose>
+                        <c:when test="${not empty completedTickets}">
+                            <c:forEach var="ticket" items="${completedTickets}">
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="ticket-card ready" data-ticket-id="${ticket.kitchenTicketId}" data-status="${ticket.preparationStatus}">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h5 class="mb-0">#${ticket.kitchenTicketId}</h5>
+                                            <span class="status-badge status-ready">READY</span>
+                                        </div>
+                                        
+                                        <div class="mb-2">
+                                            <strong>Table:</strong> ${ticket.tableNumber}<br>
+                                            <strong>Item:</strong> ${ticket.menuItemName}<br>
+                                            <strong>Qty:</strong> ${ticket.quantity}<br>
+                                            <strong>Station:</strong> ${ticket.station}
+                                        </div>
+                                        
+                                        <c:if test="${not empty ticket.specialInstructions}">
+                                            <div class="mb-2">
+                                                <strong>Notes:</strong> ${ticket.specialInstructions}
+                                            </div>
+                                        </c:if>
+                                        
+                                        <div class="mb-2">
+                                            <strong>Priority:</strong> 
+                                            <span class="priority-${ticket.priority.toLowerCase()}">${ticket.priority}</span>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <strong>Course:</strong> ${ticket.course}
+                                        </div>
+                                        
+                                        <div class="text-center">
+                                            <span class="text-success"><i class="fas fa-check-circle"></i> Đã xong - Chờ phục vụ</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </c:forEach>
+                        </c:when>
+                        <c:otherwise>
+                            <div class="col-12 text-center">
+                                <div class="ticket-card">
+                                    <h3><i class="fas fa-utensils"></i></h3>
+                                    <p>Không có món nào đã xong.</p>
+                                </div>
+                            </div>
+                        </c:otherwise>
+                    </c:choose>
+                </div>
             </div>
         </div>
     </div>

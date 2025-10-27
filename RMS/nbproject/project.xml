@@ -10,11 +10,7 @@
                     <file>${j2ee.platform.classpath}</file>
                 </library>
                 <library dirs="200">
-                    <file>${file.reference.jakarta.servlet.jsp.jstl-api-3.0.0.jar}</file>
-                    <path-in-war>WEB-INF/lib</path-in-war>
-                </library>
-                <library dirs="200">
-                    <file>${file.reference.jakarta.servlet.jsp.jstl-3.0.0.jar}</file>
+                    <file>${file.reference.jbcrypt-0.4.jar}</file>
                     <path-in-war>WEB-INF/lib</path-in-war>
                 </library>
                 <library dirs="200">

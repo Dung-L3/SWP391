@@ -101,10 +101,17 @@ public class KitchenServlet extends HttpServlet {
             String station = request.getParameter("station");
             String status = request.getParameter("status");
             
-            // Lấy danh sách kitchen tickets
-            List<KitchenTicket> tickets = kitchenDAO.getKitchenTickets(station, status);
+            // Lấy danh sách kitchen tickets (RECEIVED, COOKING)
+            List<KitchenTicket> activeTickets = kitchenDAO.getKitchenTickets(station, status);
             
-            request.setAttribute("tickets", tickets);
+            // Lấy danh sách món đã xong (READY mà chưa SERVED)
+            List<KitchenTicket> completedTickets = kitchenDAO.getCompletedTickets(station);
+            
+            System.out.println("KDS Debug: Found " + activeTickets.size() + " active tickets");
+            System.out.println("KDS Debug: Found " + completedTickets.size() + " completed tickets");
+            
+            request.setAttribute("tickets", activeTickets);
+            request.setAttribute("completedTickets", completedTickets);
             request.setAttribute("station", station);
             request.setAttribute("status", status);
             

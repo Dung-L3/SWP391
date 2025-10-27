@@ -48,10 +48,15 @@ public class OrderItem implements Serializable {
     private Integer createdBy;
     private Integer updatedBy;
     
+    // Served fields
+    private Integer servedBy;
+    private LocalDateTime servedAt;
+    
     // Join fields
     private String menuItemName;
     private String menuItemDescription;
     private Integer preparationTime;
+    private String tableNumber;
 
     // Constructors
     public OrderItem() {}
@@ -119,6 +124,15 @@ public class OrderItem implements Serializable {
 
     public Integer getPreparationTime() { return preparationTime; }
     public void setPreparationTime(Integer preparationTime) { this.preparationTime = preparationTime; }
+
+    public String getTableNumber() { return tableNumber; }
+    public void setTableNumber(String tableNumber) { this.tableNumber = tableNumber; }
+
+    public Integer getServedBy() { return servedBy; }
+    public void setServedBy(Integer servedBy) { this.servedBy = servedBy; }
+
+    public LocalDateTime getServedAt() { return servedAt; }
+    public void setServedAt(LocalDateTime servedAt) { this.servedAt = servedAt; }
 
     // Helper methods
     public boolean isNew() { return STATUS_NEW.equals(status); }

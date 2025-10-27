@@ -4,6 +4,8 @@ import Dal.MenuDAO;
 import Models.MenuItem;
 import Models.MenuCategory;
 import Models.User;
+import Utils.PricingService;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +22,7 @@ import java.util.List;
 public class MenuManagementServlet extends HttpServlet {
 
     private MenuDAO menuDAO;
+    private final PricingService pricingService = new PricingService();
 
     @Override
     public void init() throws ServletException {
@@ -30,14 +33,15 @@ public class MenuManagementServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        // Check authentication
+        // Auth check
         HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("user") == null) {
+        User currentUser = (session == null) ? null : (User) session.getAttribute("user");
+        if (currentUser == null) {
             response.sendRedirect(request.getContextPath() + "/LoginServlet");
             return;
         }
 
-        // Set UTF-8 encoding
+        // Encoding
         request.setCharacterEncoding("UTF-8");
         response.setCharacterEncoding("UTF-8");
 
@@ -46,20 +50,19 @@ public class MenuManagementServlet extends HttpServlet {
 
         try {
             switch (action) {
-                case "list":
-                    handleListItems(request, response);
-                    break;
                 case "view":
-                    handleViewItem(request, response);
+                    handleViewItem(request, response, currentUser);
                     break;
                 case "create":
-                    handleCreateForm(request, response);
+                    handleCreateForm(request, response, currentUser);
                     break;
                 case "edit":
-                    handleEditForm(request, response);
+                    handleEditForm(request, response, currentUser);
                     break;
+                case "list":
                 default:
                     handleListItems(request, response);
+                    break;
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -72,14 +75,15 @@ public class MenuManagementServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        // Check authentication
+        // Auth check
         HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("user") == null) {
+        User currentUser = (session == null) ? null : (User) session.getAttribute("user");
+        if (currentUser == null) {
             response.sendRedirect(request.getContextPath() + "/LoginServlet");
             return;
         }
 
-        // Set UTF-8 encoding
+        // Encoding
         request.setCharacterEncoding("UTF-8");
         response.setCharacterEncoding("UTF-8");
 
@@ -92,13 +96,13 @@ public class MenuManagementServlet extends HttpServlet {
         try {
             switch (action) {
                 case "create":
-                    handleCreateItem(request, response);
+                    handleCreateItem(request, response, currentUser);
                     break;
                 case "update":
-                    handleUpdateItem(request, response);
+                    handleUpdateItem(request, response, currentUser);
                     break;
                 case "delete":
-                    handleDeleteItem(request, response);
+                    handleDeleteItem(request, response, currentUser);
                     break;
                 default:
                     response.sendRedirect(request.getContextPath() + "/menu-management");
@@ -110,82 +114,132 @@ public class MenuManagementServlet extends HttpServlet {
         }
     }
 
-    /**
-     * Check if user has permission to manage menu
-     */
+    /* -------------------------------------------------
+     * Helpers / Permissions
+     * ------------------------------------------------- */
+
     private boolean hasMenuManagementPermission(User user) {
-        return "Manager".equals(user.getRoleName());
+        if (user == null) return false;
+        // tuỳ logic: ở đây mình coi roleName = "Manager" mới được CRUD
+        return "Manager".equalsIgnoreCase(user.getRoleName());
     }
 
-    /**
-     * Handle list items with pagination, search, and filters
-     */
+    /* -------------------------------------------------
+     * GET: List
+     * ------------------------------------------------- */
     private void handleListItems(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        // Get parameters
-        String pageParam = request.getParameter("page");
-        String search = request.getParameter("search");
-        String categoryParam = request.getParameter("category");
-        String availability = request.getParameter("availability");
-        String sortBy = request.getParameter("sortBy");
+        // Params
+        String pageParam        = request.getParameter("page");
+        String search           = request.getParameter("search");
+        String categoryParam    = request.getParameter("category");
+        String availability     = request.getParameter("availability");
+        String sortBy           = request.getParameter("sortBy");
 
-        // Parse parameters
+        // Page number
         int page = 1;
         try {
             if (pageParam != null && !pageParam.isEmpty()) {
                 page = Integer.parseInt(pageParam);
                 if (page < 1) page = 1;
             }
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException ignore) {
             page = 1;
         }
 
+        // Category filter
         Integer categoryId = null;
         try {
             if (categoryParam != null && !categoryParam.isEmpty() && !"0".equals(categoryParam)) {
                 categoryId = Integer.parseInt(categoryParam);
             }
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException ignore) {
             categoryId = null;
         }
 
         int pageSize = 10;
 
-        // Get data
-        List<MenuItem> menuItems = menuDAO.getMenuItems(page, pageSize, search, categoryId, availability, sortBy);
-        int totalItems = menuDAO.getTotalMenuItemsCount(search, categoryId, availability);
-        List<MenuCategory> categories = menuDAO.getAllCategories();
+        // Lấy danh sách món
+        List<MenuItem> menuItems = menuDAO.getMenuItems(
+                page,
+                pageSize,
+                search,
+                categoryId,
+                availability,
+                sortBy
+        );
 
-        // Calculate pagination
+        // Gán giá hiện tại (happy hour / rule) cho từng món
+        for (MenuItem mi : menuItems) {
+            mi.setDisplayPrice(pricingService.getCurrentPrice(mi));
+        }
+
+        // Check if JSON response is requested
+        String format = request.getParameter("format");
+        if ("json".equals(format)) {
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            
+            StringBuilder json = new StringBuilder();
+            json.append("{");
+            json.append("\"menuItems\":[");
+            for (int i = 0; i < menuItems.size(); i++) {
+                MenuItem mi = menuItems.get(i);
+                if (i > 0) json.append(",");
+                json.append("{");
+                json.append("\"itemId\":").append(mi.getItemId()).append(",");
+                json.append("\"menuItemId\":").append(mi.getItemId()).append(",");
+                json.append("\"categoryId\":").append(mi.getCategoryId()).append(",");
+                json.append("\"name\":\"").append(escapeJson(mi.getName())).append("\",");
+                json.append("\"description\":\"").append(escapeJson(mi.getDescription())).append("\",");
+                json.append("\"basePrice\":").append(mi.getBasePrice().doubleValue()).append(",");
+                json.append("\"displayPrice\":").append(mi.getDisplayPrice() != null ? mi.getDisplayPrice().doubleValue() : mi.getBasePrice().doubleValue()).append(",");
+                json.append("\"imageUrl\":\"").append(escapeJson(mi.getImageUrl() != null ? mi.getImageUrl() : "")).append("\",");
+                json.append("\"categoryName\":\"").append(escapeJson(mi.getCategoryName() != null ? mi.getCategoryName() : "")).append("\"");
+                json.append("}");
+            }
+            json.append("]");
+            json.append("}");
+            
+            response.getWriter().write(json.toString());
+            return;
+        }
+
+        // Pagination info
+        int totalItems = menuDAO.getTotalMenuItemsCount(search, categoryId, availability);
         int totalPages = (int) Math.ceil((double) totalItems / pageSize);
         if (totalPages == 0) totalPages = 1;
 
-        // Set attributes
+        // Categories cho filter
+        List<MenuCategory> categories = menuDAO.getAllCategories();
+
+        // Attributes cho JSP
         request.setAttribute("menuItems", menuItems);
         request.setAttribute("categories", categories);
+
         request.setAttribute("currentPage", page);
         request.setAttribute("totalPages", totalPages);
         request.setAttribute("totalItems", totalItems);
         request.setAttribute("pageSize", pageSize);
 
-        // Preserve filter parameters
+        // giữ lại filter state để form giữ giá trị
         request.setAttribute("searchParam", search);
         request.setAttribute("categoryParam", categoryParam);
         request.setAttribute("availabilityParam", availability);
         request.setAttribute("sortByParam", sortBy);
 
-        // Set page context
+        // page active -> navbar highlight
         request.setAttribute("page", "menu");
 
-        // Forward to JSP
+        // Forward
         request.getRequestDispatcher("/views/MenuManagement.jsp").forward(request, response);
     }
 
-    /**
-     * Handle view single item
-     */
-    private void handleViewItem(HttpServletRequest request, HttpServletResponse response)
+    /* -------------------------------------------------
+     * GET: View detail (read-only)
+     * ------------------------------------------------- */
+    private void handleViewItem(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws ServletException, IOException {
 
         String itemIdParam = request.getParameter("id");
@@ -204,6 +258,9 @@ public class MenuManagementServlet extends HttpServlet {
                 return;
             }
 
+            // Giá hiện tại để show
+            item.setDisplayPrice(pricingService.getCurrentPrice(item));
+
             List<MenuCategory> categories = menuDAO.getAllCategories();
 
             request.setAttribute("menuItem", item);
@@ -213,18 +270,17 @@ public class MenuManagementServlet extends HttpServlet {
 
             request.getRequestDispatcher("/views/MenuItemForm.jsp").forward(request, response);
 
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException nfe) {
             response.sendRedirect(request.getContextPath() + "/menu-management");
         }
     }
 
-    /**
-     * Handle create form
-     */
-    private void handleCreateForm(HttpServletRequest request, HttpServletResponse response)
+    /* -------------------------------------------------
+     * GET: Create form
+     * ------------------------------------------------- */
+    private void handleCreateForm(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws ServletException, IOException {
 
-        User currentUser = (User) request.getSession().getAttribute("user");
         if (!hasMenuManagementPermission(currentUser)) {
             request.setAttribute("errorMessage", "Bạn không có quyền thêm món ăn mới.");
             handleListItems(request, response);
@@ -240,13 +296,12 @@ public class MenuManagementServlet extends HttpServlet {
         request.getRequestDispatcher("/views/MenuItemForm.jsp").forward(request, response);
     }
 
-    /**
-     * Handle edit form
-     */
-    private void handleEditForm(HttpServletRequest request, HttpServletResponse response)
+    /* -------------------------------------------------
+     * GET: Edit form
+     * ------------------------------------------------- */
+    private void handleEditForm(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws ServletException, IOException {
 
-        User currentUser = (User) request.getSession().getAttribute("user");
         if (!hasMenuManagementPermission(currentUser)) {
             request.setAttribute("errorMessage", "Bạn không có quyền chỉnh sửa món ăn.");
             handleListItems(request, response);
@@ -269,6 +324,9 @@ public class MenuManagementServlet extends HttpServlet {
                 return;
             }
 
+            // Giá hiện tại để hiển thị trong form
+            item.setDisplayPrice(pricingService.getCurrentPrice(item));
+
             List<MenuCategory> categories = menuDAO.getAllCategories();
 
             request.setAttribute("menuItem", item);
@@ -278,58 +336,47 @@ public class MenuManagementServlet extends HttpServlet {
 
             request.getRequestDispatcher("/views/MenuItemForm.jsp").forward(request, response);
 
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException nfe) {
             response.sendRedirect(request.getContextPath() + "/menu-management");
         }
     }
 
-    /**
-     * Handle create item
-     */
-    private void handleCreateItem(HttpServletRequest request, HttpServletResponse response)
+    /* -------------------------------------------------
+     * POST: Create item
+     * ------------------------------------------------- */
+    private void handleCreateItem(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws ServletException, IOException {
 
-        User currentUser = (User) request.getSession().getAttribute("user");
         if (!hasMenuManagementPermission(currentUser)) {
             request.setAttribute("errorMessage", "Bạn không có quyền thêm món ăn mới.");
             handleListItems(request, response);
             return;
         }
 
-        // Get form data
-        String name = request.getParameter("name");
-        String description = request.getParameter("description");
-        String priceParam = request.getParameter("basePrice");
+        String name            = request.getParameter("name");
+        String description     = request.getParameter("description");
+        String priceParam      = request.getParameter("basePrice");
         String categoryIdParam = request.getParameter("categoryId");
-        String availability = request.getParameter("availability");
-        String prepTimeParam = request.getParameter("preparationTime");
-        String activeParam = request.getParameter("isActive");
-        String imageUrl = request.getParameter("imageUrl");
+        String availability    = request.getParameter("availability");
+        String prepTimeParam   = request.getParameter("preparationTime");
+        String activeParam     = request.getParameter("isActive");
+        String imageUrl        = request.getParameter("imageUrl");
 
-        // Debug logging
-        System.out.println("CREATE - Parameters received:");
-        System.out.println("name: " + name);
-        System.out.println("priceParam: " + priceParam);
-        System.out.println("categoryIdParam: " + categoryIdParam);
+        if (name == null || name.trim().isEmpty()
+                || priceParam == null || priceParam.trim().isEmpty()
+                || categoryIdParam == null || categoryIdParam.trim().isEmpty()) {
 
-        // Validate required fields
-        if (name == null || name.trim().isEmpty() ||
-            priceParam == null || priceParam.trim().isEmpty() ||
-            categoryIdParam == null || categoryIdParam.trim().isEmpty()) {
-            
             request.setAttribute("errorMessage", "Vui lòng điền đầy đủ thông tin bắt buộc.");
-            handleCreateForm(request, response);
+            handleCreateForm(request, response, currentUser);
             return;
         }
 
         try {
-            // Parse data
-            BigDecimal basePrice = new BigDecimal(priceParam);
-            int categoryId = Integer.parseInt(categoryIdParam);
-            int preparationTime = Integer.parseInt(prepTimeParam != null ? prepTimeParam : "0");
-            boolean isActive = "on".equals(activeParam) || "true".equals(activeParam);
+            BigDecimal basePrice     = new BigDecimal(priceParam);
+            int categoryId           = Integer.parseInt(categoryIdParam);
+            int preparationTime      = Integer.parseInt(prepTimeParam != null ? prepTimeParam : "0");
+            boolean isActive         = "on".equals(activeParam) || "true".equalsIgnoreCase(activeParam);
 
-            // Create menu item
             MenuItem item = new MenuItem();
             item.setName(name.trim());
             item.setDescription(description != null ? description.trim() : "");
@@ -337,11 +384,10 @@ public class MenuManagementServlet extends HttpServlet {
             item.setCategoryId(categoryId);
             item.setAvailability(availability != null ? availability : "AVAILABLE");
             item.setPreparationTime(preparationTime);
-            item.setActive(true); // New items are active by default
+            item.setActive(isActive);
             item.setImageUrl(imageUrl);
             item.setCreatedBy(currentUser.getUserId());
 
-            // Save to database
             boolean success = menuDAO.createMenuItem(item);
 
             if (success) {
@@ -349,63 +395,54 @@ public class MenuManagementServlet extends HttpServlet {
                 response.sendRedirect(request.getContextPath() + "/menu-management");
             } else {
                 request.setAttribute("errorMessage", "Không thể thêm món ăn. Vui lòng thử lại.");
-                handleCreateForm(request, response);
+                handleCreateForm(request, response, currentUser);
             }
 
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException nfe) {
             request.setAttribute("errorMessage", "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.");
-            handleCreateForm(request, response);
+            handleCreateForm(request, response, currentUser);
         }
     }
 
-    /**
-     * Handle update item
-     */
-    private void handleUpdateItem(HttpServletRequest request, HttpServletResponse response)
+    /* -------------------------------------------------
+     * POST: Update item
+     * ------------------------------------------------- */
+    private void handleUpdateItem(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws ServletException, IOException {
 
-        User currentUser = (User) request.getSession().getAttribute("user");
         if (!hasMenuManagementPermission(currentUser)) {
             request.setAttribute("errorMessage", "Bạn không có quyền chỉnh sửa món ăn.");
             handleListItems(request, response);
             return;
         }
 
-        String itemIdParam = request.getParameter("itemId");
-        if (itemIdParam == null || itemIdParam.isEmpty()) {
-            response.sendRedirect(request.getContextPath() + "/menu-management");
-            return;
-        }
-
-        // Get form data
-        String name = request.getParameter("name");
-        String description = request.getParameter("description");
-        String priceParam = request.getParameter("basePrice");
+        String itemIdParam     = request.getParameter("itemId");
+        String name            = request.getParameter("name");
+        String description     = request.getParameter("description");
+        String priceParam      = request.getParameter("basePrice");
         String categoryIdParam = request.getParameter("categoryId");
-        String availability = request.getParameter("availability");
-        String prepTimeParam = request.getParameter("preparationTime");
-        String activeParam = request.getParameter("isActive");
-        String imageUrl = request.getParameter("imageUrl");
+        String availability    = request.getParameter("availability");
+        String prepTimeParam   = request.getParameter("preparationTime");
+        String activeParam     = request.getParameter("isActive");
+        String imageUrl        = request.getParameter("imageUrl");
 
-        // Validate required fields
-        if (name == null || name.trim().isEmpty() ||
-            priceParam == null || priceParam.trim().isEmpty() ||
-            categoryIdParam == null || categoryIdParam.trim().isEmpty()) {
-            
+        if (itemIdParam == null || itemIdParam.isEmpty()
+                || name == null || name.trim().isEmpty()
+                || priceParam == null || priceParam.trim().isEmpty()
+                || categoryIdParam == null || categoryIdParam.trim().isEmpty()) {
+
             request.setAttribute("errorMessage", "Vui lòng điền đầy đủ thông tin bắt buộc.");
-            handleEditForm(request, response);
+            handleEditForm(request, response, currentUser);
             return;
         }
 
         try {
-            // Parse data
-            int itemId = Integer.parseInt(itemIdParam);
-            BigDecimal basePrice = new BigDecimal(priceParam);
-            int categoryId = Integer.parseInt(categoryIdParam);
-            int preparationTime = Integer.parseInt(prepTimeParam != null ? prepTimeParam : "0");
-            boolean isActive = "on".equals(activeParam) || "true".equals(activeParam);
+            int itemId              = Integer.parseInt(itemIdParam);
+            BigDecimal basePrice    = new BigDecimal(priceParam);
+            int categoryId          = Integer.parseInt(categoryIdParam);
+            int preparationTime     = Integer.parseInt(prepTimeParam != null ? prepTimeParam : "0");
+            boolean isActive        = "on".equals(activeParam) || "true".equalsIgnoreCase(activeParam);
 
-            // Create menu item
             MenuItem item = new MenuItem();
             item.setItemId(itemId);
             item.setName(name.trim());
@@ -414,11 +451,10 @@ public class MenuManagementServlet extends HttpServlet {
             item.setCategoryId(categoryId);
             item.setAvailability(availability != null ? availability : "AVAILABLE");
             item.setPreparationTime(preparationTime);
-            item.setActive(true); // Keep items active
+            item.setActive(isActive);
             item.setImageUrl(imageUrl);
             item.setUpdatedBy(currentUser.getUserId());
 
-            // Update in database
             boolean success = menuDAO.updateMenuItem(item);
 
             if (success) {
@@ -426,22 +462,21 @@ public class MenuManagementServlet extends HttpServlet {
                 response.sendRedirect(request.getContextPath() + "/menu-management");
             } else {
                 request.setAttribute("errorMessage", "Không thể cập nhật món ăn. Vui lòng thử lại.");
-                handleEditForm(request, response);
+                handleEditForm(request, response, currentUser);
             }
 
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException nfe) {
             request.setAttribute("errorMessage", "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.");
-            handleEditForm(request, response);
+            handleEditForm(request, response, currentUser);
         }
     }
 
-    /**
-     * Handle delete item
-     */
-    private void handleDeleteItem(HttpServletRequest request, HttpServletResponse response)
+    /* -------------------------------------------------
+     * POST: Delete item
+     * ------------------------------------------------- */
+    private void handleDeleteItem(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws ServletException, IOException {
 
-        User currentUser = (User) request.getSession().getAttribute("user");
         if (!hasMenuManagementPermission(currentUser)) {
             request.getSession().setAttribute("errorMessage", "Bạn không có quyền xóa món ăn.");
             response.sendRedirect(request.getContextPath() + "/menu-management");
@@ -467,8 +502,17 @@ public class MenuManagementServlet extends HttpServlet {
 
             response.sendRedirect(request.getContextPath() + "/menu-management");
 
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException nfe) {
             response.sendRedirect(request.getContextPath() + "/menu-management");
         }
+    }
+
+    private String escapeJson(String str) {
+        if (str == null) return "";
+        return str.replace("\\", "\\\\")
+                  .replace("\"", "\\\"")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t");
     }
 }

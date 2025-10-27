@@ -5,36 +5,40 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * MenuItem model for menu items management
+ * MenuItem model for menu items management & pricing display
  */
 public class MenuItem implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    // Primary fields
-    private int itemId;
+    // DB fields
+    private int itemId;                // maps menu_items.menu_item_id
     private int categoryId;
     private String name;
     private String description;
-    private BigDecimal basePrice;
-    private String availability; // AVAILABLE, OUT_OF_STOCK, DISCONTINUED
-    private int preparationTime; // in minutes
-    private boolean isActive;
-    private String imageUrl; // Image URL for the menu item
+    private BigDecimal basePrice;      // base_price
+    private String availability;       // AVAILABLE, OUT_OF_STOCK, DISCONTINUED
+    private int preparationTime;       // minutes
+    private boolean isActive;          // is_active
+    private String imageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private int createdBy;
     private Integer updatedBy;
 
-    // Join fields
+    // Join / display fields
     private String categoryName;
     private String createdByName;
     private String updatedByName;
 
+    // >>> dynamic (không lưu DB):
+    // giá hiển thị thực tế sau khi áp dụng PricingRule (happy hour)
+    private BigDecimal displayPrice;
+
     // Constructors
     public MenuItem() {}
 
-    public MenuItem(int itemId, String name, String description, BigDecimal basePrice, 
-                   String availability, int preparationTime, boolean isActive, String categoryName) {
+    public MenuItem(int itemId, String name, String description, BigDecimal basePrice,
+                    String availability, int preparationTime, boolean isActive, String categoryName) {
         this.itemId = itemId;
         this.name = name;
         this.description = description;
@@ -45,7 +49,7 @@ public class MenuItem implements Serializable {
         this.categoryName = categoryName;
     }
 
-    // Getters and Setters
+    // Getters / Setters
     public int getItemId() { return itemId; }
     public void setItemId(int itemId) { this.itemId = itemId; }
 
@@ -94,9 +98,18 @@ public class MenuItem implements Serializable {
     public String getUpdatedByName() { return updatedByName; }
     public void setUpdatedByName(String updatedByName) { this.updatedByName = updatedByName; }
 
-    // Utility methods
+    // dynamic price getter/setter
+    public BigDecimal getDisplayPrice() { return displayPrice; }
+    public void setDisplayPrice(BigDecimal displayPrice) { this.displayPrice = displayPrice; }
+
+    // helpers for JSP
     public String getFormattedPrice() {
         return String.format("%,.0f đ", basePrice.doubleValue());
+    }
+
+    public String getFormattedDisplayPrice() {
+        BigDecimal p = (displayPrice != null) ? displayPrice : basePrice;
+        return String.format("%,.0f đ", p.doubleValue());
     }
 
     public String getAvailabilityDisplay() {

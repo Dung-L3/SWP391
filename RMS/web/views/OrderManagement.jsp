@@ -230,6 +230,24 @@
         </div>
     </div>
 
+    <!-- Order Details Modal -->
+    <div class="modal fade" id="orderDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Order Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="orderDetailsContent">
+                    <!-- Order details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let orders = [];
@@ -496,6 +514,8 @@
         }
 
         // View order details
+        let currentOrderDetails = null;
+        
         function viewOrder(orderId) {
             fetch(`${pageContext.request.contextPath}/orders/${orderId}`)
                 .then(response => response.json())
@@ -503,9 +523,8 @@
                     if (data.error) {
                         alert('Error: ' + data.error);
                     } else {
-                        // TODO: Show order details in modal or new page
-                        console.log('Order details:', data);
-                        alert('Order details loaded. Check console for details.');
+                        currentOrderDetails = data;
+                        displayOrderDetails(data);
                     }
                 })
                 .catch(error => {
@@ -514,11 +533,87 @@
                 });
         }
 
-        // Mark as served
+        function displayOrderDetails(order) {
+            const content = document.getElementById('orderDetailsContent');
+            
+            let itemsHtml = '';
+            if (order.items && order.items.length > 0) {
+                order.items.forEach(item => {
+                    const statusClass = `status-${item.status.toLowerCase()}`;
+                    itemsHtml += `
+                        <div class="item-row">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>${item.menuItemName}</strong><br>
+                                    <small class="text-muted">Qty: ${item.quantity} x $${item.finalUnitPrice} = $${item.totalPrice}</small>
+                                    ${item.specialInstructions ? `<br><small class="text-muted">Note: ${item.specialInstructions}</small>` : ''}
+                                </div>
+                                <div class="text-end">
+                                    <span class="status-badge ${statusClass}">${item.status}</span><br>
+                                    ${item.status === 'READY' ? `
+                                        <button class="btn btn-sm btn-success mt-2" onclick="markItemAsServed(${item.orderItemId})">
+                                            <i class="fas fa-check"></i> Mark Served
+                                        </button>
+                                    ` : item.status === 'SERVED' ? `
+                                        <small class="text-success"><i class="fas fa-check-circle"></i> Served</small>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                itemsHtml = '<p>No items in this order.</p>';
+            }
+            
+            content.innerHTML = `
+                <div class="mb-3">
+                    <h6>Order #${order.orderId}</h6>
+                    <p><strong>Table:</strong> ${order.tableNumber || 'N/A'}</p>
+                    <p><strong>Waiter:</strong> ${order.waiterName || 'N/A'}</p>
+                    <p><strong>Status:</strong> <span class="status-badge status-${order.status.toLowerCase()}">${order.status}</span></p>
+                    <p><strong>Total:</strong> $${order.totalAmount || '0.00'}</p>
+                </div>
+                <hr>
+                <h6>Order Items</h6>
+                ${itemsHtml}
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
+            modal.show();
+        }
+
+        // Mark item as served
+        function markItemAsServed(itemId) {
+            if (confirm('Mark this item as served?')) {
+                fetch(`${pageContext.request.contextPath}/orders/items/${itemId}/serve`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Item marked as served!');
+                        if (data.allServed) {
+                            alert('All items have been served. Order completed!');
+                        }
+                        bootstrap.Modal.getInstance(document.getElementById('orderDetailsModal')).hide();
+                        loadOrders();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error marking item as served:', error);
+                    alert('An error occurred while marking item as served.');
+                });
+            }
+        }
+
+        // Mark entire order as served (deprecated - now use per-item)
         function markAsServed(orderId) {
-            if (confirm('Mark this order as served?')) {
-                // TODO: Implement mark as served
-                alert('Order marked as served!');
+            if (confirm('Mark entire order as served?')) {
+                // TODO: Implement mark entire order as served
+                alert('This feature is now deprecated. Please mark individual items as served.');
                 loadOrders();
             }
         }

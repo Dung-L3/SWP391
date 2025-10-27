@@ -1,45 +1,36 @@
 package Controller.auth;
 
-import java.io.IOException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
 
-@WebServlet("/logout")
+/**
+ * @author donny
+ */
+@WebServlet(name = "LogoutServlet", urlPatterns = {"/auth/LogoutServlet"})
 public class LogoutServlet extends HttpServlet {
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-
-        // Xóa session hiện tại (nếu có)
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            session.invalidate();
-        }
-
-        // Xóa cookie ghi nhớ (nếu có)
-        // (Không bắt buộc, nhưng tốt để tránh auto-login)
-        jakarta.servlet.http.Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (jakarta.servlet.http.Cookie cookie : cookies) {
-                if ("username".equals(cookie.getName()) || "password".equals(cookie.getName())) {
-                    cookie.setMaxAge(0);
-                    cookie.setPath(request.getContextPath());
-                    response.addCookie(cookie);
-                }
-            }
-        }
-
-        // Redirect về trang chủ
-        response.sendRedirect(request.getContextPath() + "/");
+        logout(request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        doGet(request, response);
+        logout(request, response);
+    }
+
+    private void logout(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        // Invalidate session
+        request.getSession().invalidate();
+        
+        // Redirect to login page
+        response.sendRedirect(request.getContextPath() + "/auth/Login.jsp");
     }
 }

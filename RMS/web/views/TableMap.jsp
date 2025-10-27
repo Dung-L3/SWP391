@@ -72,7 +72,8 @@
     </style>
 </head>
 <body>
-    <div class="container-fluid">
+    <jsp:include page="../layouts/WaiterHeader.jsp" />
+    <div class="container-fluid mt-3">
         <div class="row">
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -202,6 +203,9 @@
                             <button class="btn btn-primary" onclick="goToOrderPage()">
                                 <i class="fas fa-utensils"></i> Gọi món
                             </button>
+                            <button class="btn btn-info" onclick="viewTableHistory()">
+                                <i class="fas fa-history"></i> Lịch sử
+                            </button>
                             <button class="btn btn-warning" onclick="vacateTable()">
                                 <i class="fas fa-door-open"></i> Trả bàn
                             </button>
@@ -290,6 +294,10 @@
 
         function goToOrderPage() {
             window.location.href = '${pageContext.request.contextPath}/order-page?tableId=' + currentTableId;
+        }
+
+        function viewTableHistory() {
+            window.location.href = '${pageContext.request.contextPath}/table-history?tableId=' + currentTableId;
         }
 
         // Lọc theo khu vực
