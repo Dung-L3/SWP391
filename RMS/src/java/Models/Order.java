@@ -30,6 +30,7 @@ public class Order implements Serializable {
     private String orderType;
     private Integer tableId;
     private Integer waiterId;
+    private Integer customerId;
     private String status;
     private BigDecimal subtotal;
     private BigDecimal taxAmount;
@@ -70,6 +71,9 @@ public class Order implements Serializable {
 
     public Integer getWaiterId() { return waiterId; }
     public void setWaiterId(Integer waiterId) { this.waiterId = waiterId; }
+
+    public Integer getCustomerId() { return customerId; }
+    public void setCustomerId(Integer customerId) { this.customerId = customerId; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

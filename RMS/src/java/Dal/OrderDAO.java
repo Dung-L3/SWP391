@@ -31,13 +31,14 @@ public class OrderDAO {
             INSERT INTO orders (
                 order_code,
                 order_type,
+                customer_id,
                 table_id,
                 waiter_id,
                 status,
                 notes,
                 opened_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """;
 
         try (Connection conn = DBConnect.getConnection();
@@ -45,11 +46,17 @@ public class OrderDAO {
 
             ps.setString(1, "ORD" + System.currentTimeMillis());
             ps.setString(2, order.getOrderType());
-            ps.setInt(3, order.getTableId());
-            ps.setInt(4, order.getWaiterId());
-            ps.setString(5, order.getStatus());
-            ps.setString(6, order.getSpecialInstructions());
-            ps.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
+            // customer_id may be null
+            if (order.getCustomerId() != null) {
+                ps.setInt(3, order.getCustomerId());
+            } else {
+                ps.setNull(3, java.sql.Types.INTEGER);
+            }
+            ps.setInt(4, order.getTableId());
+            ps.setInt(5, order.getWaiterId());
+            ps.setString(6, order.getStatus());
+            ps.setString(7, order.getSpecialInstructions());
+            ps.setTimestamp(8, Timestamp.valueOf(LocalDateTime.now()));
 
             int rows = ps.executeUpdate();
             if (rows > 0) {
@@ -385,6 +392,13 @@ public class OrderDAO {
         order.setOrderId(rs.getLong("order_id"));
         order.setOrderType(rs.getString("order_type"));
         order.setTableId(rs.getInt("table_id"));
+        // customer_id may be null
+        try {
+            Integer custId = rs.getObject("customer_id", Integer.class);
+            if (custId != null) order.setCustomerId(custId);
+        } catch (Exception e) {
+            // column may not exist in older schemas; ignore
+        }
         order.setWaiterId(rs.getInt("waiter_id"));
         order.setStatus(rs.getString("status"));
         

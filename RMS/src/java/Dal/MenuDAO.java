@@ -13,6 +13,42 @@ import java.math.BigDecimal;
 public class MenuDAO {
 
     /**
+     * Get available menu items for takeaway orders
+     */
+    public List<MenuItem> getAvailableMenuItems() {
+        List<MenuItem> items = new ArrayList<>();
+        String sql = "SELECT mi.menu_item_id, mi.category_id, mi.name, mi.description, " +
+                    "mi.base_price, mi.availability, mi.preparation_time, mi.is_active, " +
+                    "mi.image_url, mc.category_name " +
+                    "FROM menu_items mi " +
+                    "JOIN menu_categories mc ON mi.category_id = mc.category_id " +
+                    "WHERE mi.is_active = 1 AND mi.availability = 'AVAILABLE' " +
+                    "ORDER BY mc.sort_order, mi.name";
+        
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                MenuItem item = new MenuItem();
+                item.setItemId(rs.getInt("menu_item_id"));
+                item.setCategoryId(rs.getInt("category_id"));
+                item.setName(rs.getString("name"));
+                item.setDescription(rs.getString("description"));
+                item.setBasePrice(rs.getBigDecimal("base_price"));
+                item.setAvailability(rs.getString("availability"));
+                item.setPreparationTime(rs.getInt("preparation_time"));
+                item.setActive(rs.getBoolean("is_active"));
+                item.setImageUrl(rs.getString("image_url"));
+                items.add(item);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return items;
+    }
+
+    /**
      * Get paginated menu items with search and filter
      */
     public List<MenuItem> getMenuItems(int page, int pageSize, String search, Integer categoryId, String availability, String sortBy) {

@@ -42,6 +42,7 @@
           <a href="#" class="nav-link dropdown-toggle ${page=='pages' ? 'active' : ''}" data-bs-toggle="dropdown">Trang</a>
           <div class="dropdown-menu m-0">
             <a href="<c:url value='/views/guest/booking.jsp'/>" class="dropdown-item">Đặt bàn</a>
+            <a href="<c:url value='/takeaway-order'/>" class="dropdown-item">Đặt món mang đi</a>
             <a href="<c:url value='/team.jsp'/>" class="dropdown-item">Đội ngũ</a>
             <a href="<c:url value='/testimonial.jsp'/>" class="dropdown-item">Đánh giá</a>
           </div>

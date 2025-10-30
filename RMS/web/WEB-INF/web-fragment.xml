@@ -1,0 +1,10 @@
+    <!-- Takeaway Order Servlet -->
+    <servlet>
+        <servlet-name>TakeawayOrderServlet</servlet-name>
+        <servlet-class>Controller.TakeawayOrderServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>TakeawayOrderServlet</servlet-name>
+        <url-pattern>/takeaway-order</url-pattern>
+    </servlet-mapping>
