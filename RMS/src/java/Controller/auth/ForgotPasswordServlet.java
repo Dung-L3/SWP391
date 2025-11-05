@@ -49,7 +49,7 @@ public class ForgotPasswordServlet extends HttpServlet {
 
         try {
             UserDAO userDAO = new UserDAO();
-            User user = null; // userDAO.findByUsernameOrEmail(identifier);
+            User user = userDAO.findByUsernameOrEmail(identifier);
 
             if (user != null && user.getEmail() != null && !user.getEmail().isBlank()) {
                 String token = generateToken(32);
