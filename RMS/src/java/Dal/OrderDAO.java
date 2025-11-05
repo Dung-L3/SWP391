@@ -12,33 +12,54 @@ import java.util.List;
 import java.math.BigDecimal;
 
 /**
- * OrderDAO:
- * - Tạo order
- * - Lấy order
- * - Gắn món vào order
- * - Update order và order_item
+ * OrderDAO
  *
- * Giá món (final_unit_price) sẽ được chốt tại thời điểm thêm món vào order
- * bằng PricingService -> đảm bảo in bill sau này không thay đổi theo khung giờ nữa.
+ * Trách nhiệm:
+ *  - Tạo order mới
+ *  - Quản lý order_items (thêm món, cập nhật trạng thái SERVED, ...)
+ *  - Tính và ghi lại tổng tiền của 1 order (subtotal/tax/discount/total)
+ *  - Gộp tất cả order chưa SETTLED của một bàn để chuẩn bị thanh toán
+ *  - Đóng order (SETTLED) sau khi thu tiền
+ *
+ * Quy ước:
+ *
+ * orders.status:
+ *   OPEN / COOKING / SERVED / SETTLED / ...
+ *   -> Sau khi thu tiền (kể cả tạo bill PROFORMA chờ VNPay) ta set SETTLED
+ *      để không cho thêm món nữa.
+ *
+ * order_items.status:
+ *   NEW / SENT / READY / SERVED / CANCELLED / ...
+ *
+ * Tiền (VAT 10% giả định):
+ *   subtotal        = SUM(final_unit_price * quantity) của các item != CANCELLED
+ *   tax_amount      = subtotal * 10%
+ *   discount_amount = hiện tại = 0 (có thể mở rộng sau)
+ *   total_amount    = subtotal + tax_amount - discount_amount
  */
 public class OrderDAO {
 
-    /**
-     * Tạo order mới
-     */
+    private final PricingService pricingService = new PricingService();
+
+    /* =========================================================
+     * 1. Tạo ORDER mới (khách ngồi xuống, mở order)
+     * ========================================================= */
     public Long createOrder(Order order) throws SQLException {
-        String sql = """
+        final String sql = """
             INSERT INTO orders (
                 order_code,
                 order_type,
-                customer_id,
                 table_id,
                 waiter_id,
                 status,
                 notes,
-                opened_at
+                opened_at,
+                subtotal,
+                tax_amount,
+                discount_amount,
+                total_amount
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
 
         try (Connection conn = DBConnect.getConnection();
@@ -46,17 +67,17 @@ public class OrderDAO {
 
             ps.setString(1, "ORD" + System.currentTimeMillis());
             ps.setString(2, order.getOrderType());
-            // customer_id may be null
-            if (order.getCustomerId() != null) {
-                ps.setInt(3, order.getCustomerId());
-            } else {
-                ps.setNull(3, java.sql.Types.INTEGER);
-            }
-            ps.setInt(4, order.getTableId());
-            ps.setInt(5, order.getWaiterId());
-            ps.setString(6, order.getStatus());
-            ps.setString(7, order.getSpecialInstructions());
-            ps.setTimestamp(8, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setInt(3, order.getTableId());
+            ps.setInt(4, order.getWaiterId());
+            ps.setString(5, order.getStatus() != null ? order.getStatus() : Order.STATUS_OPEN);
+            ps.setString(6, order.getSpecialInstructions());
+            ps.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
+
+            // khi vừa tạo order chưa có món -> tiền = 0
+            ps.setBigDecimal(8,  BigDecimal.ZERO); // subtotal
+            ps.setBigDecimal(9,  BigDecimal.ZERO); // tax_amount
+            ps.setBigDecimal(10, BigDecimal.ZERO); // discount_amount
+            ps.setBigDecimal(11, BigDecimal.ZERO); // total_amount
 
             int rows = ps.executeUpdate();
             if (rows > 0) {
@@ -67,21 +88,20 @@ public class OrderDAO {
                 }
             }
         }
-
         return null;
     }
 
-    /**
-     * Lấy order theo ID
-     */
+    /* =========================================================
+     * 2. Lấy 1 ORDER theo ID (join thêm table + waiter để show)
+     * ========================================================= */
     public Order getOrderById(Long orderId) throws SQLException {
-        String sql = """
+        final String sql = """
             SELECT o.*,
                    dt.table_number,
                    u.first_name + ' ' + u.last_name AS waiter_name
             FROM orders o
             LEFT JOIN dining_table dt ON dt.table_id = o.table_id
-            LEFT JOIN users u ON u.user_id = o.waiter_id
+            LEFT JOIN users u        ON u.user_id    = o.waiter_id
             WHERE o.order_id = ?
         """;
 
@@ -92,30 +112,31 @@ public class OrderDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return mapResultSetToOrder(rs);
+                    return mapOrder(rs);
                 }
             }
         }
-
         return null;
     }
 
-    /**
-     * Lấy order đang mở theo table_id
-     * (NEW / CONFIRMED / PREPARING / READY)
-     */
-    public Order getOrderByTableId(Integer tableId) throws SQLException {
-        String sql = """
+    /* =========================================================
+     * 3. Lấy danh sách ORDER chưa SETTLED của 1 bàn
+     *    -> dùng để build bill gộp cho bàn
+     * ========================================================= */
+    public List<Order> getUnsettledOrdersByTableId(int tableId) throws SQLException {
+        final String sql = """
             SELECT o.*,
                    dt.table_number,
                    u.first_name + ' ' + u.last_name AS waiter_name
             FROM orders o
             LEFT JOIN dining_table dt ON dt.table_id = o.table_id
-            LEFT JOIN users u ON u.user_id = o.waiter_id
+            LEFT JOIN users u        ON u.user_id    = o.waiter_id
             WHERE o.table_id = ?
-              AND o.status IN ('OPEN', 'SENT_TO_KITCHEN', 'COOKING', 'PARTIAL_READY', 'READY')
-            ORDER BY o.opened_at DESC
+              AND o.status <> 'SETTLED'
+            ORDER BY o.opened_at ASC
         """;
+
+        List<Order> list = new ArrayList<>();
 
         try (Connection conn = DBConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -123,41 +144,32 @@ public class OrderDAO {
             ps.setInt(1, tableId);
 
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return mapResultSetToOrder(rs);
+                while (rs.next()) {
+                    list.add(mapOrder(rs));
                 }
             }
         }
-
-        return null;
+        return list;
     }
 
-    /**
-     * Thêm item vào order:
-     * - Lấy giá hiện hành từ PricingService (happy hour, khuyến mãi...)
-     * - Ghi cả base_unit_price và final_unit_price vào DB
-     * - Tính total_price = final_unit_price * quantity
-     *
-     * Chú ý:
-     *  - baseUnitPrice = giá gốc (menu_items.base_price) tại thời điểm order
-     *  - finalUnitPrice = giá sau khi áp dụng rule
-     */
-    public Long addOrderItem(OrderItem orderItem) throws SQLException {
-
-        // 1. Lấy baseUnitPrice (bạn đã set sẵn vào orderItem ở tầng trên khi user chọn món)
-        BigDecimal basePrice = orderItem.getBaseUnitPrice();
-
-        // 2. Tính final price với PricingService (dựa vào menu_item_id)
-        PricingService pricingService = new PricingService();
+    /* =========================================================
+     * 4. Thêm một món vào ORDER:
+     *    - Tính final_unit_price theo PricingService
+     *    - Insert order_items
+     *    - Caller nên gọi recalculateOrderTotals(orderId) sau đó
+     * ========================================================= */
+    public Long addOrderItem(OrderItem item) throws SQLException {
+        // Lấy giá áp dụng hiện tại
+        BigDecimal basePrice = item.getBaseUnitPrice();
         BigDecimal finalPrice = pricingService.getCurrentPrice(
-                buildTempMenuItem(orderItem.getMenuItemId(), basePrice)
+                buildTempMenuItem(item.getMenuItemId(), basePrice)
         );
+        item.setFinalUnitPrice(finalPrice);
 
-        // 3. set vào orderItem để lưu DB
-        orderItem.setFinalUnitPrice(finalPrice);
-        orderItem.setTotalPrice(finalPrice.multiply(BigDecimal.valueOf(orderItem.getQuantity())));
+        // totalPrice để hiển thị UI
+        item.setTotalPrice(finalPrice.multiply(BigDecimal.valueOf(item.getQuantity())));
 
-        String sql = """
+        final String sql = """
             INSERT INTO order_items (
                 order_id,
                 menu_item_id,
@@ -176,56 +188,43 @@ public class OrderDAO {
         try (Connection conn = DBConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            ps.setLong(1, orderItem.getOrderId());
-            ps.setInt(2, orderItem.getMenuItemId());
-            ps.setInt(3, orderItem.getQuantity());
-            ps.setString(4, orderItem.getSpecialInstructions());
-            ps.setString(5, orderItem.getPriority());
-            
-            // Convert course string to tinyint (course_no)
-            int courseNo = 1; // Default to 1
-            if ("APPETIZER".equalsIgnoreCase(orderItem.getCourse())) {
-                courseNo = 1;
-            } else if ("MAIN".equalsIgnoreCase(orderItem.getCourse())) {
-                courseNo = 2;
-            } else if ("DESSERT".equalsIgnoreCase(orderItem.getCourse())) {
-                courseNo = 3;
-            } else if ("BEVERAGE".equalsIgnoreCase(orderItem.getCourse())) {
-                courseNo = 4;
-            }
-            ps.setInt(6, courseNo);
-            
-            ps.setBigDecimal(7, orderItem.getBaseUnitPrice());   // giá gốc lúc order
-            ps.setBigDecimal(8, orderItem.getFinalUnitPrice());  // giá sau rule
-            ps.setString(9, orderItem.getStatus());
+            ps.setLong(1, item.getOrderId());
+            ps.setInt(2, item.getMenuItemId());
+            ps.setInt(3, item.getQuantity());
+            ps.setString(4, item.getSpecialInstructions());
+            ps.setString(5, item.getPriority());
+
+            // map course string -> int
+            ps.setInt(6, mapCourseToInt(item.getCourse()));
+
+            ps.setBigDecimal(7, item.getBaseUnitPrice());
+            ps.setBigDecimal(8, item.getFinalUnitPrice());
+            ps.setString(9, item.getStatus()); // "NEW"
             ps.setTimestamp(10, Timestamp.valueOf(LocalDateTime.now()));
 
             int rows = ps.executeUpdate();
             if (rows > 0) {
                 try (ResultSet rs = ps.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        return rs.getLong(1);
-                    }
+                    if (rs.next()) return rs.getLong(1);
                 }
             }
         }
-
         return null;
     }
 
-    /**
-     * Lấy toàn bộ order_items trong 1 order (bao gồm tên món, thời gian chế biến)
-     */
+    /* =========================================================
+     * 5. Lấy danh sách MÓN của một ORDER
+     * ========================================================= */
     public List<OrderItem> getOrderItems(Long orderId) throws SQLException {
-        String sql = """
+        final String sql = """
             SELECT oi.*,
-                   mi.name AS menu_item_name,
+                   mi.name        AS menu_item_name,
                    mi.description AS menu_item_description,
                    mi.preparation_time
             FROM order_items oi
             LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id
             WHERE oi.order_id = ?
-            ORDER BY oi.course, oi.created_at
+            ORDER BY oi.course_no, oi.created_at
         """;
 
         List<OrderItem> items = new ArrayList<>();
@@ -237,291 +236,18 @@ public class OrderDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    items.add(mapResultSetToOrderItem(rs));
-                }
-            }
-        }
-
-        return items;
-    }
-
-    /**
-     * Lấy danh sách món sẵn sàng (READY) cho một bàn
-     */
-    public List<OrderItem> getReadyItemsForTable(Integer tableId) throws SQLException {
-        String sql = """
-            SELECT oi.order_item_id, oi.order_id, oi.menu_item_id, oi.quantity,
-                   oi.special_instructions, oi.priority, oi.course_no, oi.status,
-                   oi.served_by, oi.served_at,
-                   mi.name AS menu_item_name,
-                   dt.table_number, o.order_id
-            FROM order_items oi
-            JOIN orders o ON o.order_id = oi.order_id
-            LEFT JOIN dining_table dt ON dt.table_id = o.table_id
-            LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id
-            WHERE o.table_id = ?
-              AND oi.status = 'READY'
-              AND oi.served_at IS NULL
-            ORDER BY oi.order_item_id ASC
-        """;
-        
-        List<OrderItem> items = new ArrayList<>();
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, tableId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    items.add(mapResultSetToOrderItem(rs));
+                    items.add(mapOrderItem(rs));
                 }
             }
         }
         return items;
     }
-    
-    /**
-     * Lấy lịch sử order items của một bàn (tất cả món đã gọi, trạng thái hiện tại)
-     * @author donny
-     */
-    public List<OrderItem> getTableHistory(Integer tableId) throws SQLException {
-        String sql = """
-            SELECT oi.order_item_id, oi.order_id, oi.menu_item_id, oi.quantity,
-                   oi.special_instructions, oi.priority, oi.course_no, oi.status,
-                   oi.served_by, oi.served_at, oi.created_at,
-                   oi.base_unit_price, oi.final_unit_price,
-                   mi.name AS menu_item_name,
-                   dt.table_number,
-                   o.order_id, o.opened_at AS order_time,
-                   u.username AS waiter_name
-            FROM order_items oi
-            JOIN orders o ON o.order_id = oi.order_id
-            LEFT JOIN dining_table dt ON dt.table_id = o.table_id
-            LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id
-            LEFT JOIN users u ON u.user_id = o.waiter_id
-            WHERE o.table_id = ?
-            ORDER BY oi.order_item_id DESC
-        """;
-        
-        List<OrderItem> items = new ArrayList<>();
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, tableId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    OrderItem item = mapResultSetToOrderItem(rs);
-                    // Map additional fields for history
-                    item.setTableNumber(rs.getString("table_number"));
-                    Timestamp orderTime = rs.getTimestamp("order_time");
-                    if (orderTime != null) {
-                        item.setCreatedAt(orderTime.toLocalDateTime());
-                    }
-                    items.add(item);
-                    System.out.println("📦 Added item to history: " + item.getMenuItemName() + ", Status: " + item.getStatus());
-                }
-            }
-        }
-        System.out.println("📊 Total items in table history: " + items.size());
-        return items;
-    }
 
-    /**
-     * Update order tổng (status, tiền, note,...)
-     */
-    public boolean updateOrder(Order order) throws SQLException {
-        String sql = """
-            UPDATE orders
-            SET status = ?
-            WHERE order_id = ?
-        """;
-
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setString(1, order.getStatus());
-            ps.setLong(2, order.getOrderId());
-
-            return ps.executeUpdate() > 0;
-        }
-    }
-
-    /**
-     * Update 1 item trong order (số lượng, note,...)
-     * Lưu ý: Ở đây mình KHÔNG tự động re-calc finalUnitPrice nữa,
-     * vì giá đã chốt tại thời điểm thêm món. Nếu bạn muốn cho phép cập nhật lại giá,
-     * bạn phải gọi PricingService lại trước khi gọi hàm này và set finalUnitPrice mới.
-     */
-    public boolean updateOrderItem(OrderItem orderItem) throws SQLException {
-        String sql = """
-            UPDATE order_items
-            SET quantity = ?,
-                special_instructions = ?,
-                priority = ?,
-                course = ?,
-                final_unit_price = ?,
-                total_price = ?,
-                status = ?,
-                updated_at = ?,
-                updated_by = ?
-            WHERE order_item_id = ?
-        """;
-
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, orderItem.getQuantity());
-            ps.setString(2, orderItem.getSpecialInstructions());
-            ps.setString(3, orderItem.getPriority());
-            ps.setString(4, orderItem.getCourse());
-            ps.setBigDecimal(5, orderItem.getFinalUnitPrice());
-            ps.setBigDecimal(6, orderItem.getTotalPrice());
-            ps.setString(7, orderItem.getStatus());
-            ps.setTimestamp(8, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setInt(9, orderItem.getUpdatedBy());
-            ps.setLong(10, orderItem.getOrderItemId());
-
-            return ps.executeUpdate() > 0;
-        }
-    }
-
-    // ---------------------------------
-    // Helpers mapping ResultSet -> Model
-    // ---------------------------------
-
-    private Order mapResultSetToOrder(ResultSet rs) throws SQLException {
-        Order order = new Order();
-
-        order.setOrderId(rs.getLong("order_id"));
-        order.setOrderType(rs.getString("order_type"));
-        order.setTableId(rs.getInt("table_id"));
-        // customer_id may be null
-        try {
-            Integer custId = rs.getObject("customer_id", Integer.class);
-            if (custId != null) order.setCustomerId(custId);
-        } catch (Exception e) {
-            // column may not exist in older schemas; ignore
-        }
-        order.setWaiterId(rs.getInt("waiter_id"));
-        order.setStatus(rs.getString("status"));
-        
-        // Set default values
-        order.setSubtotal(BigDecimal.ZERO);
-        order.setTaxAmount(BigDecimal.ZERO);
-        order.setTotalAmount(BigDecimal.ZERO);
-        
-        // Use notes column instead of special_instructions
-        order.setSpecialInstructions(rs.getString("notes"));
-
-        // Use opened_at instead of created_at
-        Timestamp openedAt = rs.getTimestamp("opened_at");
-        if (openedAt != null) order.setCreatedAt(openedAt.toLocalDateTime());
-        
-        // Use closed_at instead of updated_at
-        Timestamp closedAt = rs.getTimestamp("closed_at");
-        if (closedAt != null) order.setUpdatedAt(closedAt.toLocalDateTime());
-
-        order.setTableNumber(rs.getString("table_number"));
-        order.setWaiterName(rs.getString("waiter_name"));
-
-        return order;
-    }
-
-    private OrderItem mapResultSetToOrderItem(ResultSet rs) throws SQLException {
-        OrderItem item = new OrderItem();
-
-        item.setOrderItemId(rs.getLong("order_item_id"));
-        item.setOrderId(rs.getLong("order_id"));
-        item.setMenuItemId(rs.getInt("menu_item_id"));
-        item.setQuantity(rs.getInt("quantity"));
-        item.setSpecialInstructions(rs.getString("special_instructions"));
-        item.setPriority(rs.getString("priority"));
-        
-        // Check for course_no first, fallback to course
-        String course = null;
-        try {
-            course = rs.getString("course_no");
-        } catch (Exception e) {
-            course = rs.getString("course");
-        }
-        item.setCourse(course);
-        item.setBaseUnitPrice(rs.getBigDecimal("base_unit_price"));
-        item.setFinalUnitPrice(rs.getBigDecimal("final_unit_price"));
-        // total_price column doesn't exist in order_items table
-        BigDecimal totalPrice = null;
-        try {
-            totalPrice = rs.getBigDecimal("total_price");
-        } catch (Exception e) {
-            // Calculate total price if not in result set
-            if (item.getFinalUnitPrice() != null && item.getQuantity() != null) {
-                totalPrice = item.getFinalUnitPrice().multiply(new BigDecimal(item.getQuantity()));
-            }
-        }
-        item.setTotalPrice(totalPrice);
-        item.setStatus(rs.getString("status"));
-
-        Timestamp cAt = rs.getTimestamp("created_at");
-        if (cAt != null) item.setCreatedAt(cAt.toLocalDateTime());
-        
-        Timestamp uAt = null;
-        try {
-            uAt = rs.getTimestamp("updated_at");
-        } catch (Exception e) {
-            // updated_at doesn't exist
-        }
-        if (uAt != null) item.setUpdatedAt(uAt.toLocalDateTime());
-
-        Integer createdBy = null;
-        try {
-            createdBy = rs.getObject("created_by", Integer.class);
-        } catch (Exception e) {
-            // created_by doesn't exist
-        }
-        if (createdBy != null) item.setCreatedBy(createdBy);
-        
-        String menuItemName = rs.getString("menu_item_name");
-        if (menuItemName != null) item.setMenuItemName(menuItemName);
-        
-        String menuItemDesc = null;
-        try {
-            menuItemDesc = rs.getString("menu_item_description");
-        } catch (Exception e) {
-            // menu_item_description doesn't exist in result set
-        }
-        if (menuItemDesc != null) item.setMenuItemDescription(menuItemDesc);
-        
-        Integer prepTime = null;
-        try {
-            prepTime = rs.getObject("preparation_time", Integer.class);
-        } catch (Exception e) {
-            // preparation_time doesn't exist in result set
-        }
-        if (prepTime != null) item.setPreparationTime(prepTime);
-        
-        // Try to get table_number (may not exist in all queries)
-        try {
-            String tableNumber = rs.getString("table_number");
-            if (tableNumber != null) item.setTableNumber(tableNumber);
-        } catch (Exception e) {
-            // table_number doesn't exist in this result set
-        }
-
-        // Served fields
-        Integer servedBy = rs.getObject("served_by", Integer.class);
-        if (servedBy != null) item.setServedBy(servedBy);
-        
-        Timestamp servedAt = rs.getTimestamp("served_at");
-        if (servedAt != null) item.setServedAt(servedAt.toLocalDateTime());
-
-        return item;
-    }
-
-    /**
-     * Lấy order item theo ID
-     * @author donny
-     */
+    /* Lấy 1 món cụ thể theo order_item_id */
     public OrderItem getOrderItemById(Long orderItemId) throws SQLException {
-        String sql = """
+        final String sql = """
             SELECT oi.*,
                    mi.name AS menu_item_name,
-                   mi.description AS menu_item_description,
                    mi.preparation_time
             FROM order_items oi
             LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id
@@ -535,24 +261,190 @@ public class OrderDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return mapResultSetToOrderItem(rs);
+                    return mapOrderItem(rs);
                 }
             }
         }
-
         return null;
     }
 
+    /* =========================================================
+     * 6. Các món READY cho 1 bàn - chưa SERVED
+     *    -> để bồi bàn bưng ra
+     * ========================================================= */
+    public List<OrderItem> getReadyItemsForTable(Integer tableId) throws SQLException {
+        final String sql = """
+            SELECT oi.order_item_id, oi.order_id, oi.menu_item_id, oi.quantity,
+                   oi.special_instructions, oi.priority, oi.course_no, oi.status,
+                   oi.served_by, oi.served_at,
+                   mi.name AS menu_item_name,
+                   dt.table_number,
+                   o.order_id
+            FROM order_items oi
+            JOIN orders o             ON o.order_id   = oi.order_id
+            LEFT JOIN dining_table dt ON dt.table_id  = o.table_id
+            LEFT JOIN menu_items mi   ON mi.menu_item_id = oi.menu_item_id
+            WHERE o.table_id = ?
+              AND oi.status = 'READY'
+              AND oi.served_at IS NULL
+            ORDER BY oi.order_item_id ASC
+        """;
+
+        List<OrderItem> items = new ArrayList<>();
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, tableId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    items.add(mapOrderItem(rs));
+                }
+            }
+        }
+        return items;
+    }
+
+    /* =========================================================
+     * 7. Lịch sử món theo bàn (table-history)
+     * ========================================================= */
+    public List<OrderItem> getTableHistory(Integer tableId) throws SQLException {
+        final String sql = """
+            SELECT oi.order_item_id, oi.order_id, oi.menu_item_id, oi.quantity,
+                   oi.special_instructions, oi.priority, oi.course_no, oi.status,
+                   oi.served_by, oi.served_at, oi.created_at,
+                   oi.base_unit_price, oi.final_unit_price,
+                   mi.name AS menu_item_name,
+                   dt.table_number,
+                   o.order_id, o.opened_at AS order_time,
+                   u.username AS waiter_name
+            FROM order_items oi
+            JOIN orders o             ON o.order_id   = oi.order_id
+            LEFT JOIN dining_table dt ON dt.table_id  = o.table_id
+            LEFT JOIN menu_items mi   ON mi.menu_item_id = oi.menu_item_id
+            LEFT JOIN users u         ON u.user_id    = o.waiter_id
+            WHERE o.table_id = ?
+            ORDER BY oi.order_item_id DESC
+        """;
+
+        List<OrderItem> items = new ArrayList<>();
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, tableId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    OrderItem it = mapOrderItem(rs);
+
+                    Timestamp orderTime = rs.getTimestamp("order_time");
+                    if (orderTime != null) {
+                        it.setCreatedAt(orderTime.toLocalDateTime());
+                    }
+
+                    it.setTableNumber(safeGet(rs, "table_number"));
+                    items.add(it);
+                }
+            }
+        }
+        return items;
+    }
+
+    /* =========================================================
+     * 8. Cập nhật trạng thái ORDER (COOKING / SERVED / SETTLED / ...)
+     * ========================================================= */
+    public boolean updateOrderStatus(long orderId, String newStatus) throws SQLException {
+        final String sql = """
+            UPDATE orders
+            SET status = ?
+            WHERE order_id = ?
+        """;
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, newStatus);
+            ps.setLong(2, orderId);
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
     /**
-     * Mark order item as served
-     * @author donny
+     * Cập nhật full một order sau khi đã tính (subtotal/tax/discount/total ...)
      */
-    public boolean markOrderItemAsServed(Long orderItemId, Integer servedBy) throws SQLException {
-        String sql = """
+    public boolean updateOrder(Order order) throws SQLException {
+        final String sql = """
+            UPDATE orders
+            SET status          = ?,
+                closed_at       = ?,
+                subtotal        = ?,
+                tax_amount      = ?,
+                discount_amount = ?,
+                total_amount    = ?
+            WHERE order_id = ?
+        """;
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, order.getStatus());
+            if (order.getClosedAt() != null) {
+                ps.setTimestamp(2, Timestamp.valueOf(order.getClosedAt()));
+            } else {
+                ps.setTimestamp(2, null);
+            }
+
+            ps.setBigDecimal(3, nz(order.getSubtotal()));
+            ps.setBigDecimal(4, nz(order.getTaxAmount()));
+            ps.setBigDecimal(5, nz(order.getDiscountAmount()));
+            ps.setBigDecimal(6, nz(order.getTotalAmount()));
+            ps.setLong(7, order.getOrderId());
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /* =========================================================
+     * 9. Update trạng thái một món cơ bản (SERVING / SERVED ...)
+     * ========================================================= */
+    public boolean updateOrderItemBasic(OrderItem item) throws SQLException {
+        final String sql = """
             UPDATE order_items
-            SET status = 'SERVED',
-                served_by = ?,
-                served_at = ?
+            SET status     = ?,
+                served_by  = ?,
+                served_at  = ?
+            WHERE order_item_id = ?
+        """;
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, item.getStatus());
+            ps.setObject(2, item.getServedBy());
+            ps.setTimestamp(
+                    3,
+                    item.getServedAt() != null
+                            ? Timestamp.valueOf(item.getServedAt())
+                            : null
+            );
+            ps.setLong(4, item.getOrderItemId());
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /* =========================================================
+     * 10. Mark nhanh 1 món là SERVED (bồi bàn bưng ra)
+     * ========================================================= */
+    public boolean markOrderItemAsServed(Long orderItemId, Integer servedBy) throws SQLException {
+        final String sql = """
+            UPDATE order_items
+            SET status     = 'SERVED',
+                served_by  = ?,
+                served_at  = ?
             WHERE order_item_id = ?
         """;
 
@@ -567,17 +459,17 @@ public class OrderDAO {
         }
     }
 
-    /**
-     * Check if all items in an order are served
-     * @author donny
-     */
+    /* =========================================================
+     * 11. Kiểm tra toàn bộ món trong ORDER đã SERVED chưa
+     *     -> nếu toàn SERVED thì có thể set order.status = 'SERVED'
+     * ========================================================= */
     public boolean areAllItemsServed(Long orderId) throws SQLException {
-        String sql = """
-            SELECT COUNT(*) as total,
-                   SUM(CASE WHEN status = 'SERVED' THEN 1 ELSE 0 END) as served_count
+        final String sql = """
+            SELECT COUNT(*) AS total_items,
+                   SUM(CASE WHEN status = 'SERVED' THEN 1 ELSE 0 END) AS served_items
             FROM order_items
             WHERE order_id = ?
-              AND status != 'CANCELLED'
+              AND status <> 'CANCELLED'
         """;
 
         try (Connection conn = DBConnect.getConnection();
@@ -587,29 +479,353 @@ public class OrderDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    int total = rs.getInt("total");
-                    int servedCount = rs.getInt("served_count");
-                    return total > 0 && total == servedCount;
+                    int total  = rs.getInt("total_items");
+                    int served = rs.getInt("served_items");
+                    return total > 0 && total == served;
                 }
             }
         }
-
         return false;
     }
 
-    /**
-     * Helper nội bộ:
-     * Xây dựng 1 MenuItem "ảo" chỉ với itemId + basePrice hiện tại
-     * để đưa vào PricingService.getCurrentPrice().
+    /* =========================================================
+     * 12. Đóng ORDER (sau thanh toán):
+     *     status='SETTLED', closed_at=NOW()
      *
-     * Vì PricingService cần MenuItem (có itemId và basePrice),
-     * nhưng ở luồng addOrderItem chúng ta chỉ có menuItemId và baseUnitPrice,
-     * chưa chắc đã load đầy đủ MenuItem từ DB.
+     *  -> dùng bình thường (ngoài transaction tổng)
+     * ========================================================= */
+    public boolean closeOrder(Long orderId) throws SQLException {
+        final String sql = """
+            UPDATE orders
+            SET status   = 'SETTLED',
+                closed_at = ?
+            WHERE order_id = ?
+              AND status <> 'SETTLED'
+        """;
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setLong(2, orderId);
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * 12b. closeOrderInTx(...)
+     *
+     * Dùng khi bạn đã có Connection đang mở transaction (ví dụ trong PaymentServlet.doPost()).
+     * KHÔNG tự commit/rollback.
      */
+    public boolean closeOrderInTx(Connection externalConn, Long orderId) throws SQLException {
+        final String sql = """
+            UPDATE orders
+            SET status   = 'SETTLED',
+                closed_at = ?
+            WHERE order_id = ?
+              AND status <> 'SETTLED'
+        """;
+
+        try (PreparedStatement ps = externalConn.prepareStatement(sql)) {
+            ps.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setLong(2, orderId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /* =========================================================
+     * 13. Tính lại tổng tiền cho một ORDER và ghi ngược vào DB.
+     *
+     * subtotal = SUM(final_unit_price * quantity) (bỏ CANCELLED)
+     * tax      = subtotal * 10%
+     * discount = 0 (hiện tại)
+     * total    = subtotal + tax - discount
+     *
+     * Có 2 overload:
+     *   - recalculateOrderTotals(Long)
+     *   - recalculateOrderTotals(long)
+     * ========================================================= */
+    public void recalculateOrderTotals(Long orderIdObj) throws SQLException {
+        if (orderIdObj != null) {
+            recalculateOrderTotals(orderIdObj.longValue());
+        }
+    }
+
+    public void recalculateOrderTotals(long orderId) throws SQLException {
+        final String subtotalSql = """
+            SELECT SUM(oi.final_unit_price * oi.quantity) AS subTotal
+            FROM order_items oi
+            WHERE oi.order_id = ?
+              AND oi.status <> 'CANCELLED'
+        """;
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps1 = conn.prepareStatement(subtotalSql)) {
+
+            ps1.setLong(1, orderId);
+
+            BigDecimal subtotal = BigDecimal.ZERO;
+            try (ResultSet rs = ps1.executeQuery()) {
+                if (rs.next()) {
+                    subtotal = rs.getBigDecimal("subTotal");
+                    if (subtotal == null) subtotal = BigDecimal.ZERO;
+                }
+            }
+
+            // VAT 10%
+            BigDecimal tax = subtotal
+                    .multiply(new BigDecimal("10"))
+                    .divide(new BigDecimal("100"));
+
+            // Discount hiện tại = 0
+            BigDecimal discount = BigDecimal.ZERO;
+
+            // Total = subtotal + tax - discount
+            BigDecimal total = subtotal.add(tax).subtract(discount);
+            if (total.compareTo(BigDecimal.ZERO) < 0) {
+                total = BigDecimal.ZERO;
+            }
+
+            final String updateSql = """
+                UPDATE orders
+                SET subtotal        = ?,
+                    tax_amount      = ?,
+                    discount_amount = ?,
+                    total_amount    = ?
+                WHERE order_id = ?
+            """;
+
+            try (PreparedStatement ps2 = conn.prepareStatement(updateSql)) {
+                ps2.setBigDecimal(1, subtotal);
+                ps2.setBigDecimal(2, tax);
+                ps2.setBigDecimal(3, discount);
+                ps2.setBigDecimal(4, total);
+                ps2.setLong(5, orderId);
+
+                ps2.executeUpdate();
+            }
+        }
+    }
+
+    /* =========================================================
+     * 14. Gộp tất cả order chưa SETTLED của một bàn:
+     *
+     *   - Lấy danh sách order chưa SETTLED
+     *   - Recalc totals từng order để chắc số liệu mới nhất
+     *   - Cộng dồn subtotal/tax/discount/total của từng order
+     *
+     *   Dùng ở PaymentServlet.doGet() + PaymentServlet.doPost()
+     *   để biết bàn đang nợ bao nhiêu.
+     * ========================================================= */
+    public CombinedBillSummary buildCombinedBillForTable(int tableId) throws SQLException {
+        List<Order> orders = getUnsettledOrdersByTableId(tableId);
+
+        BigDecimal grandSubtotal = BigDecimal.ZERO;
+        BigDecimal grandTax = BigDecimal.ZERO;
+        BigDecimal grandDiscount = BigDecimal.ZERO;
+        BigDecimal grandTotal = BigDecimal.ZERO;
+
+        for (Order o : orders) {
+            // đảm bảo totals mới nhất
+            recalculateOrderTotals(o.getOrderId());
+
+            // đọc lại order sau khi recalc
+            Order fresh = getOrderById(o.getOrderId());
+            if (fresh != null) {
+                // cộng dồn vào tổng bàn
+                if (fresh.getSubtotal()       != null) grandSubtotal = grandSubtotal.add(fresh.getSubtotal());
+                if (fresh.getTaxAmount()      != null) grandTax      = grandTax.add(fresh.getTaxAmount());
+                if (fresh.getDiscountAmount() != null) grandDiscount = grandDiscount.add(fresh.getDiscountAmount());
+                if (fresh.getTotalAmount()    != null) grandTotal    = grandTotal.add(fresh.getTotalAmount());
+
+                // copy số đã recalc vào object gốc để JSP show
+                o.setSubtotal(fresh.getSubtotal());
+                o.setTaxAmount(fresh.getTaxAmount());
+                o.setDiscountAmount(fresh.getDiscountAmount());
+                o.setTotalAmount(fresh.getTotalAmount());
+            }
+        }
+
+        CombinedBillSummary sum = new CombinedBillSummary();
+        sum.setOrders(orders);
+        sum.setSubtotal(grandSubtotal);
+        sum.setTaxAmount(grandTax);
+        sum.setDiscountAmount(grandDiscount);
+        sum.setTotalAmount(grandTotal);
+
+        return sum;
+    }
+
+    /* =========================================================
+     * 15. Map ResultSet -> Order model
+     * ========================================================= */
+    private Order mapOrder(ResultSet rs) throws SQLException {
+        Order o = new Order();
+
+        o.setOrderId(rs.getLong("order_id"));
+        o.setOrderCode(rs.getString("order_code"));
+        o.setOrderType(rs.getString("order_type"));
+        o.setTableId(rs.getInt("table_id"));
+        o.setWaiterId(rs.getInt("waiter_id"));
+        o.setStatus(rs.getString("status"));
+        o.setSpecialInstructions(rs.getString("notes"));
+
+        Timestamp openedAt = rs.getTimestamp("opened_at");
+        if (openedAt != null) {
+            o.setOpenedAt(openedAt.toLocalDateTime());
+        }
+
+        Timestamp closedAt = rs.getTimestamp("closed_at");
+        if (closedAt != null) {
+            o.setClosedAt(closedAt.toLocalDateTime());
+        }
+
+        o.setSubtotal(nz(rs.getBigDecimal("subtotal")));
+        o.setTaxAmount(nz(rs.getBigDecimal("tax_amount")));
+        o.setDiscountAmount(nz(rs.getBigDecimal("discount_amount")));
+        o.setTotalAmount(nz(rs.getBigDecimal("total_amount")));
+
+        // optional joined columns (có thể không tồn tại trong 1 số query)
+        try { o.setTableNumber(rs.getString("table_number")); } catch (Exception ignore) {}
+        try { o.setWaiterName(rs.getString("waiter_name"));   } catch (Exception ignore) {}
+
+        return o;
+    }
+
+    /* =========================================================
+     * 16. Map ResultSet -> OrderItem model
+     * ========================================================= */
+    private OrderItem mapOrderItem(ResultSet rs) throws SQLException {
+        OrderItem item = new OrderItem();
+
+        item.setOrderItemId(rs.getLong("order_item_id"));
+        item.setOrderId(rs.getLong("order_id"));
+        item.setMenuItemId(rs.getInt("menu_item_id"));
+        item.setQuantity(rs.getInt("quantity"));
+        item.setSpecialInstructions(rs.getString("special_instructions"));
+        item.setPriority(rs.getString("priority"));
+
+        // course_no -> human text
+        String courseText = mapCourseToText(safeGetInt(rs, "course_no"), safeGet(rs, "course"));
+        item.setCourse(courseText);
+
+        item.setBaseUnitPrice(rs.getBigDecimal("base_unit_price"));
+        item.setFinalUnitPrice(rs.getBigDecimal("final_unit_price"));
+
+        // totalPrice: nếu chưa có trong DB thì tính (final_unit_price * qty)
+        BigDecimal tp = null;
+        BigDecimal fu = item.getFinalUnitPrice();
+        Integer q = item.getQuantity();
+        if (fu != null && q != null) {
+            tp = fu.multiply(BigDecimal.valueOf(q));
+        } else {
+            try {
+                tp = rs.getBigDecimal("total_price");
+            } catch (Exception ignore) {}
+        }
+        item.setTotalPrice(tp);
+
+        item.setStatus(rs.getString("status"));
+
+        Timestamp cAt = null;
+        try { cAt = rs.getTimestamp("created_at"); } catch (Exception ignore) {}
+        if (cAt != null) item.setCreatedAt(cAt.toLocalDateTime());
+
+        Timestamp sAt = null;
+        try { sAt = rs.getTimestamp("served_at"); } catch (Exception ignore) {}
+        if (sAt != null) item.setServedAt(sAt.toLocalDateTime());
+
+        try {
+            Integer servedBy = (Integer) rs.getObject("served_by");
+            if (servedBy != null) item.setServedBy(servedBy);
+        } catch (Exception ignore) {}
+
+        // optional joined cols
+        item.setMenuItemName(safeGet(rs, "menu_item_name"));
+        item.setTableNumber(safeGet(rs, "table_number"));
+
+        try {
+            Integer prep = (Integer) rs.getObject("preparation_time");
+            if (prep != null) item.setPreparationTime(prep);
+        } catch (Exception ignore) {}
+
+        return item;
+    }
+
+    /* =========================================================
+     * 17. Helpers nội bộ
+     * ========================================================= */
+
     private MenuItem buildTempMenuItem(int menuItemId, BigDecimal basePrice) {
-        MenuItem mi = new MenuItem();
-        mi.setItemId(menuItemId);
-        mi.setBasePrice(basePrice);
-        return mi;
+        MenuItem m = new MenuItem();
+        m.setItemId(menuItemId);
+        m.setBasePrice(basePrice);
+        return m;
+    }
+
+    private int mapCourseToInt(String course) {
+        if (course == null) return 1;
+        switch (course.toUpperCase()) {
+            case "APPETIZER": return 1;
+            case "MAIN":      return 2;
+            case "DESSERT":   return 3;
+            case "BEVERAGE":  return 4;
+            default:          return 1;
+        }
+    }
+
+    private String mapCourseToText(int cNo, String fallbackText) {
+        switch (cNo) {
+            case 1:  return "APPETIZER";
+            case 2:  return "MAIN";
+            case 3:  return "DESSERT";
+            case 4:  return "BEVERAGE";
+            default:
+                return (fallbackText != null && !fallbackText.isBlank())
+                        ? fallbackText
+                        : "OTHER";
+        }
+    }
+
+    private BigDecimal nz(BigDecimal v) {
+        return (v == null ? BigDecimal.ZERO : v);
+    }
+
+    private String safeGet(ResultSet rs, String col) {
+        try { return rs.getString(col); }
+        catch (Exception ignore) { return null; }
+    }
+
+    private int safeGetInt(ResultSet rs, String col) {
+        try { return rs.getInt(col); }
+        catch (Exception ignore) { return 0; }
+    }
+
+    /* =========================================================
+     * 18. DTO gộp bill cho bàn => dùng ở PaymentServlet
+     * ========================================================= */
+    public static class CombinedBillSummary {
+        private List<Order>   orders;
+        private BigDecimal    subtotal;
+        private BigDecimal    taxAmount;
+        private BigDecimal    discountAmount;
+        private BigDecimal    totalAmount;
+
+        public List<Order> getOrders() { return orders; }
+        public void setOrders(List<Order> orders) { this.orders = orders; }
+
+        public BigDecimal getSubtotal() { return subtotal; }
+        public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
+
+        public BigDecimal getTaxAmount() { return taxAmount; }
+        public void setTaxAmount(BigDecimal taxAmount) { this.taxAmount = taxAmount; }
+
+        public BigDecimal getDiscountAmount() { return discountAmount; }
+        public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
+
+        public BigDecimal getTotalAmount() { return totalAmount; }
+        public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
     }
 }
