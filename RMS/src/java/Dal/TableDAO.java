@@ -47,9 +47,9 @@ public class TableDAO {
     // ==== Chức năng quản lý bàn DiningTable nâng cao (có session) ====
 
     /**
-     * Lấy danh sách bàn theo khu vực và kiểm tra tình trạng đặt trước cho ngày giờ cụ thể
+     * Lấy danh sách bàn theo khu vực có thông tin session (DiningTable full info for area).
      */
-    public List<DiningTable> getTablesByAreaAndDateTime(Integer areaId, Date reservationDate, Time reservationTime) {
+    public List<DiningTable> getDiningTablesByArea(Integer areaId) {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT ");
         sql.append("  dt.table_id, dt.area_id, dt.table_number, dt.capacity, ");
@@ -57,76 +57,55 @@ public class TableDAO {
         sql.append("  dt.created_by, ");
         sql.append("  ta.area_name, ");
         sql.append("  ts.table_session_id, ts.status as session_status, ");
-        sql.append("  ts.open_time, ts.current_order_id, ");
-        sql.append("  (SELECT COUNT(*) FROM reservations r ");
-        sql.append("   WHERE r.table_id = dt.table_id ");
-        sql.append("   AND r.reservation_date = ? ");
-        sql.append("   AND CONVERT(varchar(8), r.reservation_time, 108) = CONVERT(varchar(8), ?, 108) ");
-        sql.append("   AND r.status NOT IN ('CANCELLED', 'REJECTED')) as has_reservation ");
+        sql.append("  ts.open_time, ts.current_order_id ");
         sql.append("FROM dining_table dt ");
         sql.append("LEFT JOIN table_area ta ON ta.area_id = dt.area_id ");
         sql.append("LEFT JOIN table_session ts ON ts.table_id = dt.table_id AND ts.status = 'OPEN' ");
-        
-        // Thêm điều kiện area_id nếu được chỉ định
+        sql.append("WHERE 1=1 ");
+
         if (areaId != null) {
-            sql.append("WHERE dt.area_id = ? ");
+            sql.append("AND dt.area_id = ? ");
         }
 
-        sql.append("ORDER BY dt.table_number");
+        sql.append("ORDER BY ta.sort_order, dt.table_number");
 
         List<DiningTable> tables = new ArrayList<>();
+        try (Connection con = DBConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql.toString())) {
 
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
-
-            // Thiết lập các tham số cho câu truy vấn
-            ps.setDate(1, reservationDate);
-            ps.setTime(2, reservationTime);
-            
-            // Thêm tham số area_id nếu được chỉ định
             if (areaId != null) {
-                ps.setInt(3, areaId);
+                ps.setInt(1, areaId);
             }
 
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                DiningTable table = new DiningTable();
-                table.setTableId(rs.getInt("table_id"));
-                table.setAreaId(rs.getInt("area_id"));
-                table.setTableNumber(rs.getString("table_number"));
-                table.setCapacity(rs.getInt("capacity"));
-                table.setLocation(rs.getString("location"));
-                
-                // Nếu không có đặt bàn vào thời điểm đã chọn, hiển thị là bàn trống
-                if (rs.getInt("has_reservation") == 0) {
-                    table.setStatus(DiningTable.STATUS_VACANT);
-                } else {
-                    table.setStatus(DiningTable.STATUS_RESERVED);
-                }
-                
-                table.setTableType(rs.getString("table_type"));
-                table.setMapX(rs.getInt("map_x"));
-                table.setMapY(rs.getInt("map_y"));
-                table.setCreatedBy(rs.getInt("created_by"));
-                table.setAreaName(rs.getString("area_name"));
-                
-                if (rs.getLong("table_session_id") > 0) {
-                    table.setCurrentSessionId(rs.getLong("table_session_id"));
-                    table.setSessionStatus(rs.getString("session_status"));
-                    if (rs.getTimestamp("open_time") != null) {
-                        table.setSessionOpenTime(rs.getTimestamp("open_time").toLocalDateTime());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    DiningTable table = new DiningTable();
+                    table.setTableId(rs.getInt("table_id"));
+                    table.setAreaId(rs.getInt("area_id"));
+                    table.setTableNumber(rs.getString("table_number"));
+                    table.setCapacity(rs.getInt("capacity"));
+                    table.setLocation(rs.getString("location"));
+                    table.setStatus(rs.getString("status"));
+                    table.setTableType(rs.getString("table_type"));
+                    table.setMapX(rs.getInt("map_x"));
+                    table.setMapY(rs.getInt("map_y"));
+                    table.setCreatedBy(rs.getInt("created_by"));
+                    // Area info
+                    table.setAreaName(rs.getString("area_name"));
+                    // Session info
+                    if (rs.getLong("table_session_id") > 0) {
+                        table.setCurrentSessionId(rs.getLong("table_session_id"));
+                        table.setSessionStatus(rs.getString("session_status"));
+                        table.setSessionOpenTime(rs.getTimestamp("open_time") != null ? rs.getTimestamp("open_time").toLocalDateTime() : null);
+                        table.setCurrentOrderId(rs.getLong("current_order_id"));
                     }
-                    table.setCurrentOrderId(rs.getLong("current_order_id"));
+                    tables.add(table);
                 }
-                
-                tables.add(table);
             }
         } catch (SQLException e) {
-            System.err.println("Error getting tables by area and datetime: " + e.getMessage());
+            System.err.println("Lỗi lấy danh sách bàn: " + e.getMessage());
             e.printStackTrace();
         }
-
         return tables;
     }
 
@@ -567,80 +546,4 @@ public class TableDAO {
         table.setCreatedBy(rs.getInt("created_by"));
         return table;
     }
-
-    /**
-     * Lấy danh sách bàn theo loại và kiểm tra tình trạng đặt trước cho ngày giờ cụ thể
-     */
-    public List<DiningTable> getTablesByTypeAndDateTime(String tableType, Date reservationDate, Time reservationTime) {
-        StringBuilder sql = new StringBuilder();
-        sql.append("SELECT ");
-        sql.append("  dt.table_id, dt.area_id, dt.table_number, dt.capacity, ");
-        sql.append("  dt.location, dt.status, dt.table_type, dt.map_x, dt.map_y, ");
-        sql.append("  dt.created_by, ");
-        sql.append("  ta.area_name, ");
-        sql.append("  ts.table_session_id, ts.status as session_status, ");
-        sql.append("  ts.open_time, ts.current_order_id, ");
-        sql.append("  (SELECT COUNT(*) FROM reservations r ");
-        sql.append("   WHERE r.table_id = dt.table_id ");
-        sql.append("   AND r.reservation_date = ? ");
-        sql.append("   AND CONVERT(varchar(8), r.reservation_time, 108) = CONVERT(varchar(8), ?, 108) ");
-        sql.append("   AND r.status NOT IN ('CANCELLED', 'REJECTED')) as has_reservation ");
-        sql.append("FROM dining_table dt ");
-        sql.append("LEFT JOIN table_area ta ON ta.area_id = dt.area_id ");
-        sql.append("LEFT JOIN table_session ts ON ts.table_id = dt.table_id AND ts.status = 'OPEN' ");
-        sql.append("WHERE dt.table_type = ? ");
-        sql.append("ORDER BY dt.table_number");
-
-        List<DiningTable> tables = new ArrayList<>();
-
-        try (Connection conn = DBConnect.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
-
-            ps.setDate(1, reservationDate);
-            ps.setTime(2, reservationTime);
-            ps.setString(3, tableType);
-
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                DiningTable table = new DiningTable();
-                table.setTableId(rs.getInt("table_id"));
-                table.setAreaId(rs.getInt("area_id"));
-                table.setTableNumber(rs.getString("table_number"));
-                table.setCapacity(rs.getInt("capacity"));
-                table.setLocation(rs.getString("location"));
-                
-                // Nếu không có đặt bàn vào thời điểm đã chọn, hiển thị là bàn trống
-                if (rs.getInt("has_reservation") == 0) {
-                    table.setStatus(DiningTable.STATUS_VACANT);
-                } else {
-                    table.setStatus(DiningTable.STATUS_RESERVED);
-                }
-                
-                table.setTableType(rs.getString("table_type"));
-                table.setMapX(rs.getInt("map_x"));
-                table.setMapY(rs.getInt("map_y"));
-                table.setCreatedBy(rs.getInt("created_by"));
-                table.setAreaName(rs.getString("area_name"));
-                
-                if (rs.getLong("table_session_id") > 0) {
-                    table.setCurrentSessionId(rs.getLong("table_session_id"));
-                    table.setSessionStatus(rs.getString("session_status"));
-                    if (rs.getTimestamp("open_time") != null) {
-                        table.setSessionOpenTime(rs.getTimestamp("open_time").toLocalDateTime());
-                    }
-                    table.setCurrentOrderId(rs.getLong("current_order_id"));
-                }
-                
-                tables.add(table);
-            }
-        } catch (SQLException e) {
-            System.err.println("Error getting tables by type and datetime: " + e.getMessage());
-            e.printStackTrace();
-        }
-
-        return tables;
-    }
-
-
 }

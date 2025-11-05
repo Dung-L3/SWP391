@@ -7,6 +7,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.ArrayList;      // <-- thêm
+import java.util.List;          // <-- thêm
 
 /**
  * UserDAO: xử lý đăng nhập và lấy/cập nhật thông tin người dùng kèm role.
@@ -236,6 +238,60 @@ public class UserDAO {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * Danh sách nhân viên có thể assign (chỉ ACTIVE).
+     * Trả về các field cơ bản để fill vào dropdown chọn staff.
+     * KHÔNG đụng tới các hàm cũ.
+     */
+    public List<User> getAssignableStaff() {
+        List<User> list = new ArrayList<>();
+
+        final String sql = """
+            SELECT  u.user_id,
+                    u.first_name,
+                    u.last_name,
+                    u.phone,
+                    u.account_status,
+                    ur.role_id,
+                    r.role_name
+            FROM dbo.users u
+            LEFT JOIN dbo.user_roles ur
+                   ON ur.user_id = u.user_id
+                  AND ur.status = N'ACTIVE'
+            LEFT JOIN dbo.roles r
+                   ON r.role_id = ur.role_id
+                  AND r.status = N'ACTIVE'
+            WHERE u.account_status = N'ACTIVE'
+            ORDER BY r.role_name, u.first_name, u.last_name
+        """;
+
+        try (Connection con = DBConnect.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                User u = new User();
+                u.setUserId(rs.getInt("user_id"));
+                u.setFirstName(rs.getString("first_name"));
+                u.setLastName(rs.getString("last_name"));
+                u.setPhone(rs.getString("phone"));
+                u.setAccountStatus(rs.getString("account_status"));
+
+                int roleId = rs.getInt("role_id");
+                if (!rs.wasNull()) {
+                    u.setRoleId(roleId);
+                }
+                u.setRoleName(rs.getString("role_name")); // có thể null nếu chưa gán role
+
+                list.add(u);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return list;
     }
 
     private static LocalDateTime toLocal(Timestamp ts) {
