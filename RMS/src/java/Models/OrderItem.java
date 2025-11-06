@@ -57,9 +57,21 @@ public class OrderItem implements Serializable {
     private String menuItemDescription;
     private Integer preparationTime;
     private String tableNumber;
+    
+    // Transient field for displaying menu item details
+    private MenuItem menuItem;
 
     // Constructors
-    public OrderItem() {}
+    public OrderItem() {
+        // sensible defaults to satisfy DB NOT NULL constraints
+        this.priority = PRIORITY_NORMAL;
+        this.course = COURSE_MAIN;
+        this.status = STATUS_NEW;
+        this.quantity = 1;
+        this.baseUnitPrice = java.math.BigDecimal.ZERO;
+        this.finalUnitPrice = java.math.BigDecimal.ZERO;
+        this.totalPrice = java.math.BigDecimal.ZERO;
+    }
 
     public OrderItem(Long orderId, Integer menuItemId, Integer quantity) {
         this.orderId = orderId;
@@ -133,6 +145,16 @@ public class OrderItem implements Serializable {
 
     public LocalDateTime getServedAt() { return servedAt; }
     public void setServedAt(LocalDateTime servedAt) { this.servedAt = servedAt; }
+
+    public MenuItem getMenuItem() { return menuItem; }
+    public void setMenuItem(MenuItem menuItem) { 
+        this.menuItem = menuItem;
+        if (menuItem != null) {
+            this.menuItemName = menuItem.getName();
+            this.menuItemDescription = menuItem.getDescription();
+            this.preparationTime = menuItem.getPreparationTime();
+        }
+    }
 
     // Helper methods
     public boolean isNew() { return STATUS_NEW.equals(status); }

@@ -67,17 +67,27 @@ public class OrderDAO {
 
             ps.setString(1, "ORD" + System.currentTimeMillis());
             ps.setString(2, order.getOrderType());
-            ps.setInt(3, order.getTableId());
-            ps.setInt(4, order.getWaiterId());
+            // table_id may be null for takeaway/delivery orders
+            if (order.getTableId() != null) {
+                ps.setInt(3, order.getTableId());
+            } else {
+                ps.setNull(3, Types.INTEGER);
+            }
+            // waiter_id may be null
+            if (order.getWaiterId() != null) {
+                ps.setInt(4, order.getWaiterId());
+            } else {
+                ps.setNull(4, Types.INTEGER);
+            }
             ps.setString(5, order.getStatus() != null ? order.getStatus() : Order.STATUS_OPEN);
             ps.setString(6, order.getSpecialInstructions());
             ps.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
 
-            // khi vừa tạo order chưa có món -> tiền = 0
-            ps.setBigDecimal(8,  BigDecimal.ZERO); // subtotal
-            ps.setBigDecimal(9,  BigDecimal.ZERO); // tax_amount
-            ps.setBigDecimal(10, BigDecimal.ZERO); // discount_amount
-            ps.setBigDecimal(11, BigDecimal.ZERO); // total_amount
+            // Use provided order monetary snapshot when available, otherwise default to 0
+            ps.setBigDecimal(8, nz(order.getSubtotal())); // subtotal
+            ps.setBigDecimal(9, nz(order.getTaxAmount())); // tax_amount
+            ps.setBigDecimal(10, nz(order.getDiscountAmount())); // discount_amount
+            ps.setBigDecimal(11, nz(order.getTotalAmount())); // total_amount
 
             int rows = ps.executeUpdate();
             if (rows > 0) {
@@ -109,6 +119,34 @@ public class OrderDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setLong(1, orderId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapOrder(rs);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Lấy order theo order_code (dùng cho trang tra cứu đơn hàng)
+     */
+    public Order getOrderByCode(String orderCode) throws SQLException {
+        final String sql = """
+            SELECT o.*,
+                   dt.table_number,
+                   u.first_name + ' ' + u.last_name AS waiter_name
+            FROM orders o
+            LEFT JOIN dining_table dt ON dt.table_id = o.table_id
+            LEFT JOIN users u        ON u.user_id    = o.waiter_id
+            WHERE o.order_code = ?
+        """;
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, orderCode);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -579,8 +617,18 @@ public class OrderDAO {
                     .multiply(new BigDecimal("10"))
                     .divide(new BigDecimal("100"));
 
-            // Discount hiện tại = 0
+            // Read stored discount_amount from orders (may be set by caller / voucher)
             BigDecimal discount = BigDecimal.ZERO;
+            final String selectDiscountSql = "SELECT discount_amount FROM orders WHERE order_id = ?";
+            try (PreparedStatement psd = conn.prepareStatement(selectDiscountSql)) {
+                psd.setLong(1, orderId);
+                try (ResultSet rsd = psd.executeQuery()) {
+                    if (rsd.next()) {
+                        discount = rsd.getBigDecimal("discount_amount");
+                        if (discount == null) discount = BigDecimal.ZERO;
+                    }
+                }
+            }
 
             // Total = subtotal + tax - discount
             BigDecimal total = subtotal.add(tax).subtract(discount);
@@ -664,11 +712,13 @@ public class OrderDAO {
     private Order mapOrder(ResultSet rs) throws SQLException {
         Order o = new Order();
 
-        o.setOrderId(rs.getLong("order_id"));
-        o.setOrderCode(rs.getString("order_code"));
-        o.setOrderType(rs.getString("order_type"));
-        o.setTableId(rs.getInt("table_id"));
-        o.setWaiterId(rs.getInt("waiter_id"));
+    o.setOrderId(rs.getLong("order_id"));
+    o.setOrderCode(rs.getString("order_code"));
+    o.setOrderType(rs.getString("order_type"));
+    // use getObject to preserve nulls for optional FK columns
+    try { o.setTableId(rs.getObject("table_id", Integer.class)); } catch (Exception ignore) { o.setTableId(null); }
+    try { o.setWaiterId(rs.getObject("waiter_id", Integer.class)); } catch (Exception ignore) { o.setWaiterId(null); }
+    try { o.setCustomerId(rs.getObject("customer_id", Integer.class)); } catch (Exception ignore) { o.setCustomerId(null); }
         o.setStatus(rs.getString("status"));
         o.setSpecialInstructions(rs.getString("notes"));
 

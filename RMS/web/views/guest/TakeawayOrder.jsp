@@ -74,7 +74,7 @@
                                                 <p class="text-muted small mb-2">${item.description}</p>
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <div class="fw-semibold text-primary">
-                                                        <fmt:formatNumber value="${priceMap[item.itemId]}" type="currency" currencySymbol="đ"/>
+                                                        <fmt:formatNumber value="${priceMap[item.itemId]}" type="currency" currencySymbol="đ" maxFractionDigits="0"/>
                                                     </div>
                                                     <div class="input-group input-group-sm" style="width:120px;">
                                                         <button class="btn btn-outline-secondary" type="button" onclick="updateQuantityFromBtn(this, -1)">-</button>

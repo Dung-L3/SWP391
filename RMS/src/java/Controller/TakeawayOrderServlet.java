@@ -79,10 +79,10 @@ public class TakeawayOrderServlet extends HttpServlet {
                 throw new ServletException("Missing required fields");
             }
 
-            // Server-side validation: phone must be digits only and at most 10 characters
+            // Server-side validation: phone must be exactly 10 digits
             String phoneTrim = phoneNumber == null ? "" : phoneNumber.trim();
-            if (!phoneTrim.matches("\\d{1,10}")) {
-                throw new ServletException("Số điện thoại không hợp lệ. Vui lòng chỉ nhập chữ số, tối đa 10 ký tự.");
+            if (!phoneTrim.matches("\\d{10}")) {
+                throw new ServletException("Số điện thoại không hợp lệ. Vui lòng nhập đúng 10 chữ số.");
             }
             // normalize phoneNumber
             phoneNumber = phoneTrim;
@@ -110,6 +110,8 @@ public class TakeawayOrderServlet extends HttpServlet {
                 orderItem.setMenuItemId(menuItem.getItemId());
                 orderItem.setQuantity(quantity);
                 orderItem.setBaseUnitPrice(basePrice);
+                // Ensure non-null priority (DB column is NOT NULL)
+                orderItem.setPriority(OrderItem.PRIORITY_NORMAL);
                 // add to list for later DB insertion
                 items.add(orderItem);
 
@@ -134,34 +136,39 @@ public class TakeawayOrderServlet extends HttpServlet {
                 System.err.println("Warning: failed to persist customer: " + ex.getMessage());
             }
 
-            // Create new order (use existing Order model fields)
+            // Create new order with generated order code
             Order order = new Order();
+            order.setOrderCode(Utils.OrderCodeGenerator.generate());
             order.setOrderType(Order.TYPE_TAKEAWAY);
             if (customerId > 0) order.setCustomerId(customerId);
-            // tableId and waiterId are not applicable for takeaway; set to 0
-            order.setTableId(0);
-            order.setWaiterId(0);
+            // tableId and waiterId are not applicable for takeaway; leave tableId as null
+            order.setTableId(null);
+            order.setWaiterId(null);
+            // Set to a status allowed by DB CHECK constraint
+            // use OPEN for newly created takeaway orders to match CK_order_status
             order.setStatus(Order.STATUS_OPEN);
-            // Pack customer info into specialInstructions / notes
+            order.setOpenedAt(java.time.LocalDateTime.now());
+            
+            // Store delivery info in special instructions
             StringBuilder notes = new StringBuilder();
-          notes.append("customerName=").append(customerName)
-              .append(";phone=").append(phoneNumber)
-              .append(";address=").append(address);
             if (note != null && !note.trim().isEmpty()) {
-                notes.append(";note=").append(note.trim());
-            }
-            if (voucherCode != null && !voucherCode.trim().isEmpty()) {
-                notes.append(";voucher=").append(voucherCode.trim());
-                try {
-                    java.math.BigDecimal vd = voucherDiscountStr == null || voucherDiscountStr.isEmpty() ? null : new java.math.BigDecimal(voucherDiscountStr);
-                    if (vd != null) {
-                        notes.append(";voucherDiscount=").append(vd.toPlainString());
-                    }
-                } catch (NumberFormatException ex) {
-                    // ignore invalid discount format
-                }
+                notes.append("Ghi chú: ").append(note.trim());
             }
             order.setSpecialInstructions(notes.toString());
+            
+            // Calculate total and discount
+            BigDecimal subtotal = totalAmount;
+            BigDecimal discountAmount = BigDecimal.ZERO;
+            if (voucherDiscountStr != null && !voucherDiscountStr.isEmpty()) {
+                try {
+                    discountAmount = new BigDecimal(voucherDiscountStr);
+                } catch (NumberFormatException ex) {
+                    // ignore invalid discount
+                }
+            }
+            order.setSubtotal(subtotal);
+            order.setDiscountAmount(discountAmount);
+            order.setTotalAmount(subtotal.subtract(discountAmount));
 
             // Save order to database and get generated orderId
             Long createdOrderId = orderDAO.createOrder(order);
@@ -177,8 +184,41 @@ public class TakeawayOrderServlet extends HttpServlet {
                 // createdOrderItemId may be null if insert failed; continue
             }
 
-            request.getSession().setAttribute("successMessage", "Đặt món thành công! Mã đơn hàng: " + createdOrderId);
-            response.sendRedirect(request.getContextPath() + "/takeaway-order");
+            // Recalculate totals on the server side to ensure subtotal/tax/total reflect
+            // final_unit_price stored by addOrderItem and respect any discount we saved.
+            try {
+                orderDAO.recalculateOrderTotals(createdOrderId);
+            } catch (Exception ex) {
+                System.err.println("Warning: failed to recalculate order totals: " + ex.getMessage());
+            }
+
+            // Lấy thông tin đầy đủ cho trang success
+            Order savedOrder = orderDAO.getOrderById(createdOrderId);
+            List<OrderItem> savedItems = orderDAO.getOrderItems(createdOrderId);
+            Models.Customer customer = null;
+            if (customerId > 0) {
+                customer = customerDAO.findById(customerId);
+            } else {
+                // Tạo đối tượng Customer tạm thời để hiển thị
+                customer = new Models.Customer();
+                customer.setFullName(customerName);
+                customer.setPhone(phoneNumber);
+                customer.setAddress(address);
+            }
+            
+            // Lấy thông tin menu item cho mỗi order item
+            for (OrderItem item : savedItems) {
+                MenuItem menuItem = menuDAO.getMenuItemById(item.getMenuItemId());
+                item.setMenuItem(menuItem);
+            }
+            
+            // Đặt attributes cho trang success
+            request.setAttribute("order", savedOrder);
+            request.setAttribute("orderItems", savedItems);
+            request.setAttribute("customer", customer);
+            
+            // Forward đến trang success
+            request.getRequestDispatcher("/views/guest/OrderSuccess.jsp").forward(request, response);
             
         } catch (Exception e) {
             request.getSession().setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
