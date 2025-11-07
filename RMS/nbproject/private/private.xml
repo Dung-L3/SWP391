@@ -3,13 +3,8 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/E:/SWP391/RMS/src/java/Dal/OrderDAO.java</file>
-            <file>file:/E:/SWP391/RMS/src/java/Controller/PricingRuleServlet.java</file>
-            <file>file:/E:/SWP391/RMS/src/java/Controller/auth/EmailServices.java</file>
-            <file>file:/E:/SWP391/RMS/nbproject/build-impl.xml</file>
-            <file>file:/E:/SWP391/RMS/src/java/Controller/auth/ResetPasswordServlet.java</file>
-            <file>file:/E:/SWP391/RMS/src/java/Controller/auth/ForgotPasswordServlet.java</file>
-            <file>file:/E:/SWP391/RMS/src/java/Controller/StaffShiftServlet.java</file>
+            <file>file:/E:/SWP/SWP391/RMS/src/java/Dal/DBConnect.java</file>
+            <file>file:/E:/SWP/SWP391/RMS/src/java/Controller/ReceptionWalkinServlet.java</file>
         </group>
     </open-files>
 </project-private>
