@@ -53,6 +53,15 @@
       <a class="${page == 'reservations' ? 'active' : ''}" href="<c:url value='/reservations'/>"><i class="bi bi-calendar-event"></i>Đặt bàn</a>
     </li>
     <li>
+      <a class="${page == 'reception-walkin' ? 'active' : ''}" href="<c:url value='/views/reception-walkin.jsp'/>"><i class="bi bi-person-lines-fill"></i>Nhận đặt bàn (quầy)</a>
+    </li>
+    <li>
+      <a class="${page == 'reception-transfer' ? 'active' : ''}" href="<c:url value='/views/reception-transfer.jsp'/>"><i class="bi bi-arrow-left-right"></i>Chuyển bàn</a>
+    </li>
+    <li>
+      <a class="${page == 'reception-checkin' ? 'active' : ''}" href="<c:url value='/views/reception-checkin.jsp'/>"><i class="bi bi-person-check"></i>Check-in khách</a>
+    </li>
+    <li>
       <a class="${page == 'menu' ? 'active' : ''}" href="<c:url value='/menu'/>"><i class="bi bi-journal-text"></i>Thực đơn</a>
     </li>
   </ul>
