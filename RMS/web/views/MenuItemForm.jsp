@@ -266,8 +266,7 @@
                                                 name="availability" 
                                                 ${viewMode == 'view' ? 'disabled' : ''}>
                                             <option value="AVAILABLE" ${menuItem.availability == 'AVAILABLE' ? 'selected' : ''}>Có sẵn</option>
-                                            <option value="UNAVAILABLE" ${menuItem.availability == 'UNAVAILABLE' ? 'selected' : ''}>Hết hàng</option>
-                                            <option value="DISCONTINUED" ${menuItem.availability == 'DISCONTINUED' ? 'selected' : ''}>Ngừng bán</option>
+                                            <option value="TEMP_UNAVAILABLE" ${menuItem.availability == 'TEMP_UNAVAILABLE' || menuItem.availability == 'UNAVAILABLE' || menuItem.availability == 'OUT_OF_STOCK' ? 'selected' : ''}>Tạm hết hàng</option>
                                         </select>
                                     </div>
                                 </div>

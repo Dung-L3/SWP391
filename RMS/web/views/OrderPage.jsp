@@ -747,18 +747,24 @@
             .then(r => r.json())
             .then(data => {
                 if(data.menuItems && data.menuItems.length>0){
-                    menuItems = data.menuItems.map(function(item){
-                        return {
-                            itemId: item.itemId || item.menuItemId || 0,
-                            name: item.name || 'Tên món',
-                            description: item.description || '',
-                            price: Number(item.basePrice || item.displayPrice || 0),
-                            image: item.imageUrl || (CTX + '/img/menu-1.jpg'),
-                            category: item.categoryId || 1,
-                            isActive: item.isActive !== undefined ? item.isActive : true,
-                            availability: item.availability || 'AVAILABLE'
-                        };
-                    });
+                    // Filter out items without recipe
+                    menuItems = data.menuItems
+                        .filter(function(item) {
+                            // Only show items that have recipe
+                            return item.hasRecipe === true;
+                        })
+                        .map(function(item){
+                            return {
+                                itemId: item.itemId || item.menuItemId || 0,
+                                name: item.name || 'Tên món',
+                                description: item.description || '',
+                                price: Number(item.basePrice || item.displayPrice || 0),
+                                image: item.imageUrl || (CTX + '/img/menu-1.jpg'),
+                                category: item.categoryId || 1,
+                                isActive: item.isActive !== undefined ? item.isActive : true,
+                                availability: item.availability || 'AVAILABLE'
+                            };
+                        });
                 } else {
                     // fallback
                     menuItems = [

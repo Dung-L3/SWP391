@@ -208,7 +208,7 @@ public class MenuDAO {
     public boolean updateMenuItem(MenuItem item) {
     String sql = "UPDATE menu_items SET " +
             "category_id = ?, name = ?, description = ?, base_price = ?, " +
-            "availability = ?, preparation_time = ?, is_active = 1, image_url = ? " + // fix cứng is_active = 1
+            "availability = ?, preparation_time = ?, is_active = ?, image_url = ? " +
             "WHERE menu_item_id = ?";
 
     try (Connection conn = DBConnect.getConnection();
@@ -220,8 +220,9 @@ public class MenuDAO {
         ps.setBigDecimal(4, item.getBasePrice());
         ps.setString(5, item.getAvailability());
         ps.setInt(6, item.getPreparationTime());
-        ps.setString(7, item.getImageUrl());
-        ps.setInt(8, item.getItemId());
+        ps.setInt(7, item.isActive() ? 1 : 0);
+        ps.setString(8, item.getImageUrl());
+        ps.setInt(9, item.getItemId());
 
         return ps.executeUpdate() > 0;
     } catch (SQLException e) {

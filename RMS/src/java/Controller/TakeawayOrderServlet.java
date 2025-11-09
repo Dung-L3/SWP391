@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 @WebServlet(name = "TakeawayOrderServlet", urlPatterns = {"/takeaway-order"})
@@ -46,13 +47,21 @@ public class TakeawayOrderServlet extends HttpServlet {
         // Get all menu items and categories
     List<MenuCategory> categories = menuDAO.getAllCategories();
     // reuse existing paginated method to fetch all available items
-    List<MenuItem> menuItems = menuDAO.getMenuItems(1, 1000, null, null, "AVAILABLE", null);
+    List<MenuItem> allMenuItems = menuDAO.getMenuItems(1, 1000, null, null, "AVAILABLE", null);
 
-        // Build a price map to avoid relying on a setter on MenuItem
+        // Filter out items without recipe - guest cannot order items without recipe
+        Dal.RecipeDAO recipeDAO = new Dal.RecipeDAO();
+        List<MenuItem> menuItems = new ArrayList<>();
         Map<Integer, BigDecimal> priceMap = new HashMap<>();
-        for (MenuItem item : menuItems) {
-            BigDecimal p = pricingService.getCurrentPrice(item);
-            priceMap.put(item.getItemId(), p);
+        
+        for (MenuItem item : allMenuItems) {
+            // Only include items that have recipe
+            Models.Recipe recipe = recipeDAO.getRecipeByMenuItemId(item.getItemId());
+            if (recipe != null) {
+                menuItems.add(item);
+                BigDecimal p = pricingService.getCurrentPrice(item);
+                priceMap.put(item.getItemId(), p);
+            }
         }
         
         request.setAttribute("categories", categories);

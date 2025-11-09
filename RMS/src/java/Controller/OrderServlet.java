@@ -407,6 +407,14 @@ public class OrderServlet extends HttpServlet {
                 return;
             }
 
+            // Check if menu item has recipe - REQUIRED for ordering
+            Dal.RecipeDAO recipeDAO = new Dal.RecipeDAO();
+            Models.Recipe recipe = recipeDAO.getRecipeByMenuItemId(menuItemId);
+            if (recipe == null) {
+                out.print("{\"error\":\"Món này chưa có công thức. Vui lòng liên hệ quản lý để cập nhật công thức.\"}");
+                return;
+            }
+
             // Check stock availability if recipe exists
             Utils.InventoryService inventoryService = new Utils.InventoryService();
             if (!inventoryService.canPrepareMenuItem(menuItemId, quantity)) {

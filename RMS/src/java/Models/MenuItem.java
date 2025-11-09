@@ -33,6 +33,8 @@ public class MenuItem implements Serializable {
     // >>> dynamic (không lưu DB):
     // giá hiển thị thực tế sau khi áp dụng PricingRule (happy hour)
     private BigDecimal displayPrice;
+    // có công thức hay không
+    private boolean hasRecipe = false;
 
     // Constructors
     public MenuItem() {}
@@ -102,6 +104,12 @@ public class MenuItem implements Serializable {
     public BigDecimal getDisplayPrice() { return displayPrice; }
     public void setDisplayPrice(BigDecimal displayPrice) { this.displayPrice = displayPrice; }
 
+    // recipe check getter/setter
+    public boolean hasRecipe() { return hasRecipe; }
+    public boolean isHasRecipe() { return hasRecipe; } // For JSP EL
+    public boolean getHasRecipe() { return hasRecipe; } // For JSP EL
+    public void setHasRecipe(boolean hasRecipe) { this.hasRecipe = hasRecipe; }
+
     // helpers for JSP
     public String getFormattedPrice() {
         return String.format("%,.0f đ", basePrice.doubleValue());
@@ -113,10 +121,13 @@ public class MenuItem implements Serializable {
     }
 
     public String getAvailabilityDisplay() {
+        if (availability == null) return "Có sẵn";
         switch (availability) {
             case "AVAILABLE": return "Có sẵn";
-            case "OUT_OF_STOCK": return "Hết hàng";
-            case "DISCONTINUED": return "Ngừng bán";
+            case "TEMP_UNAVAILABLE": return "Tạm hết hàng";
+            case "UNAVAILABLE": return "Tạm hết hàng";
+            case "OUT_OF_STOCK": return "Tạm hết hàng";
+            case "DISCONTINUED": return "Tạm hết hàng";
             default: return availability;
         }
     }
@@ -127,8 +138,11 @@ public class MenuItem implements Serializable {
 
     public String getStatusBadgeClass() {
         if (!isActive) return "bg-secondary";
+        if (availability == null) return "bg-success";
         switch (availability) {
             case "AVAILABLE": return "bg-success";
+            case "TEMP_UNAVAILABLE": return "bg-warning";
+            case "UNAVAILABLE": return "bg-warning";
             case "OUT_OF_STOCK": return "bg-warning";
             case "DISCONTINUED": return "bg-danger";
             default: return "bg-secondary";

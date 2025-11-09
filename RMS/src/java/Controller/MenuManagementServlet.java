@@ -69,7 +69,7 @@ public class MenuManagementServlet extends HttpServlet {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("errorMessage", "CÃ³ lá»—i xáº£y ra: " + e.getMessage());
+            request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
             request.getRequestDispatcher("/views/MenuManagement.jsp").forward(request, response);
         }
     }
@@ -112,7 +112,7 @@ public class MenuManagementServlet extends HttpServlet {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("errorMessage", "CÃ³ lá»—i xáº£y ra: " + e.getMessage());
+            request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
             handleListItems(request, response);
         }
     }
@@ -123,7 +123,7 @@ public class MenuManagementServlet extends HttpServlet {
 
     private boolean hasMenuManagementPermission(User user) {
         if (user == null) return false;
-        // tuá»³ logic: á»Ÿ Ä‘Ã¢y mÃ¬nh coi roleName = "Manager" má»›i Ä‘Æ°á»£c CRUD
+        // tuỳ logic: ở đây mình coi roleName = "Manager" mới được CRUD
         return "Manager".equalsIgnoreCase(user.getRoleName());
     }
 
@@ -172,7 +172,7 @@ public class MenuManagementServlet extends HttpServlet {
 
         int pageSize = 10;
 
-        // Láº¥y danh sÃ¡ch mÃ³n (bao gá»“m cáº£ mÃ³n bá»‹ táº¡m ngÆ°ng)
+        // Lấy danh sách món (bao gồm cả món bị tạm ngưng)
         List<MenuItem> menuItems = menuDAO.getAllMenuItemsForManagement(
                 page,
                 pageSize,
@@ -183,9 +183,14 @@ public class MenuManagementServlet extends HttpServlet {
                 isActive
         );
 
-        // GÃ¡n giÃ¡ hiá»‡n táº¡i (happy hour / rule) cho tá»«ng mÃ³n
+        // Gán giá hiện tại (happy hour / rule) cho từng món
+        // Và kiểm tra công thức
+        Dal.RecipeDAO recipeDAO = new Dal.RecipeDAO();
         for (MenuItem mi : menuItems) {
             mi.setDisplayPrice(pricingService.getCurrentPrice(mi));
+            // Check if has recipe
+            Models.Recipe recipe = recipeDAO.getRecipeByMenuItemId(mi.getItemId());
+            mi.setHasRecipe(recipe != null);
         }
 
         // Check if JSON response is requested
@@ -211,7 +216,8 @@ public class MenuManagementServlet extends HttpServlet {
                 json.append("\"imageUrl\":\"").append(escapeJson(mi.getImageUrl() != null ? mi.getImageUrl() : "")).append("\",");
                 json.append("\"categoryName\":\"").append(escapeJson(mi.getCategoryName() != null ? mi.getCategoryName() : "")).append("\",");
                 json.append("\"isActive\":").append(mi.isActive()).append(",");
-                json.append("\"availability\":\"").append(escapeJson(mi.getAvailability())).append("\"");
+                json.append("\"availability\":\"").append(escapeJson(mi.getAvailability())).append("\",");
+                json.append("\"hasRecipe\":").append(mi.isHasRecipe());
                 json.append("}");
             }
             json.append("]");
@@ -238,7 +244,7 @@ public class MenuManagementServlet extends HttpServlet {
         request.setAttribute("totalItems", totalItems);
         request.setAttribute("pageSize", pageSize);
 
-        // giá»¯ láº¡i filter state Ä‘á»ƒ form giá»¯ giÃ¡ trá»‹
+        // giữ lại filter state để form giữ giá trị
         request.setAttribute("searchParam", search);
         request.setAttribute("categoryParam", categoryParam);
         request.setAttribute("availabilityParam", availability);
@@ -269,12 +275,12 @@ public class MenuManagementServlet extends HttpServlet {
             MenuItem item = menuDAO.getMenuItemById(itemId);
 
             if (item == null) {
-                request.setAttribute("errorMessage", "KhÃ´ng tÃ¬m tháº¥y mÃ³n Äƒn.");
+                request.setAttribute("errorMessage", "Không tìm thấy món ăn.");
                 handleListItems(request, response);
                 return;
             }
 
-            // GiÃ¡ hiá»‡n táº¡i Ä‘á»ƒ show
+            // Giá hiện tại để show
             item.setDisplayPrice(pricingService.getCurrentPrice(item));
 
             List<MenuCategory> categories = menuDAO.getAllCategories();
@@ -298,7 +304,7 @@ public class MenuManagementServlet extends HttpServlet {
             throws ServletException, IOException {
 
         if (!hasMenuManagementPermission(currentUser)) {
-            request.setAttribute("errorMessage", "Báº¡n khÃ´ng cÃ³ quyá»n thÃªm mÃ³n Äƒn má»›i.");
+            request.setAttribute("errorMessage", "Bạn không có quyền thêm món ăn mới.");
             handleListItems(request, response);
             return;
         }
@@ -319,7 +325,7 @@ public class MenuManagementServlet extends HttpServlet {
             throws ServletException, IOException {
 
         if (!hasMenuManagementPermission(currentUser)) {
-            request.setAttribute("errorMessage", "Báº¡n khÃ´ng cÃ³ quyá»n chá»‰nh sá»­a mÃ³n Äƒn.");
+            request.setAttribute("errorMessage", "Bạn không có quyền chỉnh sửa món ăn.");
             handleListItems(request, response);
             return;
         }
@@ -335,12 +341,12 @@ public class MenuManagementServlet extends HttpServlet {
             MenuItem item = menuDAO.getMenuItemById(itemId);
 
             if (item == null) {
-                request.setAttribute("errorMessage", "KhÃ´ng tÃ¬m tháº¥y mÃ³n Äƒn.");
+                request.setAttribute("errorMessage", "Không tìm thấy món ăn.");
                 handleListItems(request, response);
                 return;
             }
 
-            // GiÃ¡ hiá»‡n táº¡i Ä‘á»ƒ hiá»ƒn thá»‹ trong form
+            // Giá hiện tại để hiển thị trong form
             item.setDisplayPrice(pricingService.getCurrentPrice(item));
 
             List<MenuCategory> categories = menuDAO.getAllCategories();
@@ -364,7 +370,7 @@ public class MenuManagementServlet extends HttpServlet {
             throws ServletException, IOException {
 
         if (!hasMenuManagementPermission(currentUser)) {
-            request.setAttribute("errorMessage", "Báº¡n khÃ´ng cÃ³ quyá»n thÃªm mÃ³n Äƒn má»›i.");
+            request.setAttribute("errorMessage", "Bạn không có quyền thêm món ăn mới.");
             handleListItems(request, response);
             return;
         }
@@ -382,7 +388,7 @@ public class MenuManagementServlet extends HttpServlet {
                 || priceParam == null || priceParam.trim().isEmpty()
                 || categoryIdParam == null || categoryIdParam.trim().isEmpty()) {
 
-            request.setAttribute("errorMessage", "Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin báº¯t buá»™c.");
+            request.setAttribute("errorMessage", "Vui lòng điền đầy đủ thông tin bắt buộc.");
             handleCreateForm(request, response, currentUser);
             return;
         }
@@ -398,7 +404,23 @@ public class MenuManagementServlet extends HttpServlet {
             item.setDescription(description != null ? description.trim() : "");
             item.setBasePrice(basePrice);
             item.setCategoryId(categoryId);
-            item.setAvailability(availability != null ? availability : "AVAILABLE");
+            
+            // Map availability values to match database constraint (AVAILABLE, TEMP_UNAVAILABLE)
+            String mappedAvailability = "AVAILABLE";
+            if (availability != null) {
+                if ("AVAILABLE".equals(availability)) {
+                    mappedAvailability = "AVAILABLE";
+                } else if ("TEMP_UNAVAILABLE".equals(availability) || 
+                          "UNAVAILABLE".equals(availability) || 
+                          "OUT_OF_STOCK".equals(availability) ||
+                          "DISCONTINUED".equals(availability)) {
+                    mappedAvailability = "TEMP_UNAVAILABLE";
+                } else {
+                    mappedAvailability = "AVAILABLE"; // Default
+                }
+            }
+            item.setAvailability(mappedAvailability);
+            
             item.setPreparationTime(preparationTime);
             item.setActive(isActive);
             item.setImageUrl(imageUrl);
@@ -407,15 +429,15 @@ public class MenuManagementServlet extends HttpServlet {
             boolean success = menuDAO.createMenuItem(item);
 
             if (success) {
-                request.getSession().setAttribute("successMessage", "ThÃªm mÃ³n Äƒn thÃ nh cÃ´ng!");
+                request.getSession().setAttribute("successMessage", "Thêm món ăn thành công!");
                 response.sendRedirect(request.getContextPath() + "/menu-management");
             } else {
-                request.setAttribute("errorMessage", "KhÃ´ng thá»ƒ thÃªm mÃ³n Äƒn. Vui lÃ²ng thá»­ láº¡i.");
+                request.setAttribute("errorMessage", "Không thể thêm món ăn. Vui lòng thử lại.");
                 handleCreateForm(request, response, currentUser);
             }
 
         } catch (NumberFormatException nfe) {
-            request.setAttribute("errorMessage", "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡. Vui lÃ²ng kiá»ƒm tra láº¡i.");
+            request.setAttribute("errorMessage", "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.");
             handleCreateForm(request, response, currentUser);
         }
     }
@@ -427,7 +449,7 @@ public class MenuManagementServlet extends HttpServlet {
             throws ServletException, IOException {
 
         if (!hasMenuManagementPermission(currentUser)) {
-            request.setAttribute("errorMessage", "Báº¡n khÃ´ng cÃ³ quyá»n chá»‰nh sá»­a mÃ³n Äƒn.");
+            request.setAttribute("errorMessage", "Bạn không có quyền chỉnh sửa món ăn.");
             handleListItems(request, response);
             return;
         }
@@ -447,7 +469,7 @@ public class MenuManagementServlet extends HttpServlet {
                 || priceParam == null || priceParam.trim().isEmpty()
                 || categoryIdParam == null || categoryIdParam.trim().isEmpty()) {
 
-            request.setAttribute("errorMessage", "Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin báº¯t buá»™c.");
+            request.setAttribute("errorMessage", "Vui lòng điền đầy đủ thông tin bắt buộc.");
             handleEditForm(request, response, currentUser);
             return;
         }
@@ -465,7 +487,23 @@ public class MenuManagementServlet extends HttpServlet {
             item.setDescription(description != null ? description.trim() : "");
             item.setBasePrice(basePrice);
             item.setCategoryId(categoryId);
-            item.setAvailability(availability != null ? availability : "AVAILABLE");
+            
+            // Map availability values to match database constraint (AVAILABLE, TEMP_UNAVAILABLE)
+            String mappedAvailability = "AVAILABLE";
+            if (availability != null) {
+                if ("AVAILABLE".equals(availability)) {
+                    mappedAvailability = "AVAILABLE";
+                } else if ("TEMP_UNAVAILABLE".equals(availability) || 
+                          "UNAVAILABLE".equals(availability) || 
+                          "OUT_OF_STOCK".equals(availability) ||
+                          "DISCONTINUED".equals(availability)) {
+                    mappedAvailability = "TEMP_UNAVAILABLE";
+                } else {
+                    mappedAvailability = "AVAILABLE"; // Default
+                }
+            }
+            item.setAvailability(mappedAvailability);
+            
             item.setPreparationTime(preparationTime);
             item.setActive(isActive);
             item.setImageUrl(imageUrl);
@@ -474,15 +512,15 @@ public class MenuManagementServlet extends HttpServlet {
             boolean success = menuDAO.updateMenuItem(item);
 
             if (success) {
-                request.getSession().setAttribute("successMessage", "Cáº­p nháº­t mÃ³n Äƒn thÃ nh cÃ´ng!");
+                request.getSession().setAttribute("successMessage", "Cập nhật món ăn thành công!");
                 response.sendRedirect(request.getContextPath() + "/menu-management");
             } else {
-                request.setAttribute("errorMessage", "KhÃ´ng thá»ƒ cáº­p nháº­t mÃ³n Äƒn. Vui lÃ²ng thá»­ láº¡i.");
+                request.setAttribute("errorMessage", "Không thể cập nhật món ăn. Vui lòng thử lại.");
                 handleEditForm(request, response, currentUser);
             }
 
         } catch (NumberFormatException nfe) {
-            request.setAttribute("errorMessage", "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡. Vui lÃ²ng kiá»ƒm tra láº¡i.");
+            request.setAttribute("errorMessage", "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.");
             handleEditForm(request, response, currentUser);
         }
     }
@@ -494,7 +532,7 @@ public class MenuManagementServlet extends HttpServlet {
             throws ServletException, IOException {
 
         if (!hasMenuManagementPermission(currentUser)) {
-            request.getSession().setAttribute("errorMessage", "Báº¡n khÃ´ng cÃ³ quyá»n xÃ³a mÃ³n Äƒn.");
+            request.getSession().setAttribute("errorMessage", "Bạn không có quyền xóa món ăn.");
             response.sendRedirect(request.getContextPath() + "/menu-management");
             return;
         }
@@ -511,9 +549,9 @@ public class MenuManagementServlet extends HttpServlet {
             boolean success = menuDAO.deleteMenuItem(itemId, currentUser.getUserId());
 
             if (success) {
-                request.getSession().setAttribute("successMessage", "XÃ³a mÃ³n Äƒn thÃ nh cÃ´ng!");
+                request.getSession().setAttribute("successMessage", "Xóa món ăn thành công!");
             } else {
-                request.getSession().setAttribute("errorMessage", "KhÃ´ng thá»ƒ xÃ³a mÃ³n Äƒn. Vui lÃ²ng thá»­ láº¡i.");
+                request.getSession().setAttribute("errorMessage", "Không thể xóa món ăn. Vui lòng thử lại.");
             }
 
             response.sendRedirect(request.getContextPath() + "/menu-management");
@@ -530,7 +568,7 @@ public class MenuManagementServlet extends HttpServlet {
             throws ServletException, IOException {
 
         if (!hasMenuManagementPermission(currentUser)) {
-            request.getSession().setAttribute("errorMessage", "Báº¡n khÃ´ng cÃ³ quyá»n thay Ä‘á»•i tráº¡ng thÃ¡i mÃ³n Äƒn.");
+            request.getSession().setAttribute("errorMessage", "Bạn không có quyền thay đổi trạng thái món ăn.");
             response.sendRedirect(request.getContextPath() + "/menu-management");
             return;
         }
@@ -550,10 +588,10 @@ public class MenuManagementServlet extends HttpServlet {
             boolean success = menuDAO.toggleMenuItemStatus(itemId, newStatus);
 
             if (success) {
-                String message = newStatus ? "ÄÃ£ kÃ­ch hoáº¡t mÃ³n Äƒn thÃ nh cÃ´ng!" : "ÄÃ£ táº¡m ngÆ°ng bÃ¡n mÃ³n thÃ nh cÃ´ng!";
+                String message = newStatus ? "Đã kích hoạt món ăn thành công!" : "Đã tạm ngưng bán món thành công!";
                 request.getSession().setAttribute("successMessage", message);
             } else {
-                request.getSession().setAttribute("errorMessage", "KhÃ´ng thá»ƒ thay Ä‘á»•i tráº¡ng thÃ¡i mÃ³n Äƒn. Vui lÃ²ng thá»­ láº¡i.");
+                request.getSession().setAttribute("errorMessage", "Không thể thay đổi trạng thái món ăn. Vui lòng thử lại.");
             }
 
             response.sendRedirect(request.getContextPath() + "/menu-management");

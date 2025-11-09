@@ -612,6 +612,22 @@
             </div>
         </c:if>
 
+        <!-- CẢNH BÁO MÓN CHƯA CÓ CÔNG THỨC -->
+        <c:set var="itemsWithoutRecipeCount" value="0"/>
+        <c:forEach var="item" items="${menuItems}">
+            <c:if test="${!item.hasRecipe}">
+                <c:set var="itemsWithoutRecipeCount" value="${itemsWithoutRecipeCount + 1}"/>
+            </c:if>
+        </c:forEach>
+        <c:if test="${itemsWithoutRecipeCount > 0}">
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Cảnh báo:</strong> Có <strong>${itemsWithoutRecipeCount}</strong> món chưa có công thức. 
+                Vui lòng cập nhật công thức để món có thể được đặt và trừ kho tự động.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        </c:if>
+
         <!-- BỘ LỌC / TÌM KIẾM -->
         <section class="filters-card">
             <div class="filters-head">
@@ -785,6 +801,11 @@
                                     <c:if test="${!item.active}">
                                         <span class="status-badge bg-secondary">
                                             <i class="bi bi-pause-circle"></i> Tạm ngưng
+                                        </span>
+                                    </c:if>
+                                    <c:if test="${!item.hasRecipe}">
+                                        <span class="status-badge bg-danger" title="Món này chưa có công thức, không thể đặt món">
+                                            <i class="bi bi-exclamation-triangle"></i> Chưa có công thức
                                         </span>
                                     </c:if>
                                 </div>
