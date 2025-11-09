@@ -1,9 +1,9 @@
 package Dal;
 
-import Models.InventoryItem;
+import Models.StockTransaction;
 import Models.Recipe;
 import Models.RecipeItem;
-import Models.StockTransaction;
+import Models.InventoryItem;
 import java.sql.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -46,6 +46,9 @@ public class StockTransactionDAO {
                 StockTransaction.TYPE_WASTE.equals(txn.getTxnType())) {
                 delta = delta.negate(); // Subtract for OUT/USAGE/WASTE
             }
+            // ADJUSTMENT: quantity can be positive (increase) or negative (decrease)
+            // So we use it as-is (delta = quantity, which can be negative)
+            // RETURN: add back to stock (delta = quantity, positive)
 
             String updateSql = "UPDATE inventory_items SET current_stock = current_stock + ? WHERE item_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(updateSql)) {

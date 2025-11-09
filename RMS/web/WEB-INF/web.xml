@@ -261,4 +261,15 @@
         <url-pattern>/view-reservation</url-pattern>
     </servlet-mapping>
 
+    <!-- Stock Transaction Servlet -->
+    <servlet>
+        <servlet-name>StockTransactionServlet</servlet-name>
+        <servlet-class>Controller.StockTransactionServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>StockTransactionServlet</servlet-name>
+        <url-pattern>/stock-transactions</url-pattern>
+    </servlet-mapping>
+
 </web-app>
