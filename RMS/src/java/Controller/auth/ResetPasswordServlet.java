@@ -1,7 +1,7 @@
 package Controller.auth;
 
 import Dal.PasswordResetDAO;
-import Dal.UserDAO;
+import Dal.AuthUserDAO;
 import Utils.HashUtil;
 
 import jakarta.servlet.ServletException;
@@ -12,6 +12,8 @@ import java.io.IOException;
 
 @WebServlet("/reset-password")
 public class ResetPasswordServlet extends HttpServlet {
+
+    private final AuthUserDAO authUserDAO = new AuthUserDAO();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -47,9 +49,7 @@ public class ResetPasswordServlet extends HttpServlet {
         long resetId = (Long) s.getAttribute("reset_token_id");
 
         try {
-            UserDAO userDAO = new UserDAO();
-            // boolean ok = userDAO.updatePasswordHash(userId, HashUtil.bcrypt(pw));
-            boolean ok = false; // Temporary workaround
+            boolean ok = authUserDAO.updatePasswordHash(userId, HashUtil.bcrypt(pw));
 
             if (ok) {
                 PasswordResetDAO prDAO = new PasswordResetDAO();

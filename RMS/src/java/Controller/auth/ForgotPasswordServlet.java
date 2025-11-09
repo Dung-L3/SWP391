@@ -1,7 +1,7 @@
 package Controller.auth;
 
 import Dal.PasswordResetDAO;
-import Dal.UserDAO;
+import Dal.AuthUserDAO;
 import Models.User;
 
 import jakarta.servlet.ServletException;
@@ -17,12 +17,15 @@ public class ForgotPasswordServlet extends HttpServlet {
 
     private static final int OTP_TTL_MINUTES = 2;
 
+    private final AuthUserDAO authUserDAO = new AuthUserDAO();
+
     // Tạo token URL-safe
     private static String generateToken(int bytes) {
         byte[] buf = new byte[bytes];
         new SecureRandom().nextBytes(buf);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(buf);
     }
+
     // OTP 6 số
     private static String generateOtp(int digits) {
         int bound = (int) Math.pow(10, digits);
@@ -48,9 +51,7 @@ public class ForgotPasswordServlet extends HttpServlet {
                         + OTP_TTL_MINUTES + " phút) đã được gửi.");
 
         try {
-            UserDAO userDAO = new UserDAO();
-            // User user = userDAO.findByUsernameOrEmail(identifier);
-            User user = null; // Temporary workaround
+            User user = authUserDAO.findByIdentifier(identifier);
 
             if (user != null && user.getEmail() != null && !user.getEmail().isBlank()) {
                 String token = generateToken(32);
@@ -58,17 +59,15 @@ public class ForgotPasswordServlet extends HttpServlet {
 
                 PasswordResetDAO prDAO = new PasswordResetDAO();
                 prDAO.invalidateActiveForUser(user.getUserId());
-                // Tạo bản ghi reset mới (DAO tự set created_at, expires_at = now + 2 phút)
                 prDAO.createReset(
                         user.getUserId(),
                         token,
                         otp,
-                        null, 
+                        null,
                         req.getRemoteAddr(),
                         req.getHeader("User-Agent")
                 );
 
-                // Dựng origin + link verify
                 String origin = req.getRequestURL().toString().replace(req.getRequestURI(), "");
                 String link = origin + req.getContextPath() + "/verify-otp?token=" + token;
 
@@ -76,7 +75,6 @@ public class ForgotPasswordServlet extends HttpServlet {
                 mailer.sendResetMail(user.getEmail(), link, otp);
             }
         } catch (Exception ex) {
-            
             ex.printStackTrace();
         }
 
