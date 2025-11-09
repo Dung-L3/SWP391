@@ -272,4 +272,16 @@
         <url-pattern>/stock-transactions</url-pattern>
     </servlet-mapping>
 
+    <!-- Revenue Report Servlet -->
+    <servlet>
+        <servlet-name>RevenueReportServlet</servlet-name>
+        <servlet-class>Controller.RevenueReportServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>RevenueReportServlet</servlet-name>
+        <url-pattern>/revenue-report</url-pattern>
+        <url-pattern>/revenue</url-pattern>
+    </servlet-mapping>
+
 </web-app>

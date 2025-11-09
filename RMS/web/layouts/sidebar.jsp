@@ -79,7 +79,7 @@
         <li><a class="${page == 'inventory' ? 'active' : ''}" href="inventory"><i class="bi bi-box-seam"></i>Kho hàng</a></li>
         <li><a class="${page == 'stock-transactions' ? 'active' : ''}" href="stock-transactions"><i class="bi bi-arrow-left-right"></i>Giao dịch kho</a></li>
         <li><a class="${page == 'recipe' ? 'active' : ''}" href="recipe-management"><i class="bi bi-list-check"></i>Công thức món</a></li>
-        <li><a class="${page == 'reports' ? 'active' : ''}" href="<c:url value='/reports'/>"><i class="bi bi-graph-up"></i>Báo cáo</a></li>
+        <li><a class="${page == 'revenue-report' ? 'active' : ''}" href="<c:url value='/revenue-report'/>"><i class="bi bi-graph-up"></i>Báo cáo doanh thu</a></li>
         <li><a class="${page == 'audit' ? 'active' : ''}" href="<c:url value='/audit-log'/>"><i class="bi bi-clipboard-data"></i>Nhật ký hệ thống</a></li>
         <li><a class="${page == 'settings' ? 'active' : ''}" href="<c:url value='/settings'/>"><i class="bi bi-gear"></i>Cấu hình</a></li>
         </c:if>
@@ -111,16 +111,56 @@
       <c:choose>
         <c:when test="${not empty staffList}">
           <c:forEach var="s" items="${staffList}">
+            <%
+              // Determine if it's Staff or User by checking for position property
+              Object staffObj = pageContext.getAttribute("s");
+              String roleDisplay = "Staff";
+              String statusDisplay = "ACTIVE";
+              
+              try {
+                // Try to access position (Staff has it)
+                java.lang.reflect.Method getPosition = staffObj.getClass().getMethod("getPosition");
+                Object position = getPosition.invoke(staffObj);
+                if (position != null) {
+                  roleDisplay = position.toString();
+                }
+                
+                java.lang.reflect.Method getStatus = staffObj.getClass().getMethod("getStatus");
+                Object status = getStatus.invoke(staffObj);
+                if (status != null) {
+                  statusDisplay = status.toString();
+                }
+              } catch (Exception e) {
+                // It's User, try roleName and accountStatus
+                try {
+                  java.lang.reflect.Method getRoleName = staffObj.getClass().getMethod("getRoleName");
+                  Object roleName = getRoleName.invoke(staffObj);
+                  if (roleName != null) {
+                    roleDisplay = roleName.toString();
+                  }
+                  
+                  java.lang.reflect.Method getAccountStatus = staffObj.getClass().getMethod("getAccountStatus");
+                  Object accountStatus = getAccountStatus.invoke(staffObj);
+                  if (accountStatus != null) {
+                    statusDisplay = accountStatus.toString();
+                  }
+                } catch (Exception e2) {
+                  // Use defaults
+                }
+              }
+              pageContext.setAttribute("roleDisplay", roleDisplay);
+              pageContext.setAttribute("statusDisplay", statusDisplay);
+            %>
             <div class="staff-item">
               <img src="<c:url value='/img/team-1.jpg'/>" alt="avatar">
               <div class="flex-grow-1">
                 <div class="d-flex align-items-center gap-2">
                   <span class="text-white fw-semibold">${s.firstName} ${s.lastName}</span>
-                  <span class="role-pill">${s.position}</span>
+                  <span class="role-pill">${roleDisplay}</span>
                 </div>
                 <div class="small text-muted">${s.email}</div>
               </div>
-              <span class="badge ${s.status == 'ACTIVE' ? 'bg-success' : 'bg-secondary'}">${s.status}</span>
+              <span class="badge ${statusDisplay == 'ACTIVE' ? 'bg-success' : 'bg-secondary'}">${statusDisplay}</span>
             </div>
           </c:forEach>
         </c:when>
