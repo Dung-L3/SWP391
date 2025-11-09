@@ -86,9 +86,9 @@ public class Order implements Serializable {
         this.tableId = tableId;
         this.waiterId = waiterId;
 
-        // Khi order vừa mở bàn, ta coi là khách đang ngồi ăn -> DINING
-        // (để ReceptionServlet hiển thị "Đang phục vụ")
-        this.status = STATUS_DINING;
+        // Khi order vừa mở bàn, set status = OPEN (theo DB constraint)
+        // (order đang mở, waiter có thể thêm món)
+        this.status = STATUS_OPEN;
 
         this.subtotal = BigDecimal.ZERO;
         this.taxAmount = BigDecimal.ZERO;

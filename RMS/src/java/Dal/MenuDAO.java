@@ -243,6 +243,164 @@ public class MenuDAO {
         }
     }
 
+    /**
+     * Toggle menu item active status (suspend/activate)
+     */
+    public boolean toggleMenuItemStatus(int itemId, boolean newStatus) {
+        String sql = "UPDATE menu_items SET is_active = ? WHERE menu_item_id = ?";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBoolean(1, newStatus);
+            ps.setInt(2, itemId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Get all menu items including inactive ones (for management)
+     */
+    public List<MenuItem> getAllMenuItemsForManagement(int page, int pageSize, String search, Integer categoryId, String availability, String sortBy, Boolean isActive) {
+        List<MenuItem> items = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+
+        sql.append("SELECT mi.menu_item_id, mi.category_id, mi.name, mi.description, mi.base_price, ");
+        sql.append("mi.availability, mi.preparation_time, mi.is_active, mi.image_url, ");
+        sql.append("CASE mi.category_id ");
+        sql.append("  WHEN 1 THEN N'Khai vị' ");
+        sql.append("  WHEN 2 THEN N'Món chính' ");
+        sql.append("  WHEN 3 THEN N'Món phụ' ");
+        sql.append("  WHEN 4 THEN N'Tráng miệng' ");
+        sql.append("  WHEN 5 THEN N'Đồ uống' ");
+        sql.append("  ELSE N'Khác' ");
+        sql.append("END as category_name, ");
+        sql.append("u1.first_name + ' ' + u1.last_name as created_by_name ");
+        sql.append("FROM menu_items mi ");
+        sql.append("LEFT JOIN users u1 ON mi.created_by = u1.user_id ");
+        sql.append("WHERE 1=1 ");
+
+        List<Object> params = new ArrayList<>();
+
+        if (isActive != null) {
+            sql.append("AND mi.is_active = ? ");
+            params.add(isActive);
+        }
+
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append("AND (mi.name LIKE ? OR mi.description LIKE ?) ");
+            String p = "%" + search.trim() + "%";
+            params.add(p);
+            params.add(p);
+        }
+
+        if (categoryId != null && categoryId > 0) {
+            sql.append("AND mi.category_id = ? ");
+            params.add(categoryId);
+        }
+
+        if (availability != null && !availability.isEmpty() && !"ALL".equals(availability)) {
+            sql.append("AND mi.availability = ? ");
+            params.add(availability);
+        }
+
+        if (sortBy != null && !sortBy.isEmpty()) {
+            switch (sortBy) {
+                case "name_asc":
+                    sql.append("ORDER BY mi.name ASC ");
+                    break;
+                case "name_desc":
+                    sql.append("ORDER BY mi.name DESC ");
+                    break;
+                case "price_asc":
+                    sql.append("ORDER BY mi.base_price ASC ");
+                    break;
+                case "price_desc":
+                    sql.append("ORDER BY mi.base_price DESC ");
+                    break;
+                case "category":
+                    sql.append("ORDER BY mi.category_id, mi.name ");
+                    break;
+                default:
+                    sql.append("ORDER BY mi.category_id, mi.name ");
+            }
+        } else {
+            sql.append("ORDER BY mi.category_id, mi.name ");
+        }
+
+        sql.append("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
+        params.add((page - 1) * pageSize);
+        params.add(pageSize);
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    items.add(mapResultSetToMenuItem(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return items;
+    }
+
+    /**
+     * Get total count including inactive items
+     */
+    public int getTotalMenuItemsCountForManagement(String search, Integer categoryId, String availability, Boolean isActive) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT COUNT(*) FROM menu_items mi WHERE 1=1 ");
+
+        List<Object> params = new ArrayList<>();
+
+        if (isActive != null) {
+            sql.append("AND mi.is_active = ? ");
+            params.add(isActive);
+        }
+
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append("AND (mi.name LIKE ? OR mi.description LIKE ?) ");
+            String p = "%" + search.trim() + "%";
+            params.add(p);
+            params.add(p);
+        }
+
+        if (categoryId != null && categoryId > 0) {
+            sql.append("AND mi.category_id = ? ");
+            params.add(categoryId);
+        }
+
+        if (availability != null && !availability.isEmpty() && !"ALL".equals(availability)) {
+            sql.append("AND mi.availability = ? ");
+            params.add(availability);
+        }
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return 0;
+    }
+
     private MenuItem mapResultSetToMenuItem(ResultSet rs) throws SQLException {
         MenuItem item = new MenuItem();
 

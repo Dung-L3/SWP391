@@ -100,6 +100,9 @@ public class TakeawayOrderServlet extends HttpServlet {
 
                 MenuItem menuItem = menuDAO.getMenuItemById(menuItemId);
                 if (menuItem == null) continue;
+                
+                // Skip if menu item is not active (suspended)
+                if (!menuItem.isActive()) continue;
 
                 BigDecimal basePrice = menuItem.getBasePrice();
                 BigDecimal currentPrice = pricingService.getCurrentPrice(menuItem);

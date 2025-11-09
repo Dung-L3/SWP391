@@ -246,6 +246,17 @@
             grid-template-columns:72px 1fr auto;
             column-gap:12px;
         }
+        .menu-item-row.disabled-item{
+            background:#f5f5f5;
+            opacity:0.7;
+            border:1px solid rgba(0,0,0,.12);
+        }
+        .menu-item-row.disabled-item .menu-name{
+            color:#6b7280;
+        }
+        .menu-item-row.disabled-item .menu-price{
+            color:#9ca3af;
+        }
         @media(max-width:500px){
             .menu-item-row{grid-template-columns:60px 1fr;}
         }
@@ -293,6 +304,19 @@
             font-size:.75rem;font-weight:600;line-height:1.2;
             padding:.5rem .75rem;display:inline-flex;align-items:center;gap:.4rem;
             box-shadow:0 16px 32px rgba(254,161,22,.4);
+        }
+        .add-btn:disabled, .qty-btn:disabled{
+            opacity:0.5;
+            cursor:not-allowed;
+            background:#9ca3af;
+            border-color:#6b7280;
+            color:#fff;
+            box-shadow:none;
+        }
+        .qty-input:disabled{
+            background:#e5e7eb;
+            color:#6b7280;
+            cursor:not-allowed;
         }
 
         /* ============ RIGHT PANEL (CART / NOTE / TOTAL) ============ */
@@ -730,7 +754,9 @@
                             description: item.description || '',
                             price: Number(item.basePrice || item.displayPrice || 0),
                             image: item.imageUrl || (CTX + '/img/menu-1.jpg'),
-                            category: item.categoryId || 1
+                            category: item.categoryId || 1,
+                            isActive: item.isActive !== undefined ? item.isActive : true,
+                            availability: item.availability || 'AVAILABLE'
                         };
                     });
                 } else {
@@ -834,34 +860,41 @@
             items.forEach(function(it){
                 var qty = getItemQty(it.itemId);
                 var safeImg = it.image || (CTX + '/img/menu-1.jpg');
+                var isDisabled = !it.isActive;
 
                 var row = document.createElement('div');
-                row.className = 'menu-item-row';
+                row.className = 'menu-item-row' + (isDisabled ? ' disabled-item' : '');
+
+                var statusBadge = '';
+                if (isDisabled) {
+                    statusBadge = '<span class="badge bg-secondary ms-2"><i class="bi bi-pause-circle"></i> Tạm ngưng</span>';
+                }
 
                 row.innerHTML =
                     '<div class="menu-thumb">'+
                         '<img src="'+ safeImg +'" '+
                              'onerror="this.src=\''+ CTX +'/img/menu-1.jpg\';" '+
-                             'alt="'+ it.name +'">'+
+                             'alt="'+ it.name +'" '+
+                             (isDisabled ? 'style="opacity:0.5"' : '') +'>'+
                     '</div>'+
                     '<div class="menu-main">'+
                         '<div>'+
                             '<div class="menu-name-line">'+
-                                '<div class="menu-name">'+ it.name +'</div>'+
+                                '<div class="menu-name">'+ it.name + statusBadge +'</div>'+
                                 '<div class="menu-price">'+ fmtPrice(it.price) +'</div>'+
                             '</div>'+
-                            '<div class="menu-desc">'+ (it.description || '') +'</div>'+
+                            '<div class="menu-desc">'+ (it.description || '') + (isDisabled ? ' <strong class="text-danger">(Không thể đặt)</strong>' : '') +'</div>'+
                         '</div>'+
                     '</div>'+
                     '<div class="menu-qty-col">'+
                         '<div class="qty-controls">'+
-                            '<button class="qty-btn" onclick="decreaseQuantity('+ it.itemId +')"><i class="bi bi-dash-lg"></i></button>'+
-                            '<input class="qty-input" id="qty-'+ it.itemId +'" type="number" min="0" value="'+ qty +'" onchange="updateQuantity('+ it.itemId +', this.value)">'+
-                            '<button class="qty-btn" onclick="increaseQuantity('+ it.itemId +')"><i class="bi bi-plus-lg"></i></button>'+
+                            '<button class="qty-btn" onclick="decreaseQuantity('+ it.itemId +')" '+ (isDisabled ? 'disabled' : '') +'><i class="bi bi-dash-lg"></i></button>'+
+                            '<input class="qty-input" id="qty-'+ it.itemId +'" type="number" min="0" value="'+ qty +'" onchange="updateQuantity('+ it.itemId +', this.value)" '+ (isDisabled ? 'disabled' : '') +'>'+
+                            '<button class="qty-btn" onclick="increaseQuantity('+ it.itemId +')" '+ (isDisabled ? 'disabled' : '') +'><i class="bi bi-plus-lg"></i></button>'+
                         '</div>'+
-                        '<button class="add-btn" onclick="addToCart('+ it.itemId +')">'+
+                        '<button class="add-btn" onclick="addToCart('+ it.itemId +')" '+ (isDisabled ? 'disabled' : '') +'>'+
                             '<i class="bi bi-cart-plus"></i>'+
-                            '<span>'+ (qty>0 ? ('Cập nhật ('+qty+')') : 'Thêm món') +'</span>'+
+                            '<span>'+ (isDisabled ? 'Không có sẵn' : (qty>0 ? ('Cập nhật ('+qty+')') : 'Thêm món')) +'</span>'+
                         '</button>'+
                     '</div>';
 
@@ -874,6 +907,13 @@
     function addToCart(itemId){
         var m = menuItems.find(function(i){return i.itemId===itemId;});
         if(!m) return;
+        
+        // Check if item is active
+        if(!m.isActive){
+            alert('Món "' + m.name + '" hiện đang tạm ngưng bán. Vui lòng chọn món khác.');
+            return;
+        }
+        
         var ex = cart.find(function(ci){return ci.itemId===itemId;});
         if(ex){
             ex.quantity += 1;
@@ -890,6 +930,12 @@
     }
 
     function increaseQuantity(itemId){
+        var m = menuItems.find(function(i){return i.itemId===itemId;});
+        if(m && !m.isActive){
+            alert('Món "' + m.name + '" hiện đang tạm ngưng bán.');
+            return;
+        }
+        
         var it = cart.find(function(ci){return ci.itemId===itemId;});
         if(it){
             it.quantity += 1;
@@ -922,6 +968,14 @@
             }else{
                 var m = menuItems.find(function(i){return i.itemId===itemId;});
                 if(!m) return;
+                
+                // Check if item is active
+                if(!m.isActive){
+                    alert('Món "' + m.name + '" hiện đang tạm ngưng bán. Vui lòng chọn món khác.');
+                    document.getElementById('qty-' + itemId).value = 0;
+                    return;
+                }
+                
                 cart.push({
                     itemId:m.itemId,
                     name:m.name,

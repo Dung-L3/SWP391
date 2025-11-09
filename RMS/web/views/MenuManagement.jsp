@@ -656,9 +656,9 @@
                     </select>
                 </div>
 
-                <!-- Trạng thái -->
+                <!-- Trạng thái bán -->
                 <div class="col-md-2">
-                    <label for="availability" class="form-label">Trạng thái</label>
+                    <label for="availability" class="form-label">Trạng thái bán</label>
                     <select class="form-select" id="availability" name="availability">
                         <option value="">Tất cả</option>
                         <option value="AVAILABLE"
@@ -667,6 +667,16 @@
                             <c:if test="${availabilityParam == 'OUT_OF_STOCK'}">selected</c:if>>Hết hàng</option>
                         <option value="DISCONTINUED"
                             <c:if test="${availabilityParam == 'DISCONTINUED'}">selected</c:if>>Ngừng bán</option>
+                    </select>
+                </div>
+
+                <!-- Trạng thái hoạt động -->
+                <div class="col-md-2">
+                    <label for="status" class="form-label">Hoạt động</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">Tất cả</option>
+                        <option value="active" <c:if test="${statusParam == 'active'}">selected</c:if>>Đang bán</option>
+                        <option value="inactive" <c:if test="${statusParam == 'inactive'}">selected</c:if>>Tạm ngưng</option>
                     </select>
                 </div>
 
@@ -684,7 +694,7 @@
                 </div>
 
                 <!-- Nút submit -->
-                <div class="col-md-1 d-flex align-items-end">
+                <div class="col-md-12 col-lg-1 d-flex align-items-end">
                     <button type="submit" class="btn btn-filter-icon w-100">
                         <i class="bi bi-funnel"></i>
                     </button>
@@ -700,7 +710,8 @@
                 <c:if test="${not empty searchParam
                               or not empty categoryParam
                               or not empty availabilityParam
-                              or not empty sortByParam}">
+                              or not empty sortByParam
+                              or not empty statusParam}">
                     <a href="${pageContext.request.contextPath}/menu-management"
                        class="btn btn-outline-secondary btn-sm clear-filter-btn">
                         <i class="bi bi-x-circle me-1"></i>Xóa bộ lọc
@@ -767,9 +778,16 @@
                                     </div>
                                 </div>
 
+                                <div class="d-flex flex-column gap-1">
                                 <span class="status-badge ${item.statusBadgeClass}">
                                     ${item.availabilityDisplay}
                                 </span>
+                                    <c:if test="${!item.active}">
+                                        <span class="status-badge bg-secondary">
+                                            <i class="bi bi-pause-circle"></i> Tạm ngưng
+                                        </span>
+                                    </c:if>
+                                </div>
                             </div>
 
                             <!-- khối giá + thời gian chế biến -->
@@ -816,15 +834,34 @@
                                     </a>
 
                                     <c:if test="${sessionScope.user.roleName eq 'Manager'}">
-                                        <a href="${pageContext.request.contextPath}/menu-management?action=edit&id=${item.itemId}"
+                                        <c:choose>
+                                            <c:when test="${item.active}">
+                                                <button type="button"
                                            class="btn btn-outline-warning btn-action"
+                                                        title="Tạm ngưng bán"
+                                                        onclick="confirmToggleStatus(${item.itemId}, '${fn:escapeXml(item.name)}', false)">
+                                                    <i class="bi bi-pause-circle"></i>
+                                                </button>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <button type="button"
+                                                        class="btn btn-outline-success btn-action"
+                                                        title="Kích hoạt lại"
+                                                        onclick="confirmToggleStatus(${item.itemId}, '${fn:escapeXml(item.name)}', true)">
+                                                    <i class="bi bi-play-circle"></i>
+                                                </button>
+                                            </c:otherwise>
+                                        </c:choose>
+
+                                        <a href="${pageContext.request.contextPath}/menu-management?action=edit&id=${item.itemId}"
+                                           class="btn btn-outline-primary btn-action"
                                            title="Chỉnh sửa">
                                             <i class="bi bi-pencil"></i>
                                         </a>
 
                                         <button type="button"
                                                 class="btn btn-outline-danger btn-action"
-                                                title="Xóa"
+                                                title="Xóa vĩnh viễn"
                                                 onclick="confirmDelete(${item.itemId}, '${fn:escapeXml(item.name)}')">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -950,6 +987,18 @@ function confirmDelete(itemId,itemName){
     document.getElementById('itemNameToDelete').textContent=itemName;
     var modal=new bootstrap.Modal(document.getElementById('deleteModal'));
     modal.show();
+}
+
+function confirmToggleStatus(itemId, itemName, activate) {
+    var action = activate ? 'kích hoạt lại' : 'tạm ngưng bán';
+    var message = activate 
+        ? 'Bạn có muốn kích hoạt lại món "' + itemName + '" không?' 
+        : 'Bạn có muốn tạm ngưng bán món "' + itemName + '" không?';
+    
+    if (confirm(message)) {
+        var url = '${pageContext.request.contextPath}/menu-management?action=toggle-status&id=' + itemId + '&newStatus=' + activate;
+        window.location.href = url;
+    }
 }
 
 // auto-close alerts

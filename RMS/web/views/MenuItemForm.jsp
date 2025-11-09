@@ -260,7 +260,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label class="form-label">
-                                            <i class="bi bi-check-circle text-primary me-1"></i> Trạng thái
+                                            <i class="bi bi-check-circle text-primary me-1"></i> Trạng thái bán hàng
                                         </label>
                                         <select class="form-select ${viewMode == 'view' ? 'readonly-field' : ''}" 
                                                 name="availability" 
@@ -272,6 +272,27 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            <c:if test="${viewMode != 'view'}">
+                                <div class="form-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               role="switch" 
+                                               id="isActive" 
+                                               name="isActive" 
+                                               value="true"
+                                               ${menuItem.active || viewMode == 'create' ? 'checked' : ''}>
+                                        <label class="form-check-label" for="isActive">
+                                            <i class="bi bi-toggle-on text-success me-1"></i>
+                                            <strong>Đang hoạt động / bán món này</strong>
+                                            <small class="text-muted d-block mt-1">
+                                                Tắt để tạm ngưng bán món mà không xóa khỏi hệ thống
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </c:if>
                             
                             <c:if test="${viewMode != 'view'}">
                                 <div class="form-group">

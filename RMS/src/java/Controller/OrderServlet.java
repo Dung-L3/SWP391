@@ -344,9 +344,9 @@ public class OrderServlet extends HttpServlet {
             Order order = new Order(orderType, tableId, user.getUserId());
             order.setSpecialInstructions(orderNotes);
 
-            // Khi mới tạo, set trạng thái ngay là DINING
-            // (khách đang gọi món / đang phục vụ)
-            order.setStatus(Order.STATUS_DINING);
+            // Khi mới tạo, set trạng thái là OPEN (theo DB constraint)
+            // (order đang mở, waiter có thể thêm món)
+            order.setStatus(Order.STATUS_OPEN);
 
             Long orderId = orderDAO.createOrder(order);
             if (orderId == null) {
@@ -398,6 +398,12 @@ public class OrderServlet extends HttpServlet {
             MenuItem menuItem = menuDAO.getMenuItemById(menuItemId);
             if (menuItem == null) {
                 out.print("{\"error\":\"Menu item not found\"}");
+                return;
+            }
+            
+            // Check if menu item is active (not suspended)
+            if (!menuItem.isActive()) {
+                out.print("{\"error\":\"Món này hiện đang tạm ngưng bán. Vui lòng chọn món khác.\"}");
                 return;
             }
 
