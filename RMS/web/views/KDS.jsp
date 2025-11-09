@@ -1,5 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 
 <%
     request.setCharacterEncoding("UTF-8");
@@ -961,37 +962,47 @@
                         </div>
 
                         <div class="ticket-actions">
-                            <c:choose>
-                                <c:when test="${ticket.preparationStatus == 'RECEIVED'}">
-                                    <button class="btn-status-next"
-                                            onclick="updateStatus(${ticket.kitchenTicketId}, 'COOKING')">
-                                        <i class="bi bi-play-fill"></i><span>Start</span>
+                            <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+                                <c:choose>
+                                    <c:when test="${ticket.preparationStatus == 'RECEIVED'}">
+                                        <button class="btn-status-next"
+                                                onclick="updateStatus(${ticket.kitchenTicketId}, 'COOKING')">
+                                            <i class="bi bi-play-fill"></i><span>Start</span>
+                                        </button>
+                                    </c:when>
+                                    <c:when test="${ticket.preparationStatus == 'COOKING'}">
+                                        <button class="btn-status-next ready-step"
+                                                onclick="updateStatus(${ticket.kitchenTicketId}, 'READY')">
+                                            <i class="bi bi-check"></i><span>Ready</span>
+                                        </button>
+                                    </c:when>
+                                    <c:when test="${ticket.preparationStatus == 'READY'}">
+                                        <button class="btn-status-next serve-step"
+                                                onclick="updateStatus(${ticket.kitchenTicketId}, 'PICKED')">
+                                            <i class="bi bi-hand-index-fill"></i><span>Picked</span>
+                                        </button>
+                                    </c:when>
+                                    <c:when test="${ticket.preparationStatus == 'PICKED'}">
+                                        <button class="btn-status-next serve-step"
+                                                onclick="updateStatus(${ticket.kitchenTicketId}, 'SERVED')">
+                                            <i class="bi bi-check2-all"></i><span>Served</span>
+                                        </button>
+                                    </c:when>
+                                    <c:otherwise>
+                                        <button class="btn-status-next disabled" disabled>
+                                            <i class="bi bi-check2"></i><span>Done</span>
+                                        </button>
+                                    </c:otherwise>
+                                </c:choose>
+                                
+                                <c:if test="${ticket.preparationStatus != 'CANCELLED' && ticket.preparationStatus != 'SERVED'}">
+                                    <button class="btn-status-next" 
+                                            style="background:linear-gradient(135deg,#dc2626 0%,#991b1b 100%);"
+                                            onclick="showCancelModal(${ticket.kitchenTicketId}, '${fn:escapeXml(ticket.menuItemName)}', '${ticket.tableNumber}')">
+                                        <i class="bi bi-x-circle"></i><span>Hủy</span>
                                     </button>
-                                </c:when>
-                                <c:when test="${ticket.preparationStatus == 'COOKING'}">
-                                    <button class="btn-status-next ready-step"
-                                            onclick="updateStatus(${ticket.kitchenTicketId}, 'READY')">
-                                        <i class="bi bi-check"></i><span>Ready</span>
-                                    </button>
-                                </c:when>
-                                <c:when test="${ticket.preparationStatus == 'READY'}">
-                                    <button class="btn-status-next serve-step"
-                                            onclick="updateStatus(${ticket.kitchenTicketId}, 'PICKED')">
-                                        <i class="bi bi-hand-index-fill"></i><span>Picked</span>
-                                    </button>
-                                </c:when>
-                                <c:when test="${ticket.preparationStatus == 'PICKED'}">
-                                    <button class="btn-status-next serve-step"
-                                            onclick="updateStatus(${ticket.kitchenTicketId}, 'SERVED')">
-                                        <i class="bi bi-check2-all"></i><span>Served</span>
-                                    </button>
-                                </c:when>
-                                <c:otherwise>
-                                    <button class="btn-status-next disabled" disabled>
-                                        <i class="bi bi-check2"></i><span>Done</span>
-                                    </button>
-                                </c:otherwise>
-                            </c:choose>
+                                </c:if>
+                            </div>
                         </div>
                     </div>
                 </c:forEach>
@@ -1176,6 +1187,39 @@
     // change filters => reload
     document.getElementById('stationFilter').addEventListener('change', refreshTickets);
     document.getElementById('statusFilter').addEventListener('change', refreshTickets);
+    
+    // Hủy đơn
+    function showCancelModal(ticketId, menuItemName, tableNumber) {
+        const reason = prompt('Nhập lý do hủy đơn cho món "' + menuItemName + '" từ bàn ' + tableNumber + ':');
+        if (reason && reason.trim() !== '') {
+            if (confirm('Bạn có chắc chắn muốn hủy đơn này? Lý do: ' + reason)) {
+                cancelTicket(ticketId, reason.trim());
+            }
+        }
+    }
+    
+    function cancelTicket(ticketId, reason) {
+        fetch('${pageContext.request.contextPath}/kds/tickets/' + ticketId + '/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'reason=' + encodeURIComponent(reason)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Đã hủy đơn thành công. Thông báo đã được gửi cho manager.');
+                location.reload();
+            } else {
+                alert('Lỗi: ' + (data.error || 'Không thể hủy đơn'));
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('Có lỗi xảy ra khi hủy đơn.');
+        });
+    }
 </script>
+
+<!-- Modal hủy đơn (có thể dùng Bootstrap modal nếu muốn) -->
 </body>
 </html>

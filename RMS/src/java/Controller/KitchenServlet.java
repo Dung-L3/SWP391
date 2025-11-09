@@ -1,7 +1,10 @@
 package Controller;
 
 import Dal.KitchenDAO;
+import Dal.NotificationDAO;
+import Dal.OrderDAO;
 import Models.KitchenTicket;
+import Models.Notification;
 import Models.User;
 import Utils.RoleBasedRedirect;
 import jakarta.servlet.ServletException;
@@ -12,6 +15,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -21,6 +25,8 @@ import java.util.List;
 public class KitchenServlet extends HttpServlet {
 
     private KitchenDAO kitchenDAO = new KitchenDAO();
+    private NotificationDAO notificationDAO = new NotificationDAO();
+    private OrderDAO orderDAO = new OrderDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -83,6 +89,15 @@ public class KitchenServlet extends HttpServlet {
             try {
                 Long ticketId = Long.parseLong(ticketIdStr);
                 updateTicketStatus(request, response, ticketId, user);
+            } catch (NumberFormatException e) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid ticket ID");
+            }
+        } else if (pathInfo.matches("/tickets/\\d+/cancel")) {
+            // POST /kds/tickets/{ticketId}/cancel - Hủy ticket
+            String ticketIdStr = pathInfo.substring(pathInfo.indexOf("/tickets/") + 9, pathInfo.indexOf("/cancel"));
+            try {
+                Long ticketId = Long.parseLong(ticketIdStr);
+                cancelTicket(request, response, ticketId, user);
             } catch (NumberFormatException e) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid ticket ID");
             }
@@ -177,6 +192,63 @@ public class KitchenServlet extends HttpServlet {
             }
         } catch (Exception e) {
             System.err.println("Error updating ticket status: " + e.getMessage());
+            e.printStackTrace();
+            out.print("{\"error\":\"" + e.getMessage().replace("\"", "\\\"") + "\"}");
+        }
+    }
+    
+    /**
+     * Hủy kitchen ticket
+     */
+    private void cancelTicket(HttpServletRequest request, HttpServletResponse response, Long ticketId, User user)
+            throws ServletException, IOException {
+        
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        
+        try {
+            String cancelReason = request.getParameter("reason");
+            if (cancelReason == null || cancelReason.trim().isEmpty()) {
+                out.print("{\"error\":\"Lý do hủy là bắt buộc\"}");
+                return;
+            }
+            
+            // Lấy thông tin ticket trước khi hủy
+            KitchenTicket ticket = kitchenDAO.getKitchenTicketById(ticketId);
+            if (ticket == null) {
+                out.print("{\"error\":\"Không tìm thấy ticket\"}");
+                return;
+            }
+            
+            // Hủy ticket và order item
+            boolean success = kitchenDAO.cancelKitchenTicket(ticketId, cancelReason);
+            
+            if (success) {
+                // Lấy menu_item_id từ order_item
+                Integer menuItemId = orderDAO.getMenuItemIdByOrderItemId(ticket.getOrderItemId());
+                
+                // Tạo thông báo cho manager
+                Notification notification = new Notification();
+                notification.setNotificationType(Notification.TYPE_ORDER_CANCELLED);
+                notification.setTitle("Đơn hàng bị hủy");
+                notification.setMessage("Chef " + user.getFirstName() + " " + user.getLastName() + 
+                    " đã hủy món " + ticket.getMenuItemName() + " từ bàn " + ticket.getTableNumber() + 
+                    ". Lý do: " + cancelReason);
+                notification.setMenuItemId(menuItemId);
+                notification.setOrderItemId(ticket.getOrderItemId().intValue());
+                notification.setCreatedBy(user.getUserId());
+                notification.setMenuItemName(ticket.getMenuItemName());
+                notification.setTableNumber(ticket.getTableNumber());
+                notification.setCancelReason(cancelReason);
+                
+                notificationDAO.createNotification(notification);
+                
+                out.print("{\"success\":true,\"message\":\"Đã hủy đơn và gửi thông báo cho manager\"}");
+            } else {
+                out.print("{\"error\":\"Không thể hủy đơn\"}");
+            }
+        } catch (Exception e) {
+            System.err.println("Error cancelling ticket: " + e.getMessage());
             e.printStackTrace();
             out.print("{\"error\":\"" + e.getMessage().replace("\"", "\\\"") + "\"}");
         }

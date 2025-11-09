@@ -243,18 +243,92 @@ public class KitchenDAO {
      * Cập nhật order item status khi kitchen ticket thay đổi
      */
     public boolean updateOrderItemStatus(Long orderItemId, String status, Integer updatedBy) throws SQLException {
-        String sql = "UPDATE order_items SET status = ?, updated_at = ?, updated_by = ? WHERE order_item_id = ?";
+        String sql = "UPDATE order_items SET status = ? WHERE order_item_id = ?";
 
         try (Connection conn = DBConnect.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, status);
-            ps.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setInt(3, updatedBy);
-            ps.setLong(4, orderItemId);
+            ps.setLong(2, orderItemId);
 
             return ps.executeUpdate() > 0;
         }
+    }
+    
+    /**
+     * Hủy kitchen ticket và order item
+     */
+    public boolean cancelKitchenTicket(Long ticketId, String cancelReason) throws SQLException {
+        String sql = """
+            UPDATE kitchen_tickets 
+            SET preparation_status = 'CANCELLED'
+            WHERE kt_id = ?
+        """;
+        
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setLong(1, ticketId);
+            boolean success = ps.executeUpdate() > 0;
+            
+            if (success) {
+                // Cập nhật order item status thành CANCELLED
+                Long orderItemId = getOrderItemIdByTicketId(ticketId);
+                if (orderItemId != null) {
+                    String updateOrderItemSql = """
+                        UPDATE order_items 
+                        SET status = 'CANCELLED', special_instructions = ?
+                        WHERE order_item_id = ?
+                    """;
+                    try (PreparedStatement ps2 = conn.prepareStatement(updateOrderItemSql)) {
+                        ps2.setString(1, cancelReason);
+                        ps2.setLong(2, orderItemId);
+                        ps2.executeUpdate();
+                    }
+                }
+            }
+            
+            return success;
+        }
+    }
+    
+    /**
+     * Lấy thông tin kitchen ticket với menu item ID
+     */
+    public KitchenTicket getKitchenTicketWithMenuItemId(Long ticketId) throws SQLException {
+        String sql = """
+            SELECT kt.kt_id, kt.order_item_id, kt.station, kt.preparation_status,
+                   kt.received_time, kt.start_time, kt.ready_time, kt.picked_time, kt.served_time, kt.chef_id,
+                   o.order_id, dt.table_number, mi.name as menu_item_name, 
+                   mi.menu_item_id, oi.quantity, oi.special_instructions, oi.priority, oi.course_no as course
+            FROM kitchen_tickets kt
+            JOIN order_items oi ON oi.order_item_id = kt.order_item_id
+            JOIN orders o ON o.order_id = oi.order_id
+            LEFT JOIN dining_table dt ON dt.table_id = o.table_id
+            LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id
+            WHERE kt.kt_id = ?
+        """;
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, ticketId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    KitchenTicket ticket = mapResultSetToKitchenTicket(rs);
+                    // Thêm menu_item_id vào ticket
+                    try {
+                        Integer menuItemId = rs.getInt("menu_item_id");
+                        // Store in a way that can be accessed later
+                        // We'll need to add this to the model or use a map
+                    } catch (SQLException e) {
+                        // Ignore
+                    }
+                    return ticket;
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -262,13 +336,15 @@ public class KitchenDAO {
      */
     public KitchenTicket getKitchenTicketById(Long ticketId) throws SQLException {
         String sql = """
-            SELECT kt.*, o.order_id, dt.table_number, mi.name as menu_item_name, 
-                   oi.quantity, oi.special_instructions, oi.priority, oi.course
+            SELECT kt.kt_id, kt.order_item_id, kt.station, kt.preparation_status,
+                   kt.received_time, kt.start_time, kt.ready_time, kt.picked_time, kt.served_time, kt.chef_id,
+                   o.order_id, dt.table_number, mi.name as menu_item_name, 
+                   oi.quantity, oi.special_instructions, oi.priority, oi.course_no as course
             FROM kitchen_tickets kt
             JOIN order_items oi ON oi.order_item_id = kt.order_item_id
             JOIN orders o ON o.order_id = oi.order_id
             LEFT JOIN dining_table dt ON dt.table_id = o.table_id
-            LEFT JOIN menu_items mi ON mi.item_id = oi.menu_item_id
+            LEFT JOIN menu_items mi ON mi.menu_item_id = oi.menu_item_id
             WHERE kt.kt_id = ?
         """;
 

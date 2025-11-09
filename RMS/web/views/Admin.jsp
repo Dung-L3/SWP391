@@ -144,7 +144,17 @@
                     </ol>
                 </nav>
             </div>
-            <button class="btn btn-outline-secondary d-lg-none" onclick="toggleSidebar()"><i class="bi bi-list"></i> Menu</button>
+            <div style="display:flex; gap:.75rem; align-items:center;">
+                <c:if test="${not empty unreadNotificationCount && unreadNotificationCount > 0}">
+                    <a href="<c:url value='/notifications'/>" class="btn btn-outline-warning position-relative">
+                        <i class="bi bi-bell"></i> Thông báo
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            ${unreadNotificationCount}
+                        </span>
+                    </a>
+                </c:if>
+                <button class="btn btn-outline-secondary d-lg-none" onclick="toggleSidebar()"><i class="bi bi-list"></i> Menu</button>
+            </div>
         </div>
 
         <!-- Flash message -->
@@ -155,6 +165,52 @@
             </div>
             <c:remove var="flash" scope="session"/>
         </c:if>
+
+        <!-- ===== Thông báo ===== -->
+        <div class="section">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-bell me-2"></i>Thông báo mới</h5>
+                    <a href="<c:url value='/notifications'/>" class="btn btn-sm btn-outline-secondary">Xem tất cả</a>
+                </div>
+                <div class="card-body p-0">
+                    <c:choose>
+                        <c:when test="${not empty notifications && not empty notifications[0]}">
+                            <div class="list-group list-group-flush">
+                                <c:forEach var="notif" items="${notifications}" begin="0" end="4">
+                                    <c:url var="editUrl" value="/menu-management">
+                                        <c:param name="action" value="edit"/>
+                                        <c:param name="id" value="${notif.menuItemId}"/>
+                                    </c:url>
+                                    <c:url var="notifUrl" value="/notifications/${notif.notificationId}/read">
+                                        <c:param name="redirect" value="${editUrl}"/>
+                                    </c:url>
+                                    <a href="${notifUrl}" 
+                                       class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">${notif.title}</h6>
+                                            <small>${notif.createdAt}</small>
+                                        </div>
+                                        <p class="mb-1">${notif.message}</p>
+                                        <c:if test="${not empty notif.menuItemName}">
+                                            <small class="text-muted">Món: ${notif.menuItemName} | Bàn: ${notif.tableNumber}</small>
+                                        </c:if>
+                                    </a>
+                                </c:forEach>
+                            </div>
+                        </c:when>
+                        <c:otherwise>
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item text-center text-muted py-4">
+                                    <i class="bi bi-bell-slash fs-3 d-block mb-2"></i>
+                                    <p class="mb-0">Không có thông báo mới</p>
+                                </div>
+                            </div>
+                        </c:otherwise>
+                    </c:choose>
+                </div>
+            </div>
+        </div>
 
         <!-- ===== KPIs nhanh ===== -->
         <div class="section">

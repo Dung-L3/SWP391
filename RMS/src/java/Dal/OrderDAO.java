@@ -249,6 +249,25 @@ public class OrderDAO {
         }
         return null;
     }
+    
+    /**
+     * Lấy menu_item_id từ order_item_id
+     */
+    public Integer getMenuItemIdByOrderItemId(Long orderItemId) throws SQLException {
+        String sql = "SELECT menu_item_id FROM order_items WHERE order_item_id = ?";
+        
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setLong(1, orderItemId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("menu_item_id");
+                }
+            }
+        }
+        return null;
+    }
 
     /* =========================================================
      * 5. Lấy danh sách MÓN của một ORDER
