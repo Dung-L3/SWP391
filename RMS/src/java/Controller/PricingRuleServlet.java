@@ -52,7 +52,7 @@ public class PricingRuleServlet extends HttpServlet {
         if ("list".equals(action)) {
             List<MenuItem> menuItems = menuDAO.getMenuItems(1, 50, null, null, null, "name_asc");
             for (MenuItem mi : menuItems) {
-                mi.setDisplayPrice(pricingService.getCurrentPrice(mi));
+                // mi.setDisplayPrice(pricingService.getCurrentPrice(mi));
             }
             req.setAttribute("menuItems", menuItems);
 
@@ -65,7 +65,7 @@ public class PricingRuleServlet extends HttpServlet {
                         resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Không tìm thấy món");
                         return;
                     }
-                    item.setDisplayPrice(pricingService.getCurrentPrice(item));
+                    // item.setDisplayPrice(pricingService.getCurrentPrice(item));
                     List<Models.PricingRule> rules = ruleDAO.getRulesByMenuItem(itemId);
 
                     req.setAttribute("menuItem", item);

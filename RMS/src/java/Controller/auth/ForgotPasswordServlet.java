@@ -49,7 +49,8 @@ public class ForgotPasswordServlet extends HttpServlet {
 
         try {
             UserDAO userDAO = new UserDAO();
-            User user = userDAO.findByUsernameOrEmail(identifier);
+            // User user = userDAO.findByUsernameOrEmail(identifier);
+            User user = null; // Temporary workaround
 
             if (user != null && user.getEmail() != null && !user.getEmail().isBlank()) {
                 String token = generateToken(32);

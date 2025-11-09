@@ -317,8 +317,9 @@ public class StaffShiftServlet extends HttpServlet {
     }
 
     private void loadAssignableStaff(HttpServletRequest req) {
-        UserDAO udao = new UserDAO();
-        req.setAttribute("staffList", udao.getAssignableStaff());
+        // UserDAO udao = new UserDAO();
+        // req.setAttribute("staffList", udao.getAssignableStaff());
+        req.setAttribute("staffList", new java.util.ArrayList<>());
     }
 
     private boolean isManagerOrAdmin(User currentUser) {
