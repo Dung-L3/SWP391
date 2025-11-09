@@ -134,6 +134,17 @@
         <url-pattern>/inventory</url-pattern>
     </servlet-mapping>
 
+        <!-- Recipe Management Servlet -->
+    <servlet>
+        <servlet-name>RecipeManagementServlet</servlet-name>
+        <servlet-class>Controller.RecipeManagementServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>RecipeManagementServlet</servlet-name>
+        <url-pattern>/recipe-management</url-pattern>
+    </servlet-mapping>
+    
     <!-- Voucher Management Servlet -->
     <servlet>
         <servlet-name>VoucherManagementServlet</servlet-name>

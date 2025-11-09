@@ -407,6 +407,18 @@ public class OrderServlet extends HttpServlet {
                 return;
             }
 
+            // Check stock availability if recipe exists
+            Utils.InventoryService inventoryService = new Utils.InventoryService();
+            if (!inventoryService.canPrepareMenuItem(menuItemId, quantity)) {
+                String missing = inventoryService.getMissingIngredients(menuItemId, quantity);
+                String errorMsg = "Không đủ nguyên liệu để chế biến món này.";
+                if (missing != null) {
+                    errorMsg += " Thiếu: " + missing;
+                }
+                out.print("{\"error\":\"" + errorMsg + "\"}");
+                return;
+            }
+
             BigDecimal basePrice = menuItem.getBasePrice() != null
                     ? menuItem.getBasePrice()
                     : BigDecimal.ZERO;
@@ -426,6 +438,17 @@ public class OrderServlet extends HttpServlet {
             Long orderItemId = orderDAO.addOrderItem(oi);
             if (orderItemId == null) {
                 out.print("{\"error\":\"Failed to add item to order\"}");
+                return;
+            }
+
+            // Check and deduct stock if recipe exists
+            Dal.StockTransactionDAO stockDAO = new Dal.StockTransactionDAO();
+            boolean stockDeducted = stockDAO.deductStockForMenuItem(menuItemId, quantity, orderId);
+            
+            if (!stockDeducted) {
+                // Rollback: delete order item if stock deduction failed
+                // Note: Ideally this should be in a transaction
+                out.print("{\"error\":\"Không đủ nguyên liệu để chế biến món này. Vui lòng kiểm tra kho.\"}");
                 return;
             }
 

@@ -77,6 +77,7 @@
         <li><a class="${page == 'voucher' ? 'active' : ''}" href="voucher-management"><i class="bi bi-percent"></i>Quản lý Voucher</a></li>
         <li><a class="${page == 'shifts' ? 'active' : ''}" href="<c:url value='/StaffShiftServlet'/>"><i class="bi bi-clock-history"></i>Phân ca</a></li>
         <li><a class="${page == 'inventory' ? 'active' : ''}" href="inventory"><i class="bi bi-box-seam"></i>Kho hàng</a></li>
+        <li><a class="${page == 'recipe' ? 'active' : ''}" href="recipe-management"><i class="bi bi-list-check"></i>Công thức món</a></li>
         <li><a class="${page == 'reports' ? 'active' : ''}" href="<c:url value='/reports'/>"><i class="bi bi-graph-up"></i>Báo cáo</a></li>
         <li><a class="${page == 'audit' ? 'active' : ''}" href="<c:url value='/audit-log'/>"><i class="bi bi-clipboard-data"></i>Nhật ký hệ thống</a></li>
         <li><a class="${page == 'settings' ? 'active' : ''}" href="<c:url value='/settings'/>"><i class="bi bi-gear"></i>Cấu hình</a></li>
