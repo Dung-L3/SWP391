@@ -365,9 +365,18 @@
                             <a href="menu-management?action=edit&id=${menuItem.itemId}" class="btn btn-primary">
                                 <i class="bi bi-pencil-square"></i> Chỉnh sửa
                             </a>
+                            <a href="recipe-management?action=edit&menuItemId=${menuItem.itemId}" class="btn btn-success">
+                                <i class="bi bi-list-check"></i> Quản lý công thức
+                            </a>
                             <button type="button" class="btn btn-danger" onclick="confirmDelete(${menuItem.itemId})">
                                 <i class="bi bi-trash"></i> Xóa món
                             </button>
+                        </c:if>
+                        
+                        <c:if test="${viewMode == 'edit' and sessionScope.user.roleName == 'Manager'}">
+                            <a href="recipe-management?action=edit&menuItemId=${menuItem.itemId}" class="btn btn-outline-success">
+                                <i class="bi bi-list-check"></i> Thiết lập công thức
+                            </a>
                         </c:if>
                         
                         <a href="menu-management" class="btn btn-secondary">
