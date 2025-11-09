@@ -435,7 +435,7 @@
                 <span>KDS</span>
             </a>
 
-            <a class="nav-pill" href="javascript:history.back()">
+            <a class="nav-pill" href="<%=ctx%>/tables" onclick="returnToTableMap()">
                 <i class="bi bi-arrow-left"></i>
                 <span>Quay lại</span>
             </a>
@@ -491,7 +491,7 @@
             <span>Lịch sử gọi món • <%=tableLabel%></span>
         </h2>
         <div class="d-flex flex-wrap gap-2">
-            <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2">
+            <a href="<%=ctx%>/tables" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2" onclick="returnToTableMap()">
                 <i class="fas fa-arrow-left"></i> <span>Quay lại</span>
             </a>
             <a href="<%=ctx%>/tables?action=map" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2">
@@ -742,6 +742,26 @@
         var modalEl = document.getElementById('serveModal');
         var modal = new bootstrap.Modal(modalEl);
         modal.show();
+    }
+
+    // Đánh dấu đã xem lịch sử bàn này khi vào trang
+    (function() {
+        var qs = new URLSearchParams(window.location.search);
+        var tableId = qs.get('tableId') || '';
+        if (tableId) {
+            sessionStorage.setItem('viewed_table_' + tableId, 'true');
+        }
+    })();
+
+    // Hàm quay lại bản đồ bàn (đảm bảo đánh dấu đã xem)
+    function returnToTableMap() {
+        var qs = new URLSearchParams(window.location.search);
+        var tableId = qs.get('tableId') || '';
+        if (tableId) {
+            sessionStorage.setItem('viewed_table_' + tableId, 'true');
+        }
+        window.location.href = '<%=ctx%>/tables';
+        return false;
     }
 
     // Submit serve action

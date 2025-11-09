@@ -1,11 +1,13 @@
 package Controller;
 
+import Dal.OrderDAO;
 import Dal.TableDAO;
 import Models.DiningTable;
 import Models.TableArea;
 import Models.TableSession;
 import Models.User;
 import Utils.RoleBasedRedirect;
+import java.util.Map;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -24,6 +26,7 @@ import java.util.List;
 public class TableServlet extends HttpServlet {
 
     private TableDAO tableDAO = new TableDAO();
+    private OrderDAO orderDAO = new OrderDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -126,10 +129,21 @@ public class TableServlet extends HttpServlet {
 
         List<TableArea> areas = tableDAO.getAllAreas();
         List<DiningTable> tables = tableDAO.getTablesByArea(areaId);
+        
+        // Lấy số lượng món READY và CANCELLED cho các bàn
+        Map<Integer, Map<String, Integer>> tableItemCounts = new java.util.HashMap<>();
+        try {
+            tableItemCounts = orderDAO.getTableItemCounts();
+        } catch (java.sql.SQLException e) {
+            System.err.println("Error getting table item counts: " + e.getMessage());
+            e.printStackTrace();
+            // Continue with empty map if error occurs
+        }
 
         request.setAttribute("areas", areas);
         request.setAttribute("tables", tables);
         request.setAttribute("selectedAreaId", areaId);
+        request.setAttribute("tableItemCounts", tableItemCounts);
 
         request.getRequestDispatcher("/views/TableMap.jsp").forward(request, response);
     }

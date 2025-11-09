@@ -499,6 +499,36 @@
             box-shadow:0 10px 20px rgba(0,0,0,.08);
         }
 
+        /* Notification badges */
+        .notification-badge {
+            position:absolute;
+            width:24px;
+            height:24px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:.7rem;
+            font-weight:700;
+            color:#fff;
+            box-shadow:0 4px 12px rgba(0,0,0,.25);
+            z-index:10;
+        }
+        .notification-badge.ready {
+            top:8px;
+            right:8px;
+            background:linear-gradient(135deg,#3b82f6,#2563eb);
+        }
+        .notification-badge.cancelled {
+            top:8px;
+            left:8px;
+            background:linear-gradient(135deg,#dc2626,#991b1b);
+        }
+        /* Adjust status-badge position when ready badge exists */
+        .table-card.has-ready-badge .status-badge {
+            right:36px;
+        }
+
         .table-name {
             font-size:.85rem;
             font-weight:600;
@@ -708,7 +738,15 @@
                         <div class="table-grid">
                             <c:forEach var="table" items="${tables}">
                                 <c:if test="${table.areaId == area.areaId}">
-                                    <div class="table-card status-${table.status}"
+                                    <%-- Chỉ hiển thị badge cho bàn có khách --%>
+                                    <c:set var="hasReadyBadge" value="false"/>
+                                    <c:if test="${(table.status == 'SEATED' || table.status == 'IN_USE') && not empty tableItemCounts[table.tableId]}">
+                                        <c:set var="counts" value="${tableItemCounts[table.tableId]}"/>
+                                        <c:if test="${counts['ready'] > 0}">
+                                            <c:set var="hasReadyBadge" value="true"/>
+                                        </c:if>
+                                    </c:if>
+                                    <div class="table-card status-${table.status} ${hasReadyBadge ? 'has-ready-badge' : ''}"
                                          onclick="showTableDetails(${table.tableId})"
                                          data-table-id="${table.tableId}"
                                          data-status="${table.status}">
@@ -721,6 +759,21 @@
                                                 <c:otherwise>Khóa</c:otherwise>
                                             </c:choose>
                                         </div>
+
+                                        <%-- Chỉ hiển thị thông báo cho bàn có khách (SEATED hoặc IN_USE) --%>
+                                        <c:if test="${(table.status == 'SEATED' || table.status == 'IN_USE') && not empty tableItemCounts[table.tableId]}">
+                                            <c:set var="counts" value="${tableItemCounts[table.tableId]}"/>
+                                            <c:if test="${counts['ready'] > 0}">
+                                                <div class="notification-badge ready" title="${counts['ready']} món sẵn sàng">
+                                                    ${counts['ready']}
+                                                </div>
+                                            </c:if>
+                                            <c:if test="${counts['cancelled'] > 0}">
+                                                <div class="notification-badge cancelled" title="${counts['cancelled']} món bị hủy">
+                                                    ${counts['cancelled']}
+                                                </div>
+                                            </c:if>
+                                        </c:if>
 
                                         <div class="table-name">Bàn ${table.tableNumber}</div>
                                         <div class="table-capacity">${table.capacity} người</div>
@@ -917,6 +970,10 @@
         }
 
         function viewTableHistory() {
+            // Đánh dấu đã xem thông báo của bàn này
+            if (currentTableId) {
+                sessionStorage.setItem('viewed_table_' + currentTableId, 'true');
+            }
             window.location.href = '${pageContext.request.contextPath}/table-history?tableId=' + currentTableId;
         }
 
@@ -924,6 +981,48 @@
         document.getElementById('areaFilter').addEventListener('change', function () {
             refreshTables();
         });
+
+        // Ẩn badge cho các bàn đã xem lịch sử (chỉ ẩn nếu không có món mới)
+        function hideViewedTableBadges() {
+            document.querySelectorAll('.table-card').forEach(function(card) {
+                const tableId = card.getAttribute('data-table-id');
+                if (tableId && sessionStorage.getItem('viewed_table_' + tableId) === 'true') {
+                    const readyBadge = card.querySelector('.notification-badge.ready');
+                    const cancelledBadge = card.querySelector('.notification-badge.cancelled');
+                    
+                    // Nếu có món READY mới (badge đang hiển thị), xóa đánh dấu đã xem để hiện lại badge
+                    if (readyBadge && readyBadge.offsetParent !== null) {
+                        // Badge đang hiển thị = có món mới, xóa đánh dấu đã xem
+                        sessionStorage.removeItem('viewed_table_' + tableId);
+                        return; // Không ẩn badge này
+                    }
+                    
+                    // Ẩn badge nếu đã xem và không có món mới
+                    if (readyBadge) {
+                        readyBadge.style.display = 'none';
+                    }
+                    if (cancelledBadge) {
+                        cancelledBadge.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        // Chạy khi trang load
+        hideViewedTableBadges();
+
+        // Auto-refresh để cập nhật thông báo món ăn mỗi 10 giây
+        setInterval(function() {
+            const areaId = document.getElementById('areaFilter').value;
+            let url = 'tables';
+            if (areaId) {
+                url += '?area=' + areaId;
+            }
+            // Chỉ reload nếu không có modal đang mở
+            if (!document.getElementById('tableModal').classList.contains('show')) {
+                window.location.href = url;
+            }
+        }, 10000); // 10 giây
     </script>
 
 </body>

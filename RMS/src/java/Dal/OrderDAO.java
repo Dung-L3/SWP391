@@ -410,7 +410,43 @@ public class OrderDAO {
     }
 
     /* =========================================================
-     * 8. Cập nhật trạng thái ORDER (COOKING / SERVED / SETTLED / ...)
+     * 8. Lấy số lượng món READY và CANCELLED cho các bàn có khách
+     *    -> để hiển thị thông báo trên table map
+     * ========================================================= */
+    public java.util.Map<Integer, java.util.Map<String, Integer>> getTableItemCounts() throws SQLException {
+        final String sql = """
+            SELECT o.table_id,
+                   SUM(CASE WHEN oi.status = 'READY' AND oi.served_at IS NULL THEN 1 ELSE 0 END) AS ready_count,
+                   SUM(CASE WHEN oi.status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled_count
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.order_id
+            WHERE o.status IN ('OPEN', 'SENT_TO_KITCHEN', 'COOKING', 'PARTIAL_READY', 'READY')
+              AND o.table_id IS NOT NULL
+            GROUP BY o.table_id
+        """;
+        
+        java.util.Map<Integer, java.util.Map<String, Integer>> result = new java.util.HashMap<>();
+        
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            
+            while (rs.next()) {
+                int tableId = rs.getInt("table_id");
+                int readyCount = rs.getInt("ready_count");
+                int cancelledCount = rs.getInt("cancelled_count");
+                
+                java.util.Map<String, Integer> counts = new java.util.HashMap<>();
+                counts.put("ready", readyCount);
+                counts.put("cancelled", cancelledCount);
+                result.put(tableId, counts);
+            }
+        }
+        return result;
+    }
+
+    /* =========================================================
+     * 9. Cập nhật trạng thái ORDER (COOKING / SERVED / SETTLED / ...)
      * ========================================================= */
     public boolean updateOrderStatus(long orderId, String newStatus) throws SQLException {
         final String sql = """
