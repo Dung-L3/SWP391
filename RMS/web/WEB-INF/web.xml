@@ -118,6 +118,21 @@
         <url-pattern>/menu</url-pattern>
     </servlet-mapping>
     
+    <!-- Inventory Management Servlet -->
+    <servlet>
+        <servlet-name>InventoryManagementServlet</servlet-name>
+        <servlet-class>Controller.InventoryManagementServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>InventoryManagementServlet</servlet-name>
+        <url-pattern>/inventory-management</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>InventoryManagementServlet</servlet-name>
+        <url-pattern>/inventory</url-pattern>
+    </servlet-mapping>
 
     <!-- Voucher Management Servlet -->
     <servlet>
