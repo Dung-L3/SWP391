@@ -3,6 +3,8 @@ package Models;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 
 /**
  * StockTransaction - Giao dịch nhập/xuất kho
@@ -76,6 +78,23 @@ public class StockTransaction implements Serializable {
 
     public String getUom() { return uom; }
     public void setUom(String uom) { this.uom = uom; }
+
+    // Helper method for JSP: convert LocalDateTime to Date
+    public Date getTxnTimeAsDate() {
+        if (txnTime == null) return null;
+        return Date.from(txnTime.atZone(ZoneId.systemDefault()).toInstant());
+    }
+
+    // Helper method for JSP: format LocalDateTime as string
+    public String getFormattedTxnTime() {
+        if (txnTime == null) return "";
+        return String.format("%02d/%02d/%04d %02d:%02d",
+                txnTime.getDayOfMonth(),
+                txnTime.getMonthValue(),
+                txnTime.getYear(),
+                txnTime.getHour(),
+                txnTime.getMinute());
+    }
 
     @Override
     public String toString() {

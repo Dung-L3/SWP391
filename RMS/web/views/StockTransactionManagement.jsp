@@ -317,7 +317,7 @@
                                 <tr>
                                     <td>#${txn.stockTxnId}</td>
                                     <td>
-                                        <fmt:formatDate value="${txn.txnTime}" pattern="dd/MM/yyyy HH:mm"/>
+                                        <fmt:formatDate value="${txn.txnTimeAsDate}" pattern="dd/MM/yyyy HH:mm"/>
                                     </td>
                                     <td>
                                         <strong>${txn.itemName}</strong>
@@ -340,20 +340,23 @@
                                     </td>
                                     <td>
                                         <c:choose>
-                                            <c:when test="${txn.txnType == 'ADJUSTMENT' && txn.quantity.compareTo(java.math.BigDecimal.ZERO) < 0}">
+                                            <c:when test="${txn.quantity != null && txn.txnType == 'ADJUSTMENT' && txn.quantity < 0}">
                                                 <span class="quantity-negative">
                                                     <fmt:formatNumber value="${txn.quantity}" pattern="#,##0.000"/>
                                                 </span>
                                             </c:when>
-                                            <c:when test="${txn.txnType == 'OUT' || txn.txnType == 'USAGE' || txn.txnType == 'WASTE'}">
+                                            <c:when test="${txn.quantity != null && (txn.txnType == 'OUT' || txn.txnType == 'USAGE' || txn.txnType == 'WASTE')}">
                                                 <span class="quantity-negative">
                                                     -<fmt:formatNumber value="${txn.quantity}" pattern="#,##0.000"/>
                                                 </span>
                                             </c:when>
-                                            <c:otherwise>
+                                            <c:when test="${txn.quantity != null}">
                                                 <span class="quantity-positive">
                                                     +<fmt:formatNumber value="${txn.quantity}" pattern="#,##0.000"/>
                                                 </span>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <span class="text-muted">-</span>
                                             </c:otherwise>
                                         </c:choose>
                                         <c:if test="${not empty txn.uom}">
@@ -361,12 +364,14 @@
                                         </c:if>
                                     </td>
                                     <td>
-                                        <c:if test="${txn.unitCost != null && txn.unitCost.compareTo(java.math.BigDecimal.ZERO) > 0}">
-                                            <fmt:formatNumber value="${txn.unitCost}" pattern="#,##0" type="currency" currencySymbol="₫"/>
-                                        </c:if>
-                                        <c:if test="${txn.unitCost == null || txn.unitCost.compareTo(java.math.BigDecimal.ZERO) == 0}">
-                                            <span class="text-muted">-</span>
-                                        </c:if>
+                                        <c:choose>
+                                            <c:when test="${txn.unitCost != null && txn.unitCost > 0}">
+                                                <fmt:formatNumber value="${txn.unitCost}" pattern="#,##0" type="currency" currencySymbol="₫"/>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <span class="text-muted">-</span>
+                                            </c:otherwise>
+                                        </c:choose>
                                     </td>
                                     <td>
                                         <c:if test="${not empty txn.refType}">
