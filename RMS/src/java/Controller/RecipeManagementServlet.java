@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * RecipeManagementServlet - Quản lý công thức món ăn (BOM)
@@ -40,15 +42,15 @@ public class RecipeManagementServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        request.setCharacterEncoding("UTF-8");
+        response.setCharacterEncoding("UTF-8");
+
         HttpSession session = request.getSession(false);
         User currentUser = (session == null) ? null : (User) session.getAttribute("user");
         if (currentUser == null) {
             response.sendRedirect(request.getContextPath() + "/LoginServlet");
             return;
         }
-
-        request.setCharacterEncoding("UTF-8");
-        response.setCharacterEncoding("UTF-8");
 
         String action = request.getParameter("action");
         if (action == null) action = "list";
@@ -66,6 +68,7 @@ public class RecipeManagementServlet extends HttpServlet {
         } catch (Exception e) {
             e.printStackTrace();
             request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
+            request.setAttribute("page", "recipe");
             request.getRequestDispatcher("/views/RecipeManagement.jsp").forward(request, response);
         }
     }
@@ -74,15 +77,15 @@ public class RecipeManagementServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        request.setCharacterEncoding("UTF-8");
+        response.setCharacterEncoding("UTF-8");
+
         HttpSession session = request.getSession(false);
         User currentUser = (session == null) ? null : (User) session.getAttribute("user");
         if (currentUser == null) {
             response.sendRedirect(request.getContextPath() + "/LoginServlet");
             return;
         }
-
-        request.setCharacterEncoding("UTF-8");
-        response.setCharacterEncoding("UTF-8");
 
         String action = request.getParameter("action");
 
@@ -107,21 +110,48 @@ public class RecipeManagementServlet extends HttpServlet {
         }
     }
 
+    // ----------------- Permission helper -----------------
+
     private boolean hasRecipePermission(User user) {
         if (user == null) return false;
+        // tùy bạn chỉnh role nào được phép
         return "Manager".equalsIgnoreCase(user.getRoleName());
     }
+
+    // ----------------- LIST PAGE -----------------
 
     private void handleListRecipes(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        // Lấy danh sách món (giới hạn 100, sort theo category)
         List<MenuItem> menuItems = menuDAO.getMenuItems(1, 100, null, null, null, "category");
 
+        // Map: menu_item_id -> đã có công thức active (true/false)
+        Map<Integer, Boolean> hasRecipeMap = new HashMap<>();
+
+        if (menuItems != null) {
+            for (MenuItem m : menuItems) {
+                boolean hasRecipe = false;
+                try {
+                    // getRecipeByMenuItemId đã WHERE r.is_active = 1
+                    Recipe r = recipeDAO.getRecipeByMenuItemId(m.getItemId());
+                    hasRecipe = (r != null);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    hasRecipe = false;
+                }
+                hasRecipeMap.put(m.getItemId(), hasRecipe);
+            }
+        }
+
         request.setAttribute("menuItems", menuItems);
+        request.setAttribute("hasRecipeMap", hasRecipeMap); // JSP dùng để hiển thị Đã/Chưa thiết lập
         request.setAttribute("page", "recipe");
 
         request.getRequestDispatcher("/views/RecipeManagement.jsp").forward(request, response);
     }
+
+    // ----------------- EDIT PAGE -----------------
 
     private void handleEditRecipe(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws ServletException, IOException {
@@ -148,10 +178,9 @@ public class RecipeManagementServlet extends HttpServlet {
                 return;
             }
 
-            // Get or create recipe
+            // Lấy công thức active; nếu chưa có thì tạo mới
             Recipe recipe = recipeDAO.getRecipeByMenuItemId(menuItemId);
             if (recipe == null) {
-                // Create new recipe
                 recipe = new Recipe(menuItemId, 1, true);
                 int recipeId = recipeDAO.createRecipe(recipe);
                 recipe.setRecipeId(recipeId);
@@ -172,6 +201,8 @@ public class RecipeManagementServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/recipe-management");
         }
     }
+
+    // ----------------- AJAX: ADD / UPDATE / DELETE INGREDIENT -----------------
 
     private void handleAddIngredient(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws IOException {
@@ -258,4 +289,3 @@ public class RecipeManagementServlet extends HttpServlet {
         }
     }
 }
-

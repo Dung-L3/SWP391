@@ -34,14 +34,12 @@
     <div class="collapse navbar-collapse" id="navbarCollapse">
       <div class="navbar-nav ms-auto py-0 pe-4">
         <a href="<c:url value='/'/>" class="nav-item nav-link ${page=='home' ? 'active' : ''}">Trang chủ</a>
-        <a href="<c:url value='/about.jsp'/>" class="nav-item nav-link ${page=='about' ? 'active' : ''}">Giới thiệu</a>
-        <a href="<c:url value='/service.jsp'/>" class="nav-item nav-link ${page=='service' ? 'active' : ''}">Dịch vụ</a>
         <a href="<c:url value='/menu-management'/>" class="nav-item nav-link ${page=='menu' ? 'active' : ''}">Thực đơn</a>
 
         <div class="nav-item dropdown">
           <a href="#" class="nav-link dropdown-toggle ${page=='pages' ? 'active' : ''}" data-bs-toggle="dropdown">Trang</a>
           <div class="dropdown-menu m-0">
-            <a href="<c:url value='/views/guest/booking.jsp'/>" class="dropdown-item">Đặt bàn</a>
+            <a href="<c:url value='/reservation'/>" class="dropdown-item">Đặt bàn</a>
             <a href="<c:url value='/takeaway-order'/>" class="dropdown-item">Đặt món mang đi</a>
             <a href="<c:url value='/track-order'/>" class="dropdown-item">Theo dõi đơn hàng</a>
             <a href="<c:url value='/testimonial.jsp'/>" class="dropdown-item">Đánh giá</a>
@@ -115,8 +113,16 @@
               </c:choose>
 
               <!-- Profile & Edit Profile -->
-              <li><a class="dropdown-item" href="<c:url value='/views/profile.jsp'/>"><i class="bi bi-person me-2"></i>Hồ sơ</a></li>
-              <li><a class="dropdown-item" href="<c:url value='/views/profile-edit.jsp'/>"><i class="bi bi-pencil-square me-2"></i>Chỉnh sửa</a></li>
+              <li>
+  <a class="dropdown-item" href="<c:url value='/profile'/>">
+    <i class="bi bi-person me-2"></i>Hồ sơ
+  </a>
+</li>
+<li>
+  <a class="dropdown-item" href="<c:url value='/profile/edit'/>">
+    <i class="bi bi-pencil-square me-2"></i>Chỉnh sửa
+  </a>
+</li>
 
               <li><hr class="dropdown-divider"></li>
               <li>

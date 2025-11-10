@@ -4,47 +4,68 @@ import Controller.auth.EmailServices;
 import Dal.ReservationDAO;
 import Models.Reservation;
 import Models.User;
-import java.io.IOException;
-import java.sql.Date;
-import java.sql.Time;
-import java.util.UUID;
-import java.util.List;
-import javax.mail.MessagingException;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import java.util.stream.Collectors;
-import jakarta.servlet.http.HttpSession;
 
-@WebServlet(name = "ReservationServlet", urlPatterns = {"/reservation/*"})
+import javax.mail.MessagingException;
+import java.io.IOException;
+import java.sql.Date;
+import java.sql.Time;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Đặt bàn cho khách (web guest)
+ */
+@WebServlet(name = "ReservationServlet", urlPatterns = {"/reservation", "/reservation/*"})
 public class ReservationServlet extends HttpServlet {
-    
+
+    // ========== HELPER ==========
+
+    private String generateConfirmationCode() {
+        return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    // ========= HIỂN THỊ FORM ĐẶT BÀN ==========
+
+    /**
+     * GET /reservation hoặc /reservation/  → hiển thị booking.jsp
+     */
+    private void showBookingForm(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
+    }
+
+    // ========= BƯỚC 1: NHẬP THÔNG TIN, CHUYỂN QUA CHỌN BÀN ==========
+
     private void handleSelectTable(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
         try {
-            // Lấy và validate thông tin từ form
-            String customerName = request.getParameter("customer_name");
-            String phone = request.getParameter("phone");
-            String email = request.getParameter("email");
-            String partySize = request.getParameter("party_size");
-            String reservationDate = request.getParameter("reservation_date");
-            String reservationTime = request.getParameter("reservation_time");
-            String specialRequests = request.getParameter("special_requests");
-            
-            // Validate các trường bắt buộc
-            if (customerName == null || customerName.trim().isEmpty() ||
-                phone == null || !phone.matches("[0-9]{10}") ||
-                partySize == null || reservationDate == null || reservationTime == null) {
-                request.setAttribute("errorMessage", "Vui lòng điền đầy đủ thông tin bắt buộc");
+            String customerName     = request.getParameter("customer_name");
+            String phone            = request.getParameter("phone");
+            String email            = request.getParameter("email");
+            String partySize        = request.getParameter("party_size");
+            String reservationDate  = request.getParameter("reservation_date");
+            String reservationTime  = request.getParameter("reservation_time");
+            String specialRequests  = request.getParameter("special_requests");
+
+            // Validate
+            if (customerName == null || customerName.trim().isEmpty()
+                    || phone == null || !phone.matches("[0-9]{10}")
+                    || partySize == null || reservationDate == null || reservationTime == null) {
+
+                request.setAttribute("errorMessage", "Vui lòng điền đầy đủ thông tin bắt buộc.");
                 request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
                 return;
             }
 
-            // Lưu thông tin vào session
+            // Lưu vào session để dùng ở màn chọn bàn
             HttpSession session = request.getSession();
             session.setAttribute("bookingInProgress", true);
             session.setAttribute("customerName", customerName);
@@ -54,149 +75,108 @@ public class ReservationServlet extends HttpServlet {
             session.setAttribute("reservationDate", reservationDate);
             session.setAttribute("reservationTime", reservationTime);
             session.setAttribute("specialRequests", specialRequests);
-            
-            // Chuyển hướng đến trang chọn bàn
+
+            // Chuyển qua trang layout bàn
             response.sendRedirect(request.getContextPath() + "/table-layout");
-            
+
         } catch (Exception e) {
             e.printStackTrace();
             request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
             request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
         }
     }
-    
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        String pathInfo = request.getPathInfo();
-        
-        try {
-            switch (pathInfo) {
-                case "/select-table":
-                    handleSelectTable(request, response);
-                    break;
-                case "/create":
-                    handleCreateReservation(request, response);
-                    break;
-                case "/cancel":
-                    handleCancelReservation(request, response);
-                    break;
-                case "/edit":
-                    handleEditReservation(request, response);
-                    break;
-                case "/update":
-                    handleUpdateReservation(request, response);
-                    break;
-                default:
-                    response.sendError(HttpServletResponse.SC_NOT_FOUND);
-                    break;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
-            request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
-        }
-    }
-    
+
+    // ========= BƯỚC 2: TẠO ĐẶT BÀN =========
+
     private void handleCreateReservation(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
         try {
-            // Lấy thông tin khách hàng từ form
+            // Thông tin khách
             String customerName = request.getParameter("customer_name");
-            String phone = request.getParameter("phone");
-            String email = request.getParameter("email");
-            
-            // Validate thông tin khách hàng
+            String phone        = request.getParameter("phone");
+            String email        = request.getParameter("email");
+
             if (customerName == null || customerName.trim().isEmpty()) {
                 request.setAttribute("errorMessage", "Vui lòng nhập họ tên.");
-                request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
+                showBookingForm(request, response);
                 return;
             }
-            
             if (phone == null || !phone.matches("[0-9]{10}")) {
-                request.setAttribute("errorMessage", "Số điện thoại không hợp lệ.");
-                request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
+                request.setAttribute("errorMessage", "Số điện thoại không hợp lệ (10 chữ số).");
+                showBookingForm(request, response);
                 return;
             }
-            
-            // Lấy thông tin đặt bàn từ form
-            int partySize = Integer.parseInt(request.getParameter("party_size"));
+
+            int  partySize       = Integer.parseInt(request.getParameter("party_size"));
             Date reservationDate = Date.valueOf(request.getParameter("reservation_date"));
-            
-            // Chuyển đổi thời gian sang định dạng SQL Time
+
+            // Chuẩn hoá time (HH:mm hoặc HH:mm:ss)
             String timeStr = request.getParameter("reservation_time");
             if (!timeStr.contains(":")) {
-                timeStr += ":00"; // Thêm giây nếu chưa có
+                timeStr += ":00";
+            } else if (timeStr.length() == 5) {
+                timeStr += ":00";
             }
             Time reservationTime = Time.valueOf(timeStr);
-            
+
             String specialRequests = request.getParameter("special_requests");
-            
-            System.out.println("\nProcessed reservation time:");
-            System.out.println("Input time: " + request.getParameter("reservation_time"));
-            System.out.println("Converted time: " + reservationTime);
-            
-            // Kiểm tra thời gian đặt bàn
+
+            // Kiểm tra min 2h trước giờ đến
             java.util.Date now = new java.util.Date();
-            java.util.Date reservationDateTime = new java.util.Date(
-                reservationDate.getTime() + reservationTime.getTime() + (7 * 60 * 60 * 1000) // Convert to Vietnam timezone
-            );
-            java.util.Date twoHoursFromNow = new java.util.Date(now.getTime() + (2 * 60 * 60 * 1000));
-            
+            java.util.Date reservationDateTime =
+                    new java.util.Date(reservationDate.getTime() + reservationTime.getTime());
+            java.util.Date twoHoursFromNow = new java.util.Date(now.getTime() + 2L * 60 * 60 * 1000);
+
             if (reservationDateTime.before(now)) {
                 request.setAttribute("errorMessage", "Không thể đặt bàn cho thời gian đã qua.");
-                request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
+                showBookingForm(request, response);
                 return;
             }
-            
             if (reservationDateTime.before(twoHoursFromNow)) {
-                request.setAttribute("errorMessage", "Vui lòng đặt bàn trước thời điểm đến ít nhất 2 tiếng.");
-                request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
+                request.setAttribute("errorMessage",
+                        "Vui lòng đặt bàn trước thời điểm đến ít nhất 2 tiếng.");
+                showBookingForm(request, response);
                 return;
             }
-            
-            // Tạo đối tượng Reservation
+
+            // Build đối tượng Reservation
             Reservation reservation = new Reservation();
             reservation.setPartySize(partySize);
             reservation.setReservationDate(reservationDate);
             reservation.setReservationTime(reservationTime);
             reservation.setSpecialRequests(specialRequests);
-            reservation.setChannel(Reservation.CHANNEL_WEB); // Đặt từ website
-            
-            // Set thông tin khách hàng
+            reservation.setChannel(Reservation.CHANNEL_WEB);
+
             reservation.setCustomerName(customerName);
             reservation.setPhone(phone);
             reservation.setEmail(email);
-            
-            // Nếu user đã đăng nhập, lưu customer_id
+
             User user = (User) request.getSession().getAttribute("user");
             if (user != null) {
                 reservation.setCustomerId(user.getUserId());
                 reservation.setCreatedBy(user.getUserId());
             }
-            
-            // Tạo mã xác nhận ngẫu nhiên
+
             reservation.setConfirmationCode(generateConfirmationCode());
-            
-            // Lưu vào database
+
             ReservationDAO dao = new ReservationDAO();
-            
-            // Kiểm tra xem có bàn phù hợp không
-            // TODO: Implement table selection logic based on party size
-            
+
+            // TODO: logic chọn bàn phù hợp theo partySize, set reservation.setTableId(...)
+
             if (dao.create(reservation)) {
-                // Thành công
                 request.setAttribute("reservation", reservation);
-                
-                // Lấy danh sách đặt bàn khác của khách hàng (nếu đã đăng nhập)
-                User currentUser = (User) request.getSession().getAttribute("user");
-                if (currentUser != null) {
-                    List<Reservation> reservations = dao.findByCustomerId(currentUser.getUserId());
-                    // Loại bỏ đơn vừa đặt khỏi danh sách
-                    reservations.removeIf(r -> r.getConfirmationCode().equals(reservation.getConfirmationCode()));
+
+                // nếu đã đăng nhập → load các đặt bàn khác
+                if (user != null) {
+                    List<Reservation> reservations =
+                            dao.findByCustomerId(user.getUserId());
+                    reservations.removeIf(r ->
+                            r.getConfirmationCode().equals(reservation.getConfirmationCode()));
                     request.setAttribute("reservations", reservations);
                 }
-                
-                // Gửi email xác nhận đặt bàn
+
+                // Gửi email
                 try {
                     EmailServices emailService = new EmailServices(getServletContext());
                     emailService.sendReservationConfirmation(
@@ -206,166 +186,193 @@ public class ReservationServlet extends HttpServlet {
                             reservation.getReservationDate().toString(),
                             reservation.getReservationTime().toString(),
                             reservation.getPartySize(),
-                            String.valueOf(reservation.getTableId())
+                            reservation.getTableId() == null
+                                    ? "Chưa gán bàn"
+                                    : reservation.getTableId().toString()
                     );
                 } catch (MessagingException e) {
-                    // Log lỗi chi tiết
-                    System.out.println("Không thể gửi email xác nhận đến: " + reservation.getEmail());
-                    System.out.println("Thông tin đặt bàn: " + reservation.getConfirmationCode());
-                    System.out.println("Lỗi: " + e.getMessage());
-                    e.printStackTrace(); // In stack trace để debug
-                } catch (Exception e) {
-                    System.out.println("Lỗi không xác định khi gửi email: " + e.getMessage());
+                    System.out.println("Không thể gửi email xác nhận tới: " + reservation.getEmail());
                     e.printStackTrace();
                 }
 
                 request.getRequestDispatcher("/views/guest/confirmation.jsp").forward(request, response);
             } else {
-                request.setAttribute("errorMessage", 
-                        "Không thể đặt bàn. Vui lòng thử lại sau.");
-                request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
+                request.setAttribute("errorMessage", "Không thể đặt bàn. Vui lòng thử lại sau.");
+                showBookingForm(request, response);
             }
-            
+
         } catch (Exception e) {
+            e.printStackTrace();
             request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
-            request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
+            showBookingForm(request, response);
         }
     }
-    
+
+    // ========= HỦY – SỬA – CẬP NHẬT (giữ nguyên logic của bạn, chỉ gọn lại chút) =========
+
     private void handleCancelReservation(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+            throws IOException {
+
         try {
             int reservationId = Integer.parseInt(request.getParameter("id"));
             ReservationDAO dao = new ReservationDAO();
-            
-            // Kiểm tra quyền hủy đặt bàn
-            User user = (User) request.getSession().getAttribute("user");
             Reservation reservation = dao.findById(reservationId);
-            
+
             if (reservation == null) {
-                request.setAttribute("errorMessage", "Không tìm thấy đặt bàn.");
+                request.getSession().setAttribute("errorMessage", "Không tìm thấy đặt bàn.");
                 response.sendRedirect(request.getContextPath() + "/views/guest/my-reservations.jsp");
                 return;
             }
-            
-            if (user == null || 
-                (reservation.getCustomerId() != null && 
-                !reservation.getCustomerId().equals(user.getUserId()))) {
+
+            User user = (User) request.getSession().getAttribute("user");
+            if (user == null ||
+                (reservation.getCustomerId() != null &&
+                 !reservation.getCustomerId().equals(user.getUserId()))) {
                 response.sendError(HttpServletResponse.SC_FORBIDDEN);
                 return;
             }
-            
+
             if (dao.updateStatus(reservationId, "CANCELLED")) {
-                request.setAttribute("successMessage", "Hủy đặt bàn thành công.");
+                request.getSession().setAttribute("successMessage", "Hủy đặt bàn thành công.");
             } else {
-                request.setAttribute("errorMessage", "Không thể hủy đặt bàn. Vui lòng thử lại sau.");
+                request.getSession().setAttribute("errorMessage", "Không thể hủy đặt bàn.");
             }
-            
+
         } catch (Exception e) {
-            request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
+            request.getSession().setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
         }
-        
+
         response.sendRedirect(request.getContextPath() + "/views/guest/my-reservations.jsp");
     }
-    
-    private String generateConfirmationCode() {
-        return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-    }
-    
+
     private void handleEditReservation(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
         try {
             int reservationId = Integer.parseInt(request.getParameter("id"));
             ReservationDAO dao = new ReservationDAO();
             Reservation reservation = dao.findById(reservationId);
-            
+
             if (reservation == null) {
-                request.setAttribute("errorMessage", "Không tìm thấy đặt bàn.");
+                request.getSession().setAttribute("errorMessage", "Không tìm thấy đặt bàn.");
                 response.sendRedirect(request.getContextPath() + "/views/guest/my-reservations.jsp");
                 return;
             }
-            
-            // Kiểm tra quyền sửa đặt bàn
+
             User user = (User) request.getSession().getAttribute("user");
-            if (user == null || 
-                (reservation.getCustomerId() != null && 
-                !reservation.getCustomerId().equals(user.getUserId()))) {
+            if (user == null ||
+                (reservation.getCustomerId() != null &&
+                 !reservation.getCustomerId().equals(user.getUserId()))) {
                 response.sendError(HttpServletResponse.SC_FORBIDDEN);
                 return;
             }
-            
+
             request.setAttribute("reservation", reservation);
             request.getRequestDispatcher("/views/guest/edit-reservation.jsp").forward(request, response);
-            
+
         } catch (Exception e) {
-            request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
+            request.getSession().setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
             response.sendRedirect(request.getContextPath() + "/views/guest/my-reservations.jsp");
         }
     }
-    
+
     private void handleUpdateReservation(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
         try {
-            // Lấy ID của đặt bàn cần cập nhật
             int reservationId = Integer.parseInt(request.getParameter("reservation_id"));
             ReservationDAO dao = new ReservationDAO();
-            Reservation existingReservation = dao.findById(reservationId);
-            
-            if (existingReservation == null) {
-                request.setAttribute("errorMessage", "Không tìm thấy đặt bàn.");
+            Reservation existing = dao.findById(reservationId);
+
+            if (existing == null) {
+                request.getSession().setAttribute("errorMessage", "Không tìm thấy đặt bàn.");
                 response.sendRedirect(request.getContextPath() + "/views/guest/my-reservations.jsp");
                 return;
             }
-            
-            // Kiểm tra quyền sửa đặt bàn
+
             User user = (User) request.getSession().getAttribute("user");
-            if (user == null || 
-                (existingReservation.getCustomerId() != null && 
-                !existingReservation.getCustomerId().equals(user.getUserId()))) {
+            if (user == null ||
+                (existing.getCustomerId() != null &&
+                 !existing.getCustomerId().equals(user.getUserId()))) {
                 response.sendError(HttpServletResponse.SC_FORBIDDEN);
                 return;
             }
-            
-            // Cập nhật thông tin đặt bàn
-            Reservation updatedReservation = new Reservation();
-            updatedReservation.setReservationId(reservationId);
-            updatedReservation.setPartySize(Integer.parseInt(request.getParameter("party_size")));
-            updatedReservation.setReservationDate(Date.valueOf(request.getParameter("reservation_date")));
-            updatedReservation.setReservationTime(Time.valueOf(request.getParameter("reservation_time")));
-            updatedReservation.setSpecialRequests(request.getParameter("special_requests"));
-            updatedReservation.setCustomerName(request.getParameter("customer_name"));
-            updatedReservation.setPhone(request.getParameter("phone"));
-            updatedReservation.setEmail(request.getParameter("email"));
-            updatedReservation.setStatus(existingReservation.getStatus());
-            updatedReservation.setChannel(existingReservation.getChannel());
-            updatedReservation.setCreatedBy(existingReservation.getCreatedBy());
-            updatedReservation.setConfirmationCode(existingReservation.getConfirmationCode());
-            
-            if (dao.update(updatedReservation)) {
-                request.setAttribute("reservation", updatedReservation);
+
+            Reservation updated = new Reservation();
+            updated.setReservationId(reservationId);
+            updated.setPartySize(Integer.parseInt(request.getParameter("party_size")));
+            updated.setReservationDate(Date.valueOf(request.getParameter("reservation_date")));
+            updated.setReservationTime(Time.valueOf(request.getParameter("reservation_time")));
+            updated.setSpecialRequests(request.getParameter("special_requests"));
+            updated.setCustomerName(request.getParameter("customer_name"));
+            updated.setPhone(request.getParameter("phone"));
+            updated.setEmail(request.getParameter("email"));
+            updated.setStatus(existing.getStatus());
+            updated.setChannel(existing.getChannel());
+            updated.setCreatedBy(existing.getCreatedBy());
+            updated.setConfirmationCode(existing.getConfirmationCode());
+            updated.setTableId(existing.getTableId());
+            updated.setCustomerId(existing.getCustomerId());
+
+            if (dao.update(updated)) {
+                request.setAttribute("reservation", updated);
                 request.setAttribute("successMessage", "Cập nhật đặt bàn thành công!");
                 request.getRequestDispatcher("/views/guest/confirmation.jsp").forward(request, response);
             } else {
-                request.setAttribute("errorMessage", "Không thể cập nhật đặt bàn. Vui lòng thử lại sau.");
-                request.setAttribute("reservation", existingReservation);
+                request.setAttribute("errorMessage", "Không thể cập nhật đặt bàn.");
+                request.setAttribute("reservation", existing);
                 request.getRequestDispatcher("/views/guest/edit-reservation.jsp").forward(request, response);
             }
-            
+
         } catch (Exception e) {
-            request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
-            response.sendRedirect(request.getContextPath() + "/my-reservations");
+            request.getSession().setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
+            response.sendRedirect(request.getContextPath() + "/views/guest/my-reservations.jsp");
         }
     }
-    
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+
+    // ========= ROUTER CHÍNH =========
+
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+
+        String pathInfo = request.getPathInfo(); // có thể null
+
+        if (pathInfo == null || "/".equals(pathInfo)) {
+            // /reservation → form đặt bàn
+            showBookingForm(request, response);
+            return;
+        }
+
+        switch (pathInfo) {
+            case "/select-table":
+                handleSelectTable(request, response);
+                break;
+            case "/create":
+                handleCreateReservation(request, response);
+                break;
+            case "/cancel":
+                handleCancelReservation(request, response);
+                break;
+            case "/edit":
+                handleEditReservation(request, response);
+                break;
+            case "/update":
+                handleUpdateReservation(request, response);
+                break;
+            default:
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        }
     }
-    
+
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        processRequest(request, response);
+        processRequest(req, resp);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        processRequest(req, resp);
     }
 }
