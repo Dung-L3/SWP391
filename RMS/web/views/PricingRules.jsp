@@ -18,30 +18,22 @@
 <head>
     <meta charset="utf-8">
     <title>Quy tắc giá động | RMSG4</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
 
-    <!-- Favicon -->
     <link href="<c:url value='/img/favicon.ico'/>" rel="icon"/>
 
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600&display=swap" rel="stylesheet"/>
 
-    <!-- Icons / Bootstrap -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet"/>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet"/>
     <link href="<c:url value='/css/bootstrap.min.css'/>" rel="stylesheet"/>
 
-    <!-- Base site styles (header/footer layout etc) -->
     <link href="<c:url value='/css/style.css'/>" rel="stylesheet"/>
 
     <style>
-        /************************************
-         * COLOR SYSTEM / THEME
-         ************************************/
         :root {
-            /* surfaces */
             --bg-app: #f5f6fa;
             --bg-grad-1: rgba(88, 80, 200, 0.08);
             --bg-grad-2: rgba(254, 161, 22, 0.06);
@@ -51,28 +43,23 @@
             --panel-dark: #1f2535;
             --panel-dark-border: rgba(255,255,255,.08);
 
-            /* ink */
             --ink-900:#0f172a;
             --ink-700:#334155;
             --ink-500:#64748b;
             --ink-400:#94a3b8;
 
-            /* accent */
-            --accent:#FEA116; /* vàng champagne */
+            --accent:#FEA116;
             --accent-soft:rgba(254,161,22,.12);
             --accent-border:rgba(254,161,22,.45);
 
-            /* brand / primary */
             --brand:#4f46e5;
             --brand-border:#6366f1;
             --brand-bg-soft:#eef2ff;
 
-            /* success / danger */
             --success:#16a34a;
             --success-soft:#d1fae5;
             --danger:#dc2626;
 
-            /* lines / glow */
             --line:#e5e7eb;
             --line-dark:#2d354d;
             --shadow-card:0 28px 64px rgba(15,23,42,.12);
@@ -84,9 +71,6 @@
             --sidebar-width:280px;
         }
 
-        /************************************
-         * GLOBAL LAYOUT
-         ************************************/
         body {
             background:
                 radial-gradient(1000px 600px at 8% 0%, var(--bg-grad-1) 0%, transparent 60%),
@@ -123,12 +107,9 @@
             padding: 28px 32px 44px;
         }
 
-        /************************************
-         * TOP POS BAR (dark header inside page)
-         ************************************/
         .pos-topbar {
             position: relative;
-            background: radial-gradient(circle at 0% 0%, #2a3048 0%, #1b1e2c 70%);
+            background: linear-gradient(135deg, #1b1e2c, #2b2f46 60%, #1c1f30 100%);
             border-radius: var(--radius-md);
             padding: 16px 20px;
             display: flex;
@@ -139,6 +120,7 @@
             margin-top: 58px;
             margin-bottom: 24px;
             color: #fff;
+            border:1px solid rgba(255,255,255,.1);
         }
 
         .pos-left .title-row {
@@ -148,7 +130,6 @@
             font-weight: 600;
             font-size: 1rem;
             line-height: 1.35;
-            color: #fff;
         }
         .pos-left .title-row i {
             color: var(--accent);
@@ -165,7 +146,6 @@
             align-items: center;
             flex-wrap: wrap;
             gap: .75rem;
-            color: #fff;
         }
 
         .user-chip {
@@ -178,7 +158,6 @@
             padding: 6px 10px;
             font-size: .8rem;
             line-height: 1.2;
-            color: #fff;
             font-weight: 500;
         }
         .user-chip .role-badge {
@@ -212,12 +191,6 @@
             }
         }
 
-        /************************************
-         * PRICING LAYOUT STATES
-         * - default: full menu grid
-         * - .picked: left becomes vertical dark sidebar,
-         *            right shows detail cards
-         ************************************/
         .pricing-layout {
             display: flex;
             flex-wrap: nowrap;
@@ -230,9 +203,6 @@
             }
         }
 
-        /************************************
-         * MENU PICKER (LEFT COLUMN)
-         ************************************/
         .menu-picker {
             background: linear-gradient(to bottom right,
                          var(--panel-light-top) 0%,
@@ -254,7 +224,6 @@
             overflow-y: auto;
             scrollbar-width: thin;
             scrollbar-color: var(--brand-border) rgba(0,0,0,0);
-
             background: linear-gradient(to bottom right, #2a3048 0%, #1f2535 60%);
             border: 1px solid var(--panel-dark-border);
             color: #fff;
@@ -262,14 +231,12 @@
             padding: 14px 14px 18px;
         }
 
-        /* Card header inside menu-picker */
         .picker-head {
             display: flex;
             flex-direction: column;
             gap: .4rem;
             margin-bottom: 1rem;
         }
-
         .picker-title {
             display: flex;
             align-items: center;
@@ -288,7 +255,6 @@
         .pricing-layout.picked .picker-title i {
             color: var(--accent);
         }
-
         .picker-desc {
             font-size: .8rem;
             color: var(--ink-500);
@@ -297,7 +263,6 @@
             color: var(--ink-400);
         }
 
-        /* GRID (unpicked) vs LIST (picked) */
         .menu-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(min(250px,100%), 1fr));
@@ -310,7 +275,6 @@
             gap: .6rem;
         }
 
-        /* FOOD CARD */
         .food-card {
             background: #ffffff;
             border-radius: var(--radius-md);
@@ -322,12 +286,10 @@
             color: var(--ink-900);
             position: relative;
         }
-
         .food-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 28px 60px rgba(0,0,0,.12);
         }
-
         .food-card.active {
             border-color: var(--brand-border);
             background: radial-gradient(circle at 0% 0%, #ffffff 0%, #f5f5ff 60%);
@@ -335,7 +297,6 @@
             cursor: default;
         }
 
-        /* picked state overrides (dark list) */
         .pricing-layout.picked .food-card {
             background: rgba(255,255,255,.03);
             color: #fff;
@@ -365,11 +326,7 @@
             gap: .5rem;
         }
 
-        .food-meta {
-            display:flex;
-            flex-direction:column;
-            gap:.2rem;
-        }
+        .food-meta { display:flex; flex-direction:column; gap:.2rem; }
 
         .food-name {
             font-size: .95rem;
@@ -381,7 +338,6 @@
             align-items:center;
             gap:.4rem;
         }
-
         .pricing-layout.picked .food-name {
             color:#fff;
             font-size: .9rem;
@@ -431,7 +387,6 @@
             gap:.4rem;
             font-size: .85rem;
         }
-
         .base-line {
             font-size: .75rem;
             color: var(--ink-500);
@@ -440,7 +395,6 @@
             color:#9ca3af;
             font-size:.7rem;
         }
-
         .cur-line {
             font-size: .9rem;
             font-weight:600;
@@ -455,7 +409,6 @@
             font-size:.8rem;
             font-weight:600;
         }
-
         .now-badge {
             font-size: .65rem;
             line-height:1.2;
@@ -472,9 +425,6 @@
             border:1px solid rgba(255,255,255,.4);
         }
 
-        /************************************
-         * RIGHT DETAIL COLUMN
-         ************************************/
         .pricing-detail {
             flex: 1;
             min-width: 0;
@@ -497,11 +447,29 @@
         }
 
         .detail-card {
-            background: radial-gradient(circle at 0% 0%, #ffffff 0%, #fafaff 70%);
+            position: relative;
+            background: linear-gradient(to bottom right, #ffffff 0%, #fafaff 80%);
             border-radius: var(--radius-lg);
-            border: 1px solid var(--line);
-            box-shadow: var(--shadow-card);
+            border: 1px solid rgba(99,102,241,.25);
+            border-top: 4px solid var(--accent);
+            box-shadow: 0 10px 40px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.8);
             padding: 1rem 1.25rem 1.25rem;
+            transition: all .25s ease;
+        }
+        .detail-card:hover {
+            box-shadow: 0 20px 60px rgba(254,161,22,.2), inset 0 1px 0 rgba(255,255,255,1);
+            transform: translateY(-2px);
+        }
+        .detail-card::before {
+            content:"";
+            position:absolute;
+            top:0;
+            left:0;
+            width:100%;
+            height:5px;
+            background: linear-gradient(90deg, var(--accent), var(--brand));
+            border-radius: 8px 8px 0 0;
+            opacity:.8;
         }
 
         .detail-head {
@@ -512,7 +480,6 @@
             gap:.75rem;
             margin-bottom:1rem;
         }
-
         .detail-head-left {
             display:flex;
             gap:.6rem;
@@ -531,8 +498,10 @@
         .detail-title-line {
             font-weight:600;
             font-size:1rem;
-            color:var(--ink-900);
             line-height:1.3;
+            background: linear-gradient(to right, var(--accent), var(--brand));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         .detail-sub {
             font-size:.8rem;
@@ -583,41 +552,66 @@
             line-height:1.4;
         }
 
-        /************************************
-         * FORM NEW RULE
-         ************************************/
         .form-label {
             font-size:.8rem;
             font-weight:600;
             color:var(--ink-700);
         }
-
         .small-hint {
             font-size:.7rem;
             line-height:1.3;
             color:var(--ink-500);
         }
 
+        .form-control, .form-select {
+            border-radius: 10px;
+            border:1.5px solid #e2e8f0;
+            transition: all .25s ease;
+            background: #ffffff;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 0.25rem rgba(254,161,22,.25);
+            background: #fffefc;
+        }
+
         .btn-save-rule {
-            background:#047857;
-            border-color:#047857;
-            font-weight:600;
+            background: linear-gradient(135deg, #16a34a, #0f766e);
+            border: none;
+            font-weight: 600;
+            letter-spacing: .02em;
+            box-shadow: 0 4px 20px rgba(22,163,74,.3);
             border-radius: var(--radius-sm);
         }
         .btn-save-rule:hover {
-            background:#065f46;
-            border-color:#065f46;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 25px rgba(22,163,74,.4);
         }
 
-        /************************************
-         * RULE LIST TABLE
-         ************************************/
         .rule-list-card {
-            background: radial-gradient(circle at 0% 0%, #ffffff 0%, #fafaff 70%);
+            position: relative;
+            background: linear-gradient(to bottom right, #ffffff 0%, #fafaff 80%);
             border-radius: var(--radius-lg);
-            border: 1px solid var(--line);
-            box-shadow: var(--shadow-card);
+            border: 1px solid rgba(99,102,241,.25);
+            border-top: 4px solid var(--accent);
+            box-shadow: 0 10px 40px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.8);
             padding: 1rem 1rem 0;
+            transition: all .25s ease;
+        }
+        .rule-list-card:hover {
+            box-shadow: 0 20px 60px rgba(254,161,22,.2), inset 0 1px 0 rgba(255,255,255,1);
+            transform: translateY(-2px);
+        }
+        .rule-list-card::before {
+            content:"";
+            position:absolute;
+            top:0;
+            left:0;
+            width:100%;
+            height:5px;
+            background: linear-gradient(90deg, var(--accent), var(--brand));
+            border-radius: 8px 8px 0 0;
+            opacity:.8;
         }
 
         .rule-card-head {
@@ -628,7 +622,6 @@
             gap:.75rem;
             margin-bottom:1rem;
         }
-
         .rule-left-head {
             display:flex;
             flex-direction:column;
@@ -639,12 +632,15 @@
             align-items:center;
             flex-wrap:wrap;
             gap:.5rem;
-            color:var(--ink-900);
             font-weight:600;
             font-size:1rem;
+            background: linear-gradient(to right, var(--accent), var(--brand));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         .rule-card-title i {
             color:var(--accent);
+            -webkit-text-fill-color: initial;
         }
         .rule-card-desc {
             font-size:.8rem;
@@ -664,6 +660,9 @@
         .table td, .table th {
             vertical-align:middle;
             font-size:.8rem;
+        }
+        .table-hover tbody tr:hover {
+            background: linear-gradient(to right, rgba(254,161,22,.08), rgba(99,102,241,.08));
         }
 
         .rule-fixedprice-badge {
@@ -701,108 +700,18 @@
                 order:1;
             }
         }
-        /* === ENHANCED LUXURY POS STYLE === */
-
-/* Viền sáng nổi bật cho form và card */
-.detail-card, .rule-list-card {
-    position: relative;
-    background: linear-gradient(to bottom right, #ffffff 0%, #fafaff 80%);
-    border: 1px solid rgba(99,102,241,.25);
-    border-top: 4px solid var(--accent);
-    box-shadow: 0 10px 40px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.8);
-    transition: all .25s ease;
-}
-.detail-card:hover, .rule-list-card:hover {
-    box-shadow: 0 20px 60px rgba(254,161,22,.2), inset 0 1px 0 rgba(255,255,255,1);
-    transform: translateY(-2px);
-}
-
-/* Header bar mềm trên mỗi card */
-.detail-card::before, .rule-list-card::before {
-    content:"";
-    position:absolute;
-    top:0;
-    left:0;
-    width:100%;
-    height:5px;
-    background: linear-gradient(90deg, var(--accent), var(--brand));
-    border-radius: 8px 8px 0 0;
-    opacity:.8;
-}
-
-/* Form input nổi bật */
-.form-control, .form-select {
-    border-radius: 10px;
-    border:1.5px solid #e2e8f0;
-    transition: all .25s ease;
-    background: #ffffff;
-}
-.form-control:focus, .form-select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 0.25rem rgba(254,161,22,.25);
-    background: #fffefc;
-}
-
-/* Nút lưu rule nâng cấp */
-.btn-save-rule {
-    background: linear-gradient(135deg, #16a34a, #0f766e);
-    border: none;
-    font-weight: 600;
-    letter-spacing: .02em;
-    box-shadow: 0 4px 20px rgba(22,163,74,.3);
-    transition: all .25s ease;
-}
-.btn-save-rule:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 25px rgba(22,163,74,.4);
-}
-
-/* Bảng danh sách rule sang trọng */
-.table-striped>tbody>tr:nth-of-type(odd)>* {
-    background-color: #fcfcff;
-}
-.table-hover tbody tr:hover {
-    background: linear-gradient(to right, rgba(254,161,22,.08), rgba(99,102,241,.08));
-}
-
-/* Hiệu ứng phát sáng khi chọn món */
-.food-card.active {
-    border-color: var(--accent);
-    box-shadow: 0 0 25px rgba(254,161,22,.35);
-}
-.pricing-layout.picked .food-card.active {
-    border-color: #4ade80;
-    box-shadow: 0 0 25px rgba(74,222,128,.5);
-}
-
-/* Thêm gradient nhẹ vào phần header trong topbar */
-.pos-topbar {
-    background: linear-gradient(135deg, #1b1e2c, #2b2f46 60%, #1c1f30 100%);
-    border:1px solid rgba(255,255,255,.1);
-}
-
-/* Form title highlight */
-.detail-title-line, .rule-card-title {
-    background: linear-gradient(to right, var(--accent), var(--brand));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
     </style>
 </head>
 
 <body>
-    <!-- Global site header (navbar top of page) -->
     <jsp:include page="/layouts/Header.jsp"/>
 
     <div class="app-shell">
-        <!-- Global sidebar (như trang voucher) -->
         <aside id="sidebar">
             <jsp:include page="/layouts/sidebar.jsp"/>
         </aside>
 
-        <!-- MAIN CONTENT AREA -->
         <main class="main-pane">
-            <!-- Dark POS-style top bar -->
             <header class="pos-topbar">
                 <div class="pos-left">
                     <div class="title-row">
@@ -827,7 +736,6 @@
                 </div>
             </header>
 
-            <!-- FLASH MESSAGES -->
             <c:if test="${not empty sessionScope.successMessage}">
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     <i class="bi bi-check-circle me-2"></i>${sessionScope.successMessage}
@@ -844,10 +752,8 @@
                 <c:remove var="errorMessage" scope="session"/>
             </c:if>
 
-            <!-- MAIN BODY: LEFT menu list + RIGHT detail -->
             <div class="pricing-layout ${not empty menuItem ? 'picked' : ''}">
 
-                <!-- LEFT COLUMN: Danh sách món -->
                 <aside class="menu-picker">
                     <div class="picker-head">
                         <div class="picker-title">
@@ -859,7 +765,9 @@
 
                     <div class="menu-grid">
                         <c:forEach var="m" items="${menuItems}">
+
                             <c:set var="isSelected" value="${not empty menuItem && menuItem.itemId == m.itemId}"/>
+                            <c:set var="currentPrice" value="${currentPrices[m.itemId]}"/>
 
                             <c:choose>
                                 <c:when test="${isSelected}">
@@ -873,7 +781,7 @@
                                                 <div class="food-id">#${m.itemId}</div>
                                             </div>
 
-                                            <c:if test="${not empty m.displayPrice && m.displayPrice < m.basePrice}">
+                                            <c:if test="${not empty currentPrice && currentPrice < m.basePrice}">
                                                 <div class="chip-sale">SALE</div>
                                             </c:if>
                                         </div>
@@ -886,14 +794,13 @@
 
                                             <div class="cur-line">
                                                 <c:choose>
-                                                    <c:when test="${not empty m.displayPrice}">
-                                                        <span><fmt:formatNumber value="${m.displayPrice}" type="number"/>đ</span>
+                                                    <c:when test="${not empty currentPrice}">
+                                                        <span><fmt:formatNumber value="${currentPrice}" type="number"/>đ</span>
                                                     </c:when>
                                                     <c:otherwise>
                                                         <span><fmt:formatNumber value="${m.basePrice}" type="number"/>đ</span>
                                                     </c:otherwise>
                                                 </c:choose>
-
                                                 <span class="now-badge">hiện tại</span>
                                             </div>
                                         </div>
@@ -910,7 +817,7 @@
                                                     <div class="food-id">#${m.itemId}</div>
                                                 </div>
 
-                                                <c:if test="${not empty m.displayPrice && m.displayPrice < m.basePrice}">
+                                                <c:if test="${not empty currentPrice && currentPrice < m.basePrice}">
                                                     <div class="chip-sale">SALE</div>
                                                 </c:if>
                                             </div>
@@ -923,14 +830,13 @@
 
                                                 <div class="cur-line">
                                                     <c:choose>
-                                                        <c:when test="${not empty m.displayPrice}">
-                                                            <span><fmt:formatNumber value="${m.displayPrice}" type="number"/>đ</span>
+                                                        <c:when test="${not empty currentPrice}">
+                                                            <span><fmt:formatNumber value="${currentPrice}" type="number"/>đ</span>
                                                         </c:when>
                                                         <c:otherwise>
                                                             <span><fmt:formatNumber value="${m.basePrice}" type="number"/>đ</span>
                                                         </c:otherwise>
                                                     </c:choose>
-
                                                     <span class="now-badge">hiện tại</span>
                                                 </div>
                                             </div>
@@ -948,11 +854,8 @@
                     </div>
                 </aside>
 
-                <!-- RIGHT COLUMN: Chi tiết món đã chọn -->
                 <section class="pricing-detail">
-                    <!-- 2 cards row: Giá hiện tại + Form tạo rule -->
                     <div class="detail-top">
-                        <!-- CARD: Giá hiện tại -->
                         <div class="detail-card">
                             <div class="detail-head">
                                 <div class="detail-head-left">
@@ -975,10 +878,10 @@
                             </div>
 
                             <div class="price-label-row">Giá đang áp dụng NGAY BÂY GIỜ</div>
-                            <div class="cur-price-number ${not empty menuItem.displayPrice && menuItem.displayPrice lt menuItem.basePrice ? 'discounted' : ''}">
+                            <div class="cur-price-number ${not empty selectedPrice && selectedPrice < menuItem.basePrice ? 'discounted' : ''}">
                                 <c:choose>
-                                    <c:when test="${not empty menuItem.displayPrice}">
-                                        <fmt:formatNumber value="${menuItem.displayPrice}" type="number"/> đ
+                                    <c:when test="${not empty selectedPrice}">
+                                        <fmt:formatNumber value="${selectedPrice}" type="number"/> đ
                                     </c:when>
                                     <c:otherwise>
                                         <fmt:formatNumber value="${menuItem.basePrice}" type="number"/> đ
@@ -991,7 +894,6 @@
                             </div>
                         </div>
 
-                        <!-- CARD: Form thêm rule -->
                         <div class="detail-card">
                             <div class="detail-head">
                                 <div class="detail-head-left">
@@ -1007,7 +909,6 @@
                                 <input type="hidden" name="action" value="add"/>
                                 <input type="hidden" name="menu_item_id" value="${menuItem.itemId}"/>
 
-                                <!-- Ngày trong tuần -->
                                 <div class="col-md-4">
                                     <label class="form-label">Ngày trong tuần</label>
                                     <select class="form-select" name="day_of_week">
@@ -1025,7 +926,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Giờ bắt đầu / kết thúc -->
                                 <div class="col-md-4">
                                     <label class="form-label">Bắt đầu</label>
                                     <input type="time" name="start_time" class="form-control" required/>
@@ -1035,7 +935,6 @@
                                     <input type="time" name="end_time" class="form-control" required/>
                                 </div>
 
-                                <!-- Giá cố định -->
                                 <div class="col-md-6">
                                     <label class="form-label">Giá cố định (VND)</label>
                                     <input type="number" name="fixed_price" class="form-control" min="0"
@@ -1045,7 +944,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Giảm giá -->
                                 <div class="col-md-6">
                                     <label class="form-label">Giảm giá</label>
                                     <select name="discount_type" class="form-select">
@@ -1061,7 +959,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Ngày hiệu lực -->
                                 <div class="col-md-6">
                                     <label class="form-label">Hiệu lực từ ngày</label>
                                     <input type="date" name="active_from" class="form-control" required/>
@@ -1075,7 +972,7 @@
                                 </div>
 
                                 <div class="col-12 text-end">
-                                    <button class="btn btn-success btn-save-rule">
+                                    <button class="btn btn-save-rule">
                                         <i class="bi bi-save me-1"></i>LƯU RULE
                                     </button>
                                 </div>
@@ -1083,7 +980,6 @@
                         </div>
                     </div>
 
-                    <!-- CARD: Danh sách rule -->
                     <div class="rule-list-card">
                         <div class="rule-card-head">
                             <div class="rule-left-head">
@@ -1124,20 +1020,13 @@
                                     <c:otherwise>
                                         <c:forEach var="r" items="${rules}">
                                             <tr>
-                                                <!-- ID -->
                                                 <td class="fw-semibold">#${r.ruleId}</td>
 
-                                                <!-- Ngày áp dụng -->
                                                 <td>
                                                     <c:choose>
-                                                        <c:when test="${empty r.dayOfWeek or r.dayOfWeek == 0}">
+                                                        <c:when test="${r.dayOfWeek == 0 or empty r.dayOfWeek}">
                                                             <span class="badge bg-primary text-light" style="font-size:.7rem;">
                                                                 Tất cả ngày
-                                                            </span>
-                                                        </c:when>
-                                                        <c:when test="${r.dayOfWeek == 7}">
-                                                            <span class="badge bg-info text-dark" style="font-size:.7rem;">
-                                                                Chủ nhật
                                                             </span>
                                                         </c:when>
                                                         <c:when test="${r.dayOfWeek == 1}">
@@ -1170,6 +1059,11 @@
                                                                 Thứ 7
                                                             </span>
                                                         </c:when>
+                                                        <c:when test="${r.dayOfWeek == 7}">
+                                                            <span class="badge bg-info text-dark" style="font-size:.7rem;">
+                                                                Chủ nhật
+                                                            </span>
+                                                        </c:when>
                                                         <c:otherwise>
                                                             <span class="badge bg-secondary text-dark" style="font-size:.7rem;">
                                                                 N/A
@@ -1178,13 +1072,11 @@
                                                     </c:choose>
                                                 </td>
 
-                                                <!-- Khung giờ -->
                                                 <td class="text-nowrap">
                                                     <i class="bi bi-clock me-1"></i>
                                                     ${r.startTime} - ${r.endTime}
                                                 </td>
 
-                                                <!-- Khoảng hiệu lực -->
                                                 <td class="text-nowrap">
                                                     <i class="bi bi-calendar3 me-1"></i>
                                                     ${r.activeFrom}
@@ -1199,7 +1091,6 @@
                                                     </c:choose>
                                                 </td>
 
-                                                <!-- Kiểu giá -->
                                                 <td>
                                                     <c:choose>
                                                         <c:when test="${not empty r.fixedPrice}">
@@ -1231,7 +1122,6 @@
                                                     </c:choose>
                                                 </td>
 
-                                                <!-- Trạng thái -->
                                                 <td class="text-nowrap">
                                                     <span class="rule-status">
                                                         Đang áp dụng
@@ -1250,10 +1140,8 @@
         </main>
     </div>
 
-    <!-- Global footer -->
     <jsp:include page="/layouts/Footer.jsp"/>
 
-    <!-- JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function toggleSidebar() {
@@ -1261,7 +1149,6 @@
             if (el) el.classList.toggle('open');
         }
 
-        // auto-close bootstrap alerts
         setTimeout(function () {
             var alerts = document.querySelectorAll('.alert');
             alerts.forEach(function (al) {
