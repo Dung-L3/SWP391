@@ -318,87 +318,56 @@
             });
         }
 
-        // Helper function to escape HTML
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
         // Create order card
         function createOrderCard(order) {
             const col = document.createElement('div');
             col.className = 'col-md-6 col-lg-4';
 
             const statusClass = order.status.toLowerCase();
-            const statusBadgeClass = 'status-' + statusClass;
-            const orderId = order.orderId || 0;
-            const specialInstructions = order.specialInstructions ? escapeHtml(order.specialInstructions) : '';
+            const statusBadgeClass = `status-${statusClass}`;
 
-            // Build conditional parts
-            let notesHtml = '';
-            if (specialInstructions) {
-                notesHtml = '<div class="mb-2"><strong>Notes:</strong> ' + specialInstructions + '</div>';
-            }
-
-            let confirmedButton = '';
-            if (order.status === 'CONFIRMED') {
-                confirmedButton = '<button class="btn btn-sm btn-warning btn-action" data-action="send-kitchen" data-order-id="' + orderId + '"><i class="fas fa-fire"></i> Send to Kitchen</button>';
-            }
-
-            let readyButton = '';
-            if (order.status === 'READY') {
-                readyButton = '<button class="btn btn-sm btn-info btn-action" data-action="mark-served" data-order-id="' + orderId + '"><i class="fas fa-check"></i> Mark Served</button>';
-            }
-
-            col.innerHTML = 
-                '<div class="order-card ' + statusClass + '">' +
-                    '<div class="card-body">' +
-                        '<div class="d-flex justify-content-between align-items-start mb-2">' +
-                            '<h5 class="card-title">Order #' + orderId + '</h5>' +
-                            '<span class="status-badge ' + statusBadgeClass + '">' + escapeHtml(order.status || '') + '</span>' +
-                        '</div>' +
-                        '<div class="mb-2">' +
-                            '<strong>Table:</strong> ' + escapeHtml(order.tableNumber || 'N/A') + '<br>' +
-                            '<strong>Waiter:</strong> ' + escapeHtml(order.waiterName || 'N/A') + '<br>' +
-                            '<strong>Type:</strong> ' + escapeHtml(order.orderType || '') + '<br>' +
-                            '<strong>Items:</strong> ' + (order.items ? order.items.length : 0) +
-                        '</div>' +
-                        notesHtml +
-                        '<div class="mb-3">' +
-                            '<div class="total-amount">$' + (order.totalAmount || '0.00') + '</div>' +
-                        '</div>' +
-                        '<div class="d-flex flex-wrap">' +
-                            '<button class="btn btn-sm btn-outline-primary btn-action" data-action="view" data-order-id="' + orderId + '">' +
-                                '<i class="fas fa-eye"></i> View' +
-                            '</button>' +
-                            '<button class="btn btn-sm btn-outline-success btn-action" data-action="add-item" data-order-id="' + orderId + '">' +
-                                '<i class="fas fa-plus"></i> Add Item' +
-                            '</button>' +
-                            confirmedButton +
-                            readyButton +
-                        '</div>' +
-                    '</div>' +
-                '</div>';
-
-            // Attach event listeners
-            col.querySelectorAll('[data-action]').forEach(btn => {
-                const action = btn.getAttribute('data-action');
-                const orderId = parseInt(btn.getAttribute('data-order-id'));
-                
-                btn.addEventListener('click', function() {
-                    if (action === 'view') {
-                        viewOrder(orderId);
-                    } else if (action === 'add-item') {
-                        addItemToOrder(orderId);
-                    } else if (action === 'send-kitchen') {
-                        sendToKitchen(orderId);
-                    } else if (action === 'mark-served') {
-                        markAsServed(orderId);
-                    }
-                });
-            });
+            col.innerHTML = `
+                <div class="order-card ${statusClass}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title">Order #${order.orderId}</h5>
+                            <span class="status-badge ${statusBadgeClass}">${order.status}</span>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <strong>Table:</strong> ${order.tableNumber || 'N/A'}<br>
+                            <strong>Waiter:</strong> ${order.waiterName || 'N/A'}<br>
+                            <strong>Type:</strong> ${order.orderType}<br>
+                            <strong>Items:</strong> ${order.items ? order.items.length : 0}
+                        </div>
+                        
+                        ${order.specialInstructions ? `<div class="mb-2"><strong>Notes:</strong> ${order.specialInstructions}</div>` : ''}
+                        
+                        <div class="mb-3">
+                            <div class="total-amount">$${order.totalAmount || '0.00'}</div>
+                        </div>
+                        
+                        <div class="d-flex flex-wrap">
+                            <button class="btn btn-sm btn-outline-primary btn-action" onclick="viewOrder(${order.orderId})">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn btn-sm btn-outline-success btn-action" onclick="addItemToOrder(${order.orderId})">
+                                <i class="fas fa-plus"></i> Add Item
+                            </button>
+                            ${order.status === 'CONFIRMED' ? `
+                                <button class="btn btn-sm btn-warning btn-action" onclick="sendToKitchen(${order.orderId})">
+                                    <i class="fas fa-fire"></i> Send to Kitchen
+                                </button>
+                            ` : ''}
+                            ${order.status === 'READY' ? `
+                                <button class="btn btn-sm btn-info btn-action" onclick="markAsServed(${order.orderId})">
+                                    <i class="fas fa-check"></i> Mark Served
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
 
             return col;
         }
@@ -570,63 +539,45 @@
             let itemsHtml = '';
             if (order.items && order.items.length > 0) {
                 order.items.forEach(item => {
-                    const statusClass = 'status-' + (item.status || '').toLowerCase();
-                    const itemId = item.orderItemId || 0;
-                    const specialInstructions = item.specialInstructions ? escapeHtml(item.specialInstructions) : '';
-                    
-                    // Build conditional parts
-                    let noteHtml = '';
-                    if (specialInstructions) {
-                        noteHtml = '<br><small class="text-muted">Note: ' + specialInstructions + '</small>';
-                    }
-
-                    let statusButton = '';
-                    if (item.status === 'READY') {
-                        statusButton = '<button class="btn btn-sm btn-success mt-2" data-action="mark-item-served" data-item-id="' + itemId + '"><i class="fas fa-check"></i> Mark Served</button>';
-                    } else if (item.status === 'SERVED') {
-                        statusButton = '<small class="text-success"><i class="fas fa-check-circle"></i> Served</small>';
-                    }
-                    
-                    itemsHtml += 
-                        '<div class="item-row">' +
-                            '<div class="d-flex justify-content-between align-items-start">' +
-                                '<div>' +
-                                    '<strong>' + escapeHtml(item.menuItemName || '') + '</strong><br>' +
-                                    '<small class="text-muted">Qty: ' + (item.quantity || 0) + ' x $' + (item.finalUnitPrice || '0.00') + ' = $' + (item.totalPrice || '0.00') + '</small>' +
-                                    noteHtml +
-                                '</div>' +
-                                '<div class="text-end">' +
-                                    '<span class="status-badge ' + statusClass + '">' + escapeHtml(item.status || '') + '</span><br>' +
-                                    statusButton +
-                                '</div>' +
-                            '</div>' +
-                        '</div>';
+                    const statusClass = `status-${item.status.toLowerCase()}`;
+                    itemsHtml += `
+                        <div class="item-row">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>${item.menuItemName}</strong><br>
+                                    <small class="text-muted">Qty: ${item.quantity} x $${item.finalUnitPrice} = $${item.totalPrice}</small>
+                                    ${item.specialInstructions ? `<br><small class="text-muted">Note: ${item.specialInstructions}</small>` : ''}
+                                </div>
+                                <div class="text-end">
+                                    <span class="status-badge ${statusClass}">${item.status}</span><br>
+                                    ${item.status === 'READY' ? `
+                                        <button class="btn btn-sm btn-success mt-2" onclick="markItemAsServed(${item.orderItemId})">
+                                            <i class="fas fa-check"></i> Mark Served
+                                        </button>
+                                    ` : item.status === 'SERVED' ? `
+                                        <small class="text-success"><i class="fas fa-check-circle"></i> Served</small>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
                 });
             } else {
                 itemsHtml = '<p>No items in this order.</p>';
             }
             
-            const orderId = order.orderId || 0;
-            const orderStatusClass = 'status-' + (order.status || '').toLowerCase();
-            content.innerHTML = 
-                '<div class="mb-3">' +
-                    '<h6>Order #' + orderId + '</h6>' +
-                    '<p><strong>Table:</strong> ' + escapeHtml(order.tableNumber || 'N/A') + '</p>' +
-                    '<p><strong>Waiter:</strong> ' + escapeHtml(order.waiterName || 'N/A') + '</p>' +
-                    '<p><strong>Status:</strong> <span class="status-badge ' + orderStatusClass + '">' + escapeHtml(order.status || '') + '</span></p>' +
-                    '<p><strong>Total:</strong> $' + (order.totalAmount || '0.00') + '</p>' +
-                '</div>' +
-                '<hr>' +
-                '<h6>Order Items</h6>' +
-                itemsHtml;
-            
-            // Attach event listeners for item buttons
-            content.querySelectorAll('[data-action="mark-item-served"]').forEach(btn => {
-                const itemId = parseInt(btn.getAttribute('data-item-id'));
-                btn.addEventListener('click', function() {
-                    markItemAsServed(itemId);
-                });
-            });
+            content.innerHTML = `
+                <div class="mb-3">
+                    <h6>Order #${order.orderId}</h6>
+                    <p><strong>Table:</strong> ${order.tableNumber || 'N/A'}</p>
+                    <p><strong>Waiter:</strong> ${order.waiterName || 'N/A'}</p>
+                    <p><strong>Status:</strong> <span class="status-badge status-${order.status.toLowerCase()}">${order.status}</span></p>
+                    <p><strong>Total:</strong> $${order.totalAmount || '0.00'}</p>
+                </div>
+                <hr>
+                <h6>Order Items</h6>
+                ${itemsHtml}
+            `;
             
             const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
             modal.show();
@@ -635,7 +586,7 @@
         // Mark item as served
         function markItemAsServed(itemId) {
             if (confirm('Mark this item as served?')) {
-                fetch('${pageContext.request.contextPath}/orders/items/' + itemId + '/serve', {
+                fetch(`${pageContext.request.contextPath}/orders/items/${itemId}/serve`, {
                     method: 'POST'
                 })
                 .then(response => response.json())

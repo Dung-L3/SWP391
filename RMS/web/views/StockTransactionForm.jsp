@@ -81,7 +81,14 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3>
-                <i class="bi <c:choose><c:when test="${txnType == 'IN'}">bi-box-arrow-in-down</c:when><c:when test="${txnType == 'OUT'}">bi-box-arrow-up</c:when><c:when test="${txnType == 'ADJUSTMENT'}">bi-sliders</c:when><c:otherwise>bi-arrow-left-right</c:otherwise></c:choose>"></i>
+                <i class="bi 
+                    <c:choose>
+                        <c:when test="${txnType == 'IN'}">bi-box-arrow-in-down</c:when>
+                        <c:when test="${txnType == 'OUT'}">bi-box-arrow-up</c:when>
+                        <c:when test="${txnType == 'ADJUSTMENT'}">bi-sliders</c:when>
+                        <c:otherwise>bi-arrow-left-right</c:otherwise>
+                    </c:choose>
+                "></i>
                 <c:choose>
                     <c:when test="${txnType == 'IN'}">Nhập kho</c:when>
                     <c:when test="${txnType == 'OUT'}">Xuất kho</c:when>
@@ -192,17 +199,10 @@
                            name="quantity" 
                            id="quantity"
                            step="0.001" 
-                           <c:if test="${txnType != 'ADJUSTMENT'}">min="0.001"</c:if>
+                           min="<c:if test='${txnType != \"ADJUSTMENT\"}'>0.001</c:if>"
                            required 
                            oninput="updateNewStock(); calculateTotal();"
-                           <c:choose>
-                               <c:when test="${txnType == 'ADJUSTMENT'}">
-                                   placeholder="Ví dụ: -5.5 (giảm) hoặc +10 (tăng)"
-                               </c:when>
-                               <c:otherwise>
-                                   placeholder="Nhập số lượng"
-                               </c:otherwise>
-                           </c:choose>>
+                           placeholder="<c:choose><c:when test='${txnType == \"ADJUSTMENT\"}'>Ví dụ: -5.5 (giảm) hoặc +10 (tăng)</c:when><c:otherwise>Nhập số lượng</c:otherwise></c:choose>">
                 </div>
 
                 <div class="mb-3">
