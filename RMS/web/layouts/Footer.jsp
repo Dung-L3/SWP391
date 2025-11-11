@@ -9,7 +9,7 @@
                 <h4 class="section-title ff-secondary text-start text-primary fw-normal mb-4">Công ty</h4>
                 <a class="btn btn-link" href="<c:url value='/about.jsp'/>">Giới thiệu</a>
                 <a class="btn btn-link" href="<c:url value='/contact.jsp'/>">Liên hệ</a>
-                <a class="btn btn-link" href="<c:url value='/booking.jsp'/>">Đặt bàn</a>
+                <a class="btn btn-link" href="<c:url value='/booking'/>">Đặt bàn</a>
                 <a class="btn btn-link" href="#">Chính sách</a>
                 <a class="btn btn-link" href="#">Điều khoản</a>
             </div>

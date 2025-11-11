@@ -1,7 +1,9 @@
 package Controller;
 
 import Controller.auth.EmailServices;
+import Dal.CustomerDAO;
 import Dal.ReservationDAO;
+import Models.Customer;
 import Models.Reservation;
 import Models.User;
 
@@ -66,7 +68,47 @@ public class ReservationServlet extends HttpServlet {
             }
 
             // Lưu vào session để dùng ở màn chọn bàn
+            // --- NEW: kiểm tra duplicate sớm (nếu đã tồn tại customer) ---
             HttpSession session = request.getSession();
+            try {
+                // Nếu user đã đăng nhập, dùng userId; nếu không, thử tìm customer theo phone/email
+                Integer knownCustomerId = null;
+                User user = (User) session.getAttribute("user");
+                if (user != null) {
+                    knownCustomerId = user.getUserId();
+                } else {
+                    CustomerDAO cdao = new CustomerDAO();
+                    String normalizedPhone = phone == null ? null : phone.replaceAll("[^0-9]", "");
+                    Customer existing = null;
+                    if (normalizedPhone != null && !normalizedPhone.isEmpty()) {
+                        existing = cdao.findByPhone(normalizedPhone);
+                    }
+                    if (existing == null && email != null && !email.trim().isEmpty()) {
+                        existing = cdao.findByEmail(email.trim().toLowerCase());
+                    }
+                    if (existing != null) {
+                        knownCustomerId = existing.getCustomerId();
+                    }
+                }
+
+                if (knownCustomerId != null) {
+                    // Parse reservation date and check
+                    try {
+                        java.sql.Date reqDate = java.sql.Date.valueOf(reservationDate);
+                        ReservationDAO rdao = new ReservationDAO();
+                        if (rdao.hasReservationOnDate(knownCustomerId, reqDate)) {
+                            request.setAttribute("errorMessage", "Bạn đã có đặt bàn cho ngày này rồi. Mỗi khách chỉ được đặt một lần trong cùng một ngày.");
+                            request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
+                            return;
+                        }
+                    } catch (IllegalArgumentException ex) {
+                        // Date parsing error — let normal validation handle it later
+                    }
+                }
+            } catch (Exception ex) {
+                // Nếu có lỗi khi kiểm tra (DB/DAO), log và tiếp tục flow — sẽ kiểm tra lại khi tạo reservation
+                ex.printStackTrace();
+            }
             session.setAttribute("bookingInProgress", true);
             session.setAttribute("customerName", customerName);
             session.setAttribute("phone", phone);
@@ -165,9 +207,9 @@ public class ReservationServlet extends HttpServlet {
             // TODO: logic chọn bàn phù hợp theo partySize, set reservation.setTableId(...)
 
             if (dao.create(reservation)) {
-                request.setAttribute("reservation", reservation);
+        request.setAttribute("reservation", reservation);
 
-                // nếu đã đăng nhập → load các đặt bàn khác
+        // nếu đã đăng nhập → load các đặt bàn khác
                 if (user != null) {
                     List<Reservation> reservations =
                             dao.findByCustomerId(user.getUserId());
@@ -195,7 +237,7 @@ public class ReservationServlet extends HttpServlet {
                     e.printStackTrace();
                 }
 
-                request.getRequestDispatcher("/views/guest/confirmation.jsp").forward(request, response);
+                request.getRequestDispatcher("/confirmation").forward(request, response);
             } else {
                 request.setAttribute("errorMessage", "Không thể đặt bàn. Vui lòng thử lại sau.");
                 showBookingForm(request, response);
@@ -203,8 +245,8 @@ public class ReservationServlet extends HttpServlet {
 
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
-            showBookingForm(request, response);
+                request.setAttribute("errorMessage", "Có lỗi xảy ra: " + e.getMessage());
+                showBookingForm(request, response);
         }
     }
 
@@ -317,7 +359,7 @@ public class ReservationServlet extends HttpServlet {
             if (dao.update(updated)) {
                 request.setAttribute("reservation", updated);
                 request.setAttribute("successMessage", "Cập nhật đặt bàn thành công!");
-                request.getRequestDispatcher("/views/guest/confirmation.jsp").forward(request, response);
+                request.getRequestDispatcher("/confirmation").forward(request, response);
             } else {
                 request.setAttribute("errorMessage", "Không thể cập nhật đặt bàn.");
                 request.setAttribute("reservation", existing);

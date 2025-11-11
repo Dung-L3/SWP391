@@ -49,8 +49,8 @@
         <a href="<c:url value='/contact.jsp'/>" class="nav-item nav-link ${page=='contact' ? 'active' : ''}">Liên hệ</a>
       </div>
 
-      <!-- Book Button -->
-      <a href="<c:url value='/views/guest/booking.jsp'/>" class="btn btn-primary py-2 px-4 me-2">Đặt bàn</a>
+  <!-- Book Button -->
+  <a href="<c:url value='/booking'/>" class="btn btn-primary py-2 px-4 me-2">Đặt bàn</a>
 
       <!-- Auth -->
       <c:choose>

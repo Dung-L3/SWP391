@@ -153,11 +153,11 @@
                                         <label for="phone" class="form-label">Số điện thoại *</label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="fas fa-phone"></i></span>
-                                            <input type="text" class="form-control" id="phone" 
-                                                   name="phone" required
-                                                   value="${sessionScope.user != null ? sessionScope.user.phone : ''}"
-                                                   oninput="validatePhone(this)"
-                                                   maxlength="10">
+                          <input type="tel" inputmode="numeric" pattern="[0-9]*" class="form-control" id="phone" 
+                              name="phone" required
+                              value="${sessionScope.user != null ? sessionScope.user.phone : ''}"
+                              oninput="validatePhone(this)"
+                              maxlength="10" placeholder="Ví dụ: 0912345678">
                                         </div>
                                         <div class="invalid-feedback" id="phoneError">
                                             Vui lòng nhập đủ 10 số điện thoại
@@ -223,10 +223,9 @@
                                         <span class="input-group-text"><i class="fas fa-users"></i></span>
                                         <select class="form-select" id="party_size" name="party_size" required>
                                             <option value="">Chọn số người</option>
-                                            <c:forEach begin="1" end="10" var="i">
+                                            <c:forEach begin="1" end="8" var="i">
                                                 <option value="${i}">${i} người</option>
-                                            </c:forEach>
-                                            <option value="11">Trên 10 người</option>
+                                        </c:forEach>
                                         </select>
                                     </div>
                                 </div>

@@ -400,7 +400,7 @@
                         <p class="text-white-50 animated slideInLeft mb-4 pb-2">
                             ${restaurantInfo.heroSubtitle}
                         </p>
-                        <a href="<c:url value='/views/guest/booking.jsp'/>"
+                        <a href="<c:url value='/booking'/>"
                            class="btn btn-primary py-sm-3 px-sm-5 me-3 animated slideInLeft">
                             Đặt bàn ngay
                         </a>

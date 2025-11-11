@@ -112,12 +112,27 @@ public class ReservationDAO {
             
             // Process the reservation
             System.out.println("\n=== Processing Reservation ===");
-            
-            // Create or update customer
+
+            // Create or update customer (we need customer_id to enforce per-day booking rule)
             System.out.println("Creating/Updating customer information...");
             Integer custId = createOrUpdateCustomer(reservation);
             if (custId == null) {
                 throw new SQLException("Không thể tạo hoặc cập nhật thông tin khách hàng");
+            }
+
+            // Prevent a single customer from booking more than once on the same date
+            // (ignore cancelled/rejected reservations)
+            // Exclude reservations that belong to the same confirmation code being created
+            // This allows creating multiple table reservations within a single booking (same confirmation code)
+            try (PreparedStatement dupCheck = conn.prepareStatement(
+                    "SELECT COUNT(*) FROM reservations WHERE customer_id = ? AND reservation_date = ? AND (confirmation_code IS NULL OR confirmation_code <> ?) AND status NOT IN ('CANCELLED', 'REJECTED')")) {
+                dupCheck.setInt(1, custId);
+                dupCheck.setDate(2, reservation.getReservationDate());
+                dupCheck.setString(3, reservation.getConfirmationCode() == null ? "" : reservation.getConfirmationCode());
+                ResultSet dupRs = dupCheck.executeQuery();
+                if (dupRs.next() && dupRs.getInt(1) > 0) {
+                    throw new SQLException("Bạn đã có đặt bàn cho ngày này rồi. Mỗi khách chỉ được đặt một lần trong cùng một ngày.");
+                }
             }
             
             // Create the reservation
@@ -261,6 +276,24 @@ public class ReservationDAO {
             }
         }
         return null;
+    }
+
+    /**
+     * Kiểm tra xem customer đã có đặt bàn (không tính CANCELLED/REJECTED) vào ngày givenDate chưa
+     */
+    public boolean hasReservationOnDate(int customerId, java.sql.Date givenDate) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM reservations WHERE customer_id = ? AND reservation_date = ? AND status NOT IN ('CANCELLED', 'REJECTED')";
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, customerId);
+            stmt.setDate(2, givenDate);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        }
+        return false;
     }
     
     public boolean update(Reservation reservation) throws SQLException {
