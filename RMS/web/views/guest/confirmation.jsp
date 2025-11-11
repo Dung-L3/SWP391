@@ -103,7 +103,7 @@
                     <c:otherwise>
                         <h1><i class="fas fa-exclamation-circle me-2"></i>Đặt bàn không thành công!</h1>
                         <p class="lead">Vui lòng kiểm tra lại thông tin và thử lại</p>
-                        <a href="${pageContext.request.contextPath}/views/guest/booking.jsp" 
+                        <a href="${pageContext.request.contextPath}/booking" 
                            class="btn btn-light mt-3">
                             <i class="fas fa-redo me-2"></i>Thử lại
                         </a>
@@ -128,7 +128,7 @@
                                 <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Đặt bàn không thành công!</h4>
                                 <p>${errorMessage}</p>
                                 <hr>
-                                <a href="${pageContext.request.contextPath}/views/guest/booking.jsp" class="btn btn-warning">
+                                <a href="${pageContext.request.contextPath}/booking" class="btn btn-warning">
                                     <i class="fas fa-redo me-2"></i>Quay lại đặt bàn
                                 </a>
                             </div>
@@ -215,7 +215,7 @@
                                 </div>
 
                                 <div class="text-center mt-4">
-                                    <a href="${pageContext.request.contextPath}/views/guest/booking.jsp" 
+                                    <a href="${pageContext.request.contextPath}/booking" 
                                        class="btn btn-edit">
                                         <i class="fas fa-plus me-2"></i>Đặt bàn mới
                                     </a>

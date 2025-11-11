@@ -21,7 +21,7 @@ public class TableLayoutServlet extends HttpServlet {
             // Kiểm tra session có thông tin đặt bàn không
             HttpSession session = request.getSession(false);
             if (session == null || session.getAttribute("bookingInProgress") == null) {
-                response.sendRedirect(request.getContextPath() + "/views/guest/booking.jsp");
+                response.sendRedirect(request.getContextPath() + "/booking");
                 return;
             }
 
@@ -48,9 +48,24 @@ public class TableLayoutServlet extends HttpServlet {
             } else {
                 tables = tableDAO.getTablesByArea(areaId);
             }
-            
+
+            // Lọc chỉ hiển thị các bàn còn trống và đủ sức chứa theo partySize
+            List<DiningTable> filtered = new java.util.ArrayList<>();
+            for (DiningTable t : tables) {
+                if (t == null) continue;
+                // chỉ hiển thị bàn có trạng thái VACANT và sức chứa >= số người
+                if (DiningTable.STATUS_VACANT.equals(t.getStatus()) && (partySize <= 0 || t.getCapacity() >= partySize)) {
+                    filtered.add(t);
+                }
+            }
+
             // Set attributes for JSP
-            request.setAttribute("tables", tables);
+            request.setAttribute("tables", filtered);
+            if (filtered.isEmpty()) {
+                request.setAttribute("noAvailableTables", true);
+            } else {
+                request.setAttribute("noAvailableTables", false);
+            }
             request.setAttribute("currentArea", areaId);
             
             // Forward đến trang sơ đồ bàn

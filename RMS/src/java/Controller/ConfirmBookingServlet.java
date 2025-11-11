@@ -48,7 +48,7 @@ public class ConfirmBookingServlet extends HttpServlet {
         if (session == null) {
             System.out.println("Error: No session found");
             request.setAttribute("errorMessage", "Phiên làm việc đã hết hạn. Vui lòng thử lại.");
-            request.getRequestDispatcher("/views/guest/booking.jsp").forward(request, response);
+            response.sendRedirect(request.getContextPath() + "/booking");
             return;
         }
 
@@ -71,7 +71,7 @@ public class ConfirmBookingServlet extends HttpServlet {
 
             if (session.getAttribute("bookingInProgress") == null) {
                 System.out.println("Error: No booking in progress");
-                response.sendRedirect(request.getContextPath() + "/views/guest/booking.jsp");
+                response.sendRedirect(request.getContextPath() + "/booking");
                 return;
             }
 
@@ -243,8 +243,8 @@ public class ConfirmBookingServlet extends HttpServlet {
                 request.getSession().setAttribute("bookedTables", tables);
                 request.getSession().setAttribute("successMessage", "Đặt bàn thành công! Mã đặt bàn của bạn là: " + confirmationCode);
                 
-                // Redirect to confirmation page
-                response.sendRedirect(request.getContextPath() + "/views/guest/confirmation.jsp");
+                // Redirect to confirmation page (clean URL)
+                response.sendRedirect(request.getContextPath() + "/confirmation");
             } else {
                 throw new IllegalStateException(errorMessage);
             }
@@ -252,7 +252,7 @@ public class ConfirmBookingServlet extends HttpServlet {
         } catch (IllegalArgumentException e) {
             System.out.println("\nValidation error: " + e.getMessage());
             request.setAttribute("errorMessage", e.getMessage());
-            request.getRequestDispatcher("/views/guest/confirmation.jsp").forward(request, response);
+            request.getRequestDispatcher("/confirmation").forward(request, response);
 
         } catch (IllegalStateException e) {
             System.out.println("\nTable state error: " + e.getMessage());
@@ -285,7 +285,7 @@ public class ConfirmBookingServlet extends HttpServlet {
 
             String errorMsg = "Có lỗi xảy ra. Vui lòng thử lại sau.";
             request.setAttribute("errorMessage", errorMsg);
-            request.getRequestDispatcher("/views/guest/confirmation.jsp").forward(request, response);
+            request.getRequestDispatcher("/confirmation").forward(request, response);
 
         } finally {
             System.out.println("=== Booking process completed ===\n");

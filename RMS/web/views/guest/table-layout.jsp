@@ -348,8 +348,16 @@
 
             <div class="table-layout">
                 <!-- Tables Grid -->
-                <div class="tables-grid">
-                    <c:forEach items="${tables}" var="table">
+                <c:choose>
+                    <c:when test="${noAvailableTables}">
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Hiện không có bàn trống phù hợp với số người đã chọn. Vui lòng chọn ngày khác hoặc thay đổi thông tin đặt chỗ.
+                        </div>
+                    </c:when>
+                    <c:otherwise>
+                        <div class="tables-grid">
+                            <c:forEach items="${tables}" var="table">
                         <div class="dining-table ${table.status == 'VACANT' ? 'table-available' : table.status == 'OCCUPIED' ? 'table-occupied' : 'table-reserved'} 
                              ${table.tableType == 'VIP' ? 'table-vip' : ''} ${table.tableType == 'OUTDOOR' ? 'table-outdoor' : ''}"
                              onclick="selectTable(this)"
@@ -378,8 +386,10 @@
                                 <input type="checkbox" class="form-check-input">
                             </div>
                         </div>
-                    </c:forEach>
-                </div>
+                            </c:forEach>
+                        </div>
+                    </c:otherwise>
+                </c:choose>
 
                 <!-- Current Booking Info -->
                 <div class="booking-info-summary mb-4 p-3 bg-info text-white rounded">
@@ -397,9 +407,6 @@
                         </div>
                     </div>
                     <div class="text-end">
-                        <a href="${pageContext.request.contextPath}/views/guest/booking.jsp" class="btn btn-light">
-                            <i class="fas fa-edit me-2"></i>Sửa thông tin
-                        </a>
                     </div>
                 </div>
 
@@ -462,15 +469,6 @@
 
             <!-- Thông tin bàn đã chọn và nút xác nhận -->
             <div class="text-center mt-4">
-                <div class="btn-group mb-3" role="group">
-                    <button type="button" class="btn btn-outline-primary" onclick="toggleSelectionMode(false)">
-                        <i class="fas fa-table me-1"></i>Chọn một bàn
-                    </button>
-                    <button type="button" class="btn btn-outline-primary" onclick="toggleSelectionMode(true)">
-                        <i class="fas fa-object-group me-1"></i>Gộp nhiều bàn
-                    </button>
-                </div>
-
                 <button id="confirmButton" class="btn btn-primary btn-lg" onclick="confirmTableSelection()" style="display: none;">
                     <i class="fas fa-check-circle me-2"></i>Xác nhận chọn bàn
                 </button>

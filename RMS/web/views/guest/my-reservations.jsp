@@ -19,8 +19,8 @@
                         <div class="card shadow">
                             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                                 <h4 class="mb-0">Đặt bàn của tôi</h4>
-                                <a href="${pageContext.request.contextPath}/views/guest/booking.jsp" 
-                                   class="btn btn-light">Đặt bàn mới</a>
+                                          <a href="${pageContext.request.contextPath}/booking" 
+                                              class="btn btn-light">Đặt bàn mới</a>
                             </div>
                             <div class="card-body">
                                 <!-- Hiển thị thông báo -->
@@ -38,8 +38,8 @@
                                 <c:if test="${empty reservations}">
                                     <div class="text-center py-5">
                                         <h5>Bạn chưa có đặt bàn nào.</h5>
-                                        <a href="${pageContext.request.contextPath}/views/guest/booking.jsp" 
-                                           class="btn btn-primary mt-3">Đặt bàn ngay</a>
+                                                     <a href="${pageContext.request.contextPath}/booking" 
+                                                         class="btn btn-primary mt-3">Đặt bàn ngay</a>
                                     </div>
                                 </c:if>
 
