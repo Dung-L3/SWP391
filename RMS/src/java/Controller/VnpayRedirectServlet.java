@@ -6,7 +6,9 @@ import Utils.VnpayService;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.*;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -15,22 +17,25 @@ import java.sql.SQLException;
 /**
  * VnpayRedirectServlet
  *
- * Dùng khi thu ngân bấm "Mở lại VNPay" trong Payment.jsp.
+ * Khi thu ngân bấm "Mở lại VNPay" trong Payment.jsp.
  *
- * Logic: - Nhận paymentId. - Nếu payment đó vẫn PENDING: -> build lại URL VNPay
- * sandbox bằng VnpayService.buildPaymentUrl(...) -> redirect cashier tới
- * sandbox để test quét/nhập thẻ.
+ * Logic:
+ *  - Nhận paymentId.
+ *  - Nếu payment vẫn PENDING:
+ *      -> build lại URL VNPay sandbox bằng VnpayService.buildPaymentUrl(...)
+ *      -> redirect tới sandbox để test quét/nhập thẻ.
  *
- * - Nếu payment đã SUCCESS: -> forward PaymentSuccess.jsp với thông điệp "đã
- * thanh toán rồi".
+ *  - Nếu payment đã SUCCESS:
+ *      -> forward PaymentSuccess.jsp với thông điệp "đã thanh toán rồi"
+ *         + truyền billId để có thể in hóa đơn.
  *
- * - Nếu payment FAIL / CANCEL / ... (không còn PENDING): -> forward
- * PaymentSuccess.jsp với cảnh báo không thể mở lại.
+ *  - Nếu payment FAIL / CANCEL / ...:
+ *      -> forward PaymentSuccess.jsp với cảnh báo không thể mở lại.
  *
- * - Nếu không tìm thấy payment: -> forward PaymentSuccess.jsp với cảnh báo
- * chung.
+ *  - Nếu không tìm thấy payment:
+ *      -> forward PaymentSuccess.jsp với cảnh báo chung.
  *
- * Không tạo bill mới ở đây. Mục tiêu: tái sử dụng giao dịch PENDING đã có.
+ * Không tạo bill mới ở đây. Chỉ tái sử dụng giao dịch PENDING đã có.
  */
 @WebServlet(urlPatterns = {"/VnpayRedirectServlet"})
 public class VnpayRedirectServlet extends HttpServlet {
@@ -44,14 +49,13 @@ public class VnpayRedirectServlet extends HttpServlet {
         String rawPaymentId = req.getParameter("paymentId");
 
         if (rawPaymentId == null || rawPaymentId.isBlank()) {
-            // Thiếu tham số => báo FAIL dạng đẹp
             req.setAttribute("uiStatus", "FAIL");
             req.setAttribute("billNo", "N/A");
             req.setAttribute("paidAmount", "0");
             req.setAttribute("method", "VNPAY");
             req.setAttribute("reasonText",
                     "Thiếu thông tin giao dịch cần mở lại VNPay. "
-                    + "Vui lòng quay lại màn hình thanh toán bàn và thử lại.");
+                            + "Vui lòng quay lại màn hình thanh toán bàn và thử lại.");
             req.getRequestDispatcher("/views/PaymentSuccess.jsp").forward(req, resp);
             return;
         }
@@ -60,7 +64,6 @@ public class VnpayRedirectServlet extends HttpServlet {
         try {
             paymentId = Long.parseLong(rawPaymentId.trim());
         } catch (NumberFormatException ex) {
-            // paymentId không parse được
             req.setAttribute("uiStatus", "FAIL");
             req.setAttribute("billNo", "N/A");
             req.setAttribute("paidAmount", "0");
@@ -76,14 +79,13 @@ public class VnpayRedirectServlet extends HttpServlet {
             PaymentInfo info = paymentDAO.getPaymentInfo(paymentId);
 
             if (info == null) {
-                // Payment không tồn tại (đã xoá? đã finalize? id sai?)
                 req.setAttribute("uiStatus", "FAIL");
                 req.setAttribute("billNo", "N/A");
                 req.setAttribute("paidAmount", "0");
                 req.setAttribute("method", "VNPAY");
                 req.setAttribute("reasonText",
                         "Không tìm thấy giao dịch #" + paymentId
-                        + ". Có thể hóa đơn đã được chốt và giao dịch này không còn hiệu lực.");
+                                + ". Có thể hóa đơn đã được chốt và giao dịch này không còn hiệu lực.");
                 req.getRequestDispatcher("/views/PaymentSuccess.jsp").forward(req, resp);
                 return;
             }
@@ -91,35 +93,38 @@ public class VnpayRedirectServlet extends HttpServlet {
             String billNoText = (info.billId != null ? String.valueOf(info.billId) : "N/A");
             String amountText = (info.amount != null ? info.amount.toString() : "0");
 
-            // 2. Nếu payment KHÔNG còn ở trạng thái PENDING
+            // 2. Nếu payment không còn PENDING
             if (!"PENDING".equalsIgnoreCase(info.status)) {
 
                 if ("SUCCESS".equalsIgnoreCase(info.status)) {
-                    // a) Đã SUCCESS rồi => coi như thanh toán xong
-                    req.setAttribute("uiStatus", "OK"); // xanh lá
+                    // a) ĐÃ THÀNH CÔNG -> cho xem màn kết quả + in hóa đơn nếu có billId
+                    req.setAttribute("uiStatus", "OK");
+                    if (info.billId != null) {
+                        req.setAttribute("billId", info.billId);  // <<-- để in hóa đơn
+                    }
                     req.setAttribute("billNo", billNoText);
                     req.setAttribute("paidAmount", amountText);
                     req.setAttribute("method", "VNPAY");
                     req.setAttribute("reasonText",
                             "Khoản VNPay này đã thanh toán thành công trước đó. "
-                            + "Không cần mở lại VNPay.");
+                                    + "Không cần mở lại VNPay.");
                 } else {
-                    // b) Trạng thái khác (FAIL, CANCEL...) => không thể mở lại
+                    // b) FAIL / CANCEL / ... -> báo không thể mở lại
                     req.setAttribute("uiStatus", "FAIL");
                     req.setAttribute("billNo", billNoText);
                     req.setAttribute("paidAmount", "0");
                     req.setAttribute("method", "VNPAY");
                     req.setAttribute("reasonText",
                             "Khoản thanh toán không còn ở trạng thái chờ VNPay. "
-                            + "Trạng thái hiện tại: " + info.status
-                            + ". Vui lòng thu bằng phương thức khác hoặc tạo giao dịch mới nếu cần.");
+                                    + "Trạng thái hiện tại: " + info.status
+                                    + ". Vui lòng thu bằng phương thức khác hoặc tạo giao dịch mới nếu cần.");
                 }
 
                 req.getRequestDispatcher("/views/PaymentSuccess.jsp").forward(req, resp);
                 return;
             }
 
-            // 3. Đến đây nghĩa là payment vẫn đang PENDING -> Được phép mở lại VNPay sandbox
+            // 3. Payment vẫn PENDING -> Được phép mở lại VNPay sandbox
             BigDecimal amount = (info.amount != null ? info.amount : BigDecimal.ZERO);
 
             String clientIp = req.getRemoteAddr();
@@ -129,7 +134,7 @@ public class VnpayRedirectServlet extends HttpServlet {
                     clientIp
             );
 
-            // 4. Redirect cashier sang sandbox VNPay để hoàn tất test
+            // 4. Redirect cashier sang sandbox VNPay để hoàn tất
             resp.sendRedirect(redirectUrl);
 
         } catch (SQLException e) {

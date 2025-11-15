@@ -2,30 +2,28 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 
 <%
-    // Lấy attribute từ request (có thể null)
-    String uiStatus    = (String) request.getAttribute("uiStatus");    // "OK" | "FAIL" | null
-    String billNo      = (String) request.getAttribute("billNo");      // có thể null
-    Object paidObj     = request.getAttribute("paidAmount");           // BigDecimal | String | null
-    String method      = (String) request.getAttribute("method");      // "Tiền mặt", "VNPAY", ...
-    String reasonText  = (String) request.getAttribute("reasonText");  // giải thích thêm
+    String uiStatus   = (String) request.getAttribute("uiStatus");
+    String billNo     = (String) request.getAttribute("billNo");
+    Object paidObj    = request.getAttribute("paidAmount");
+    String method     = (String) request.getAttribute("method");
+    String reasonText = (String) request.getAttribute("reasonText");
+    Object billIdObj  = request.getAttribute("billId");
 
-    // fallback
     if (uiStatus == null) {
-        // nếu không set (case thanh toán tiền mặt xong trong PaymentServlet), coi như OK
         uiStatus = "OK";
     }
     if (billNo == null) {
         billNo = "N/A";
     }
-    String paidAmountStr;
-    if (paidObj == null) {
-        paidAmountStr = "0";
-    } else {
-        paidAmountStr = paidObj.toString();
-    }
+
+    String paidAmountStr = (paidObj == null) ? "0" : paidObj.toString();
     if (method == null) {
         method = "Không xác định";
     }
+
+    boolean isSuccess = "OK".equalsIgnoreCase(uiStatus);
+    boolean hasBillId = (billIdObj != null);
+    String billIdStr  = hasBillId ? billIdObj.toString() : null;
 %>
 
 <!DOCTYPE html>
@@ -35,10 +33,8 @@
     <title>Kết quả thanh toán | POS RMSG4</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
 
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-        rel="stylesheet"
-    />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+          rel="stylesheet"/>
 
     <style>
         :root{
@@ -149,6 +145,14 @@
             font-size:.9rem;
             line-height:1;
         }
+        .btn-print{
+            background:var(--accent-dark);
+            border-color:var(--accent-dark);
+            color:#0f172a;
+        }
+        .btn-print i{
+            color:#0f172a;
+        }
 
         .card{
             background:#fff;
@@ -164,7 +168,6 @@
             padding:16px 20px 12px;
             background:linear-gradient(to bottom right,#fff 0%,#fffef7 60%);
             border-bottom:1px solid rgba(0,0,0,.05);
-
             display:flex;
             align-items:flex-start;
             gap:.75rem;
@@ -313,7 +316,6 @@
 
 <div class="wrap-page">
 
-    <!-- HEADER -->
     <div class="header-top">
         <div class="title-col">
             <div class="main-title-row">
@@ -329,26 +331,30 @@
                 <i class="bi bi-arrow-left-circle"></i>
                 <span>Quay về lễ tân</span>
             </a>
+
+            <% if (isSuccess && hasBillId) { %>
+            <a class="btn-nav btn-print"
+               href="<%= request.getContextPath() %>/BillPrintServlet?billId=<%= billIdStr %>"
+               target="_blank">
+                <i class="bi bi-printer"></i>
+                <span>In hóa đơn</span>
+            </a>
+            <% } %>
         </div>
     </div>
 
-    <!-- CARD RESULT -->
     <div class="card">
         <div class="card-header">
-            <div class="icon-circle <%= "OK".equalsIgnoreCase(uiStatus) ? "icon-ok" : "icon-fail" %>">
-                <i class="bi <%= "OK".equalsIgnoreCase(uiStatus) ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill" %>"></i>
+            <div class="icon-circle <%= isSuccess ? "icon-ok" : "icon-fail" %>">
+                <i class="bi <%= isSuccess ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill" %>"></i>
             </div>
 
             <div class="header-main">
                 <div class="card-title">
-                    <span>
-                        <%= "OK".equalsIgnoreCase(uiStatus)
-                                ? "Thanh toán thành công"
-                                : "Thanh toán chưa hoàn tất" %>
-                    </span>
+                    <span><%= isSuccess ? "Thanh toán thành công" : "Thanh toán chưa hoàn tất" %></span>
 
-                    <span class="status-pill <%= "OK".equalsIgnoreCase(uiStatus) ? "pill-ok" : "pill-fail" %>">
-                        <%= "OK".equalsIgnoreCase(uiStatus) ? "SUCCESS" : "PENDING / FAIL" %>
+                    <span class="status-pill <%= isSuccess ? "pill-ok" : "pill-fail" %>">
+                        <%= isSuccess ? "SUCCESS" : "PENDING / FAIL" %>
                     </span>
                 </div>
 
@@ -358,8 +364,7 @@
                             ${reasonText}
                         </c:when>
                         <c:otherwise>
-                            <!-- fallback mô tả -->
-                            <%= "OK".equalsIgnoreCase(uiStatus)
+                            <%= isSuccess
                                     ? "Thanh toán đã được ghi nhận vào hệ thống."
                                     : "Giao dịch chưa hoàn tất hoặc bị hủy. Vui lòng kiểm tra lại hoặc thử phương thức khác." %>
                         </c:otherwise>
@@ -394,9 +399,9 @@
             </div>
 
             <div class="footer-hint">
-                • Nếu đây là bill PROFORMA (ví dụ khách đang quét VNPay),
-                bill sẽ tự chuyển FINAL khi VNPay báo "SUCCESS".<br/>
-                • Bạn có thể xem lại lịch sử thanh toán và mở lại VNPay từ màn hình thanh toán bàn.
+                • Nếu bill đang ở trạng thái PROFORMA (ví dụ khách quét VNPay),
+                hệ thống sẽ tự chuyển sang FINAL khi VNPay báo “SUCCESS”.<br/>
+                • Bạn có thể xem lại lịch sử thanh toán hoặc mở lại màn hình thanh toán từ khu vực lễ tân.
             </div>
 
             <div class="again-wrap">
@@ -409,7 +414,7 @@
         </div>
     </div>
 
-</div><!-- /wrap-page -->
+</div>
 
 </body>
 </html>

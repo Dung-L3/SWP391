@@ -2,9 +2,7 @@ package Controller;
 
 import Dal.ReservationDAO;
 import Dal.TableDAO;
-import Dal.CustomerDAO;
 import Models.Reservation;
-import Models.Customer;
 import Models.DiningTable;
 import Models.User;
 import jakarta.servlet.ServletException;
@@ -18,19 +16,31 @@ import jakarta.servlet.RequestDispatcher;
 import java.io.IOException;
 import java.sql.Date;
 import java.sql.Time;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 import Controller.auth.EmailServices;
 import javax.mail.MessagingException;
 
-/**
- * Handle walk-in bookings created by receptionist at counter.
- */
 @WebServlet(urlPatterns = {"/reception/walkin-booking"})
 public class ReceptionWalkinServlet extends HttpServlet {
 
-    // Hiển thị form nhận đặt bàn (quầy)
+    private TableDAO tableDAO;
+    private ReservationDAO reservationDAO;
+
+    @Override
+    public void init() throws ServletException {
+        tableDAO = new TableDAO();
+        try {
+            reservationDAO = new ReservationDAO();   // constructor throws Exception
+        } catch (Exception e) {
+            throw new ServletException("Không khởi tạo được ReservationDAO", e);
+        }
+    }
+
+    // HIỂN THỊ MÀN HÌNH NHẬN ĐẶT BÀN TẠI QUẦY
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -45,12 +55,28 @@ public class ReceptionWalkinServlet extends HttpServlet {
             return;
         }
 
+        try {
+            List<DiningTable> vacantTables = tableDAO.getVacantTables();
+            request.setAttribute("vacantTables", vacantTables);
+        } catch (Exception e) {
+            request.setAttribute("errorMessage", "Không lấy được danh sách bàn trống: " + e.getMessage());
+        }
+
+        // Lấy bàn vừa nhận đặt (để JSP highlight)
+        if (session != null) {
+            String justBooked = (String) session.getAttribute("justBookedTableNumber");
+            if (justBooked != null) {
+                request.setAttribute("justBookedTableNumber", justBooked);
+                session.removeAttribute("justBookedTableNumber");
+            }
+        }
+
         request.setAttribute("page", "reception-walkin");
         RequestDispatcher rd = request.getRequestDispatcher("/views/reception-walkin.jsp");
         rd.forward(request, response);
     }
 
-    // Xử lý submit form đặt bàn (quầy)
+    // XỬ LÝ SUBMIT FORM NHẬN ĐẶT BÀN
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -64,21 +90,20 @@ public class ReceptionWalkinServlet extends HttpServlet {
             return;
         }
 
-        String tableNumber      = request.getParameter("tableNumber");
-        String customerName     = request.getParameter("customerName");
-        String phone            = request.getParameter("phone");
-        String email            = request.getParameter("email");
-        String partySizeStr     = request.getParameter("partySize");
-        String specialRequests  = request.getParameter("specialRequests");
+        String tableNumber     = request.getParameter("tableNumber");
+        String customerName    = request.getParameter("customerName");
+        String phone           = request.getParameter("phone");
+        String email           = request.getParameter("email");
+        String partySizeStr    = request.getParameter("partySize");
+        String specialRequests = request.getParameter("specialRequests");
 
         try {
             int partySize = 1;
             try {
                 partySize = Integer.parseInt(partySizeStr);
-            } catch (Exception ignore) {
-            }
+            } catch (Exception ignore) {}
 
-            TableDAO tableDAO = new TableDAO();
+            // Lấy thông tin bàn
             DiningTable table = tableDAO.getTableByNumber(tableNumber);
             if (table == null) {
                 request.setAttribute("errorMessage", "Bàn không tồn tại: " + tableNumber);
@@ -93,6 +118,7 @@ public class ReceptionWalkinServlet extends HttpServlet {
             res.setPartySize(partySize);
             res.setSpecialRequests(specialRequests);
 
+            // Ngày / giờ đặt
             String dateParam = request.getParameter("reservation_date");
             String timeParam = request.getParameter("reservation_time");
 
@@ -116,24 +142,24 @@ public class ReceptionWalkinServlet extends HttpServlet {
                 res.setReservationTime(Time.valueOf(LocalTime.now().withSecond(0).withNano(0)));
             }
 
+            // Confirmation code
             String confirmation = "RMS" + Long.toString(System.currentTimeMillis()).substring(8);
             res.setConfirmationCode(confirmation);
             res.setTableId(table.getTableId());
             res.setStatus("PENDING");
             res.setChannel("WALKIN");
 
+            // set created_by
             try {
-                Object user = session.getAttribute("user");
-                java.lang.reflect.Method m = user.getClass().getMethod("getUserId");
-                Object idObj = m.invoke(user);
+                Object userObj = session.getAttribute("user");
+                java.lang.reflect.Method m = userObj.getClass().getMethod("getUserId");
+                Object idObj = m.invoke(userObj);
                 if (idObj instanceof Integer) {
                     res.setCreatedBy((Integer) idObj);
                 }
-            } catch (Exception ignore) {
-            }
+            } catch (Exception ignore) {}
 
-            ReservationDAO reservationDAO = new ReservationDAO();
-
+            // Validate sức chứa
             if (table.getCapacity() > 0 && res.getPartySize() > table.getCapacity()) {
                 request.setAttribute("errorMessage",
                         "Số người vượt quá sức chứa của bàn (" + table.getCapacity() + ")");
@@ -141,6 +167,7 @@ public class ReceptionWalkinServlet extends HttpServlet {
                 return;
             }
 
+            // Validate ngày / giờ
             try {
                 LocalDate rDate = res.getReservationDate().toLocalDate();
                 LocalTime rTime = res.getReservationTime().toLocalTime();
@@ -159,11 +186,23 @@ public class ReceptionWalkinServlet extends HttpServlet {
                         return;
                     }
                 }
-            } catch (Exception ignore) {
+            } catch (Exception ignore) {}
+
+            // Gọi DAO tạo reservation
+            boolean ok;
+            try {
+                ok = reservationDAO.create(res);   // create() ném SQLException
+            } catch (SQLException e) {
+                request.setAttribute("errorMessage", e.getMessage());
+                forwardBack(request, response);
+                return;
             }
 
-            boolean ok = reservationDAO.create(res);
             if (ok) {
+                // để JSP biết bàn nào vừa nhận, highlight bên trái
+                session.setAttribute("justBookedTableNumber", tableNumber);
+
+                // gửi mail xác nhận nếu có cấu hình SMTP & email
                 try {
                     String smtpHost = request.getServletContext().getInitParameter("smtp.host");
                     String smtpPort = request.getServletContext().getInitParameter("smtp.port");
@@ -197,7 +236,7 @@ public class ReceptionWalkinServlet extends HttpServlet {
                 }
 
                 session.setAttribute("successMessage",
-                        "Đặt bàn thành công cho bàn " + tableNumber);
+                        "Đã nhận đặt bàn thành công cho bàn " + tableNumber);
                 response.sendRedirect(request.getContextPath() + "/reception/walkin-booking");
             } else {
                 request.setAttribute("errorMessage", "Không thể tạo đặt bàn.");
@@ -213,6 +252,15 @@ public class ReceptionWalkinServlet extends HttpServlet {
 
     private void forwardBack(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+
+        try {
+            List<DiningTable> vacantTables = tableDAO.getVacantTables();
+            request.setAttribute("vacantTables", vacantTables);
+        } catch (Exception e) {
+            request.setAttribute("errorMessage",
+                    "Không lấy được danh sách bàn trống: " + e.getMessage());
+        }
+
         request.setAttribute("page", "reception-walkin");
         request.getRequestDispatcher("/views/reception-walkin.jsp").forward(request, response);
     }

@@ -88,6 +88,16 @@
         <servlet-name>TableServlet</servlet-name>
         <url-pattern>/tables/*</url-pattern>
     </servlet-mapping>
+    
+    <servlet>
+    <servlet-name>BillPrintServlet</servlet-name>
+    <servlet-class>Controller.BillPrintServlet</servlet-class>
+</servlet>
+
+<servlet-mapping>
+    <servlet-name>BillPrintServlet</servlet-name>
+    <url-pattern>/BillPrintServlet</url-pattern>
+</servlet-mapping>
 
     <!-- Dashboard Servlet -->
     <servlet>

@@ -52,6 +52,7 @@ public class BillDAO {
      *  - VnpayReturnServlet / callback VNPay
      */
     public static class BillSummary {
+        // Giữ public để code cũ vẫn dùng được, đồng thời thêm getter/setter cho JSP EL
         public Long billId;
         public Long orderId;            // null nếu bill gộp nhiều order
         public Integer tableId;
@@ -70,6 +71,188 @@ public class BillDAO {
 
         public Timestamp createdAt;
         public Timestamp finalizedAt;
+
+        // ===== GETTER/SETTER cho JSP EL =====
+
+        public Long getBillId() {
+            return billId;
+        }
+
+        public void setBillId(Long billId) {
+            this.billId = billId;
+        }
+
+        public Long getOrderId() {
+            return orderId;
+        }
+
+        public void setOrderId(Long orderId) {
+            this.orderId = orderId;
+        }
+
+        public Integer getTableId() {
+            return tableId;
+        }
+
+        public void setTableId(Integer tableId) {
+            this.tableId = tableId;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+
+        public void setStatus(String status) {
+            this.status = status;
+        }
+
+        public String getBillNo() {
+            return billNo;
+        }
+
+        public void setBillNo(String billNo) {
+            this.billNo = billNo;
+        }
+
+        public BigDecimal getSubtotal() {
+            return subtotal;
+        }
+
+        public void setSubtotal(BigDecimal subtotal) {
+            this.subtotal = subtotal;
+        }
+
+        public BigDecimal getDiscountAmount() {
+            return discountAmount;
+        }
+
+        public void setDiscountAmount(BigDecimal discountAmount) {
+            this.discountAmount = discountAmount;
+        }
+
+        public BigDecimal getTaxAmount() {
+            return taxAmount;
+        }
+
+        public void setTaxAmount(BigDecimal taxAmount) {
+            this.taxAmount = taxAmount;
+        }
+
+        public BigDecimal getTotalAmount() {
+            return totalAmount;
+        }
+
+        public void setTotalAmount(BigDecimal totalAmount) {
+            this.totalAmount = totalAmount;
+        }
+
+        public BigDecimal getVatRate() {
+            return vatRate;
+        }
+
+        public void setVatRate(BigDecimal vatRate) {
+            this.vatRate = vatRate;
+        }
+
+        public Integer getVoucherId() {
+            return voucherId;
+        }
+
+        public void setVoucherId(Integer voucherId) {
+            this.voucherId = voucherId;
+        }
+
+        public String getVoucherCode() {
+            return voucherCode;
+        }
+
+        public void setVoucherCode(String voucherCode) {
+            this.voucherCode = voucherCode;
+        }
+
+        public Timestamp getCreatedAt() {
+            return createdAt;
+        }
+
+        public void setCreatedAt(Timestamp createdAt) {
+            this.createdAt = createdAt;
+        }
+
+        public Timestamp getFinalizedAt() {
+            return finalizedAt;
+        }
+
+        public void setFinalizedAt(Timestamp finalizedAt) {
+            this.finalizedAt = finalizedAt;
+        }
+    }
+
+    public static class BillLine {
+        // Giữ public cho code Java cũ, thêm getter/setter cho JSP EL
+        public Long billItemId;
+        public Long orderItemId;
+        public Integer menuItemId;
+
+        public String itemName;
+        public int quantity;
+        public BigDecimal unitPrice;
+        public BigDecimal lineTotal;
+
+        public Long getBillItemId() {
+            return billItemId;
+        }
+
+        public void setBillItemId(Long billItemId) {
+            this.billItemId = billItemId;
+        }
+
+        public Long getOrderItemId() {
+            return orderItemId;
+        }
+
+        public void setOrderItemId(Long orderItemId) {
+            this.orderItemId = orderItemId;
+        }
+
+        public Integer getMenuItemId() {
+            return menuItemId;
+        }
+
+        public void setMenuItemId(Integer menuItemId) {
+            this.menuItemId = menuItemId;
+        }
+
+        public String getItemName() {
+            return itemName;
+        }
+
+        public void setItemName(String itemName) {
+            this.itemName = itemName;
+        }
+
+        public int getQuantity() {
+            return quantity;
+        }
+
+        public void setQuantity(int quantity) {
+            this.quantity = quantity;
+        }
+
+        public BigDecimal getUnitPrice() {
+            return unitPrice;
+        }
+
+        public void setUnitPrice(BigDecimal unitPrice) {
+            this.unitPrice = unitPrice;
+        }
+
+        public BigDecimal getLineTotal() {
+            return lineTotal;
+        }
+
+        public void setLineTotal(BigDecimal lineTotal) {
+            this.lineTotal = lineTotal;
+        }
     }
 
     /* =========================================================
@@ -510,6 +693,52 @@ public class BillDAO {
         bs.finalizedAt    = rs.getTimestamp("finalized_at");
 
         return bs;
+    }
+
+    /**
+     * Lấy danh sách dòng hàng của 1 bill:
+     *  bill_items + order_items + menu_items (lấy tên món)
+     */
+    public List<BillLine> getBillLines(Long billId) throws SQLException {
+        final String sql = """
+            SELECT
+                bi.bill_item_id,
+                bi.order_item_id,
+                oi.menu_item_id,
+                mi.name        AS item_name,
+                bi.quantity,
+                bi.unit_price,
+                bi.line_total
+            FROM bill_items bi
+            LEFT JOIN order_items oi  ON bi.order_item_id = oi.order_item_id
+            LEFT JOIN menu_items  mi  ON oi.menu_item_id  = mi.menu_item_id
+            WHERE bi.bill_id = ?
+            ORDER BY bi.bill_item_id
+        """;
+
+        List<BillLine> list = new ArrayList<>();
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, billId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    BillLine line = new BillLine();
+                    line.billItemId = rs.getLong("bill_item_id");
+                    line.orderItemId = (Long) rs.getObject("order_item_id");
+                    line.menuItemId  = (Integer) rs.getObject("menu_item_id");
+                    line.itemName    = rs.getString("item_name");
+                    line.quantity    = rs.getInt("quantity");
+                    line.unitPrice   = rs.getBigDecimal("unit_price");
+                    line.lineTotal   = rs.getBigDecimal("line_total");
+                    list.add(line);
+                }
+            }
+        }
+
+        return list;
     }
 
     /* ---------------------------------------------------------
