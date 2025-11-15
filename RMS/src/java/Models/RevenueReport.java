@@ -111,10 +111,7 @@ public class RevenueReport implements Serializable {
         if (paymentMethod == null) return "Tất cả";
         switch (paymentMethod) {
             case "CASH": return "Tiền mặt";
-            case "CARD": return "Thẻ";
-            case "ONLINE": return "Online";
-            case "TRANSFER": return "Chuyển khoản";
-            case "VOUCHER": return "Voucher";
+            case "VNPAY": return "VNPay";
             default: return paymentMethod;
         }
     }

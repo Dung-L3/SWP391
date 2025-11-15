@@ -103,6 +103,9 @@ public class RevenueReportServlet extends HttpServlet {
             }
         }
 
+        // Debug: Kiểm tra dữ liệu thực tế trong DB
+        revenueDAO.debugDataCheck(fromDate, toDate);
+        
         RevenueReport summary = revenueDAO.getRevenueSummary(fromDate, toDate, staffId, paymentMethod, orderType);
 
         // Get staff list for filter

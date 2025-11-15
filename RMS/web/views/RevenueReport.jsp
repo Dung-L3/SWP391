@@ -131,10 +131,7 @@
                     <select name="paymentMethod" class="form-select">
                         <option value="">Tất cả</option>
                         <option value="CASH" ${selectedPaymentMethod == 'CASH' ? 'selected' : ''}>Tiền mặt</option>
-                        <option value="CARD" ${selectedPaymentMethod == 'CARD' ? 'selected' : ''}>Thẻ</option>
-                        <option value="ONLINE" ${selectedPaymentMethod == 'ONLINE' ? 'selected' : ''}>Online</option>
-                        <option value="TRANSFER" ${selectedPaymentMethod == 'TRANSFER' ? 'selected' : ''}>Chuyển khoản</option>
-                        <option value="VOUCHER" ${selectedPaymentMethod == 'VOUCHER' ? 'selected' : ''}>Voucher</option>
+                        <option value="VNPAY" ${selectedPaymentMethod == 'VNPAY' ? 'selected' : ''}>VNPay</option>
                     </select>
                 </div>
                 
@@ -159,9 +156,9 @@
         </div>
 
         <!-- Summary Report -->
-        <c:if test="${not empty summary}">
-            <div class="report-card">
-                <h5 class="mb-4"><i class="bi bi-bar-chart me-2"></i>Tổng quan</h5>
+        <div class="report-card">
+            <h5 class="mb-4"><i class="bi bi-bar-chart me-2"></i>Tổng quan</h5>
+            <c:if test="${not empty summary}">
                 
                 <div class="row">
                     <div class="col-md-3">
@@ -202,7 +199,7 @@
                 <!-- Revenue by Channel -->
                 <h6 class="mt-4 mb-3">Doanh thu theo kênh thanh toán</h6>
                 <div class="row">
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <div class="text-center p-3 bg-light rounded">
                             <div class="text-muted small">Tiền mặt</div>
                             <div class="fw-bold text-success">
@@ -210,41 +207,24 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <div class="text-center p-3 bg-light rounded">
-                            <div class="text-muted small">Thẻ</div>
+                            <div class="text-muted small">VNPay</div>
                             <div class="fw-bold text-primary">
-                                <fmt:formatNumber value="${summary.cardRevenue}" pattern="#,##0" type="currency" currencySymbol="₫"/>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="text-center p-3 bg-light rounded">
-                            <div class="text-muted small">Online</div>
-                            <div class="fw-bold text-info">
-                                <fmt:formatNumber value="${summary.onlineRevenue}" pattern="#,##0" type="currency" currencySymbol="₫"/>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="text-center p-3 bg-light rounded">
-                            <div class="text-muted small">Chuyển khoản</div>
-                            <div class="fw-bold text-warning">
-                                <fmt:formatNumber value="${summary.transferRevenue}" pattern="#,##0" type="currency" currencySymbol="₫"/>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="text-center p-3 bg-light rounded">
-                            <div class="text-muted small">Voucher</div>
-                            <div class="fw-bold text-danger">
-                                <fmt:formatNumber value="${summary.voucherRevenue}" pattern="#,##0" type="currency" currencySymbol="₫"/>
+                                <c:set var="vnpayRevenue" value="${summary.totalRevenue - summary.cashRevenue}"/>
+                                <fmt:formatNumber value="${vnpayRevenue > 0 ? vnpayRevenue : 0}" pattern="#,##0" type="currency" currencySymbol="₫"/>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </c:if>
+                
+                <c:if test="${summary.totalOrders == 0}">
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-info-circle me-2"></i>Không có dữ liệu trong khoảng thời gian đã chọn.
+                    </div>
+                </c:if>
+            </c:if>
+        </div>
 
         <!-- Revenue by Staff -->
         <c:if test="${not empty reports}">

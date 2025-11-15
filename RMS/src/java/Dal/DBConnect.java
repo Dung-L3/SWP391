@@ -15,6 +15,12 @@ import java.sql.SQLException;
  */
 public class DBConnect {
     
+    // Cấu hình cho SQL Server Express
+    private static final String dbName = "RMS";  // Database 
+    private static final String portNumber = "1433"; // Cổng mặc định của SQL Server
+    private static final String userID = "sa";      // Tài khoản SQL Server
+    private static final String password = "123";  // Mật khẩu 
+    
     public static Connection getConnection() throws SQLException {
         try {
             // Load SQL Server JDBC Driver
@@ -42,26 +48,25 @@ public class DBConnect {
             throw ex; // Re-throw để caller có thể xử lý
         }
     }
-    
-    // Cấu hình cho SQL Server Express
-    private final static String dbName = "RMS";  // Database 
-    private final static String portNumber = "1433"; // Cổng mặc định của SQL Server
-    private final static String userID = "sa";      // Tài khoản SQL Server
-    private final static String password = "123";  // Mật khẩu 
 
     public static void main(String[] args) {
-        Connection connection = getConnection();
+        try {
+            Connection connection = getConnection();
 
-        if (connection != null) {
-            System.out.println("Kết nối thành công đến cơ sở dữ liệu RMS!");
-            try {
-                connection.close();
-                System.out.println("Đã đóng kết nối.");
-            } catch (SQLException ex) {
-                System.err.println("Lỗi khi đóng kết nối: " + ex.getMessage());
+            if (connection != null) {
+                System.out.println("Kết nối thành công đến cơ sở dữ liệu RMS!");
+                try {
+                    connection.close();
+                    System.out.println("Đã đóng kết nối.");
+                } catch (SQLException ex) {
+                    System.err.println("Lỗi khi đóng kết nối: " + ex.getMessage());
+                }
+            } else {
+                System.err.println("Kết nối thất bại!");
             }
-        } else {
-            System.err.println("Kết nối thất bại!");
+        } catch (SQLException ex) {
+            System.err.println("Lỗi khi kết nối: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 }
