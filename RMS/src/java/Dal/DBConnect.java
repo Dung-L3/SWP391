@@ -15,7 +15,7 @@ import java.sql.SQLException;
  */
 public class DBConnect {
     
-    public static Connection getConnection() {
+    public static Connection getConnection() throws SQLException {
         try {
             // Load SQL Server JDBC Driver
             Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
@@ -24,23 +24,30 @@ public class DBConnect {
             String url = "jdbc:sqlserver://localhost:" + portNumber + ";databaseName=" + dbName + 
                         ";encrypt=true;trustServerCertificate=true";
             
-            return DriverManager.getConnection(url, userID, password);
+            Connection conn = DriverManager.getConnection(url, userID, password);
+            if (conn == null) {
+                throw new SQLException("Không thể tạo kết nối đến cơ sở dữ liệu. Connection trả về null.");
+            }
+            return conn;
             
         } catch (ClassNotFoundException ex) {
             System.err.println("Lỗi: Không tìm thấy SQL Server JDBC Driver!");
             ex.printStackTrace();
+            throw new SQLException("Không tìm thấy SQL Server JDBC Driver: " + ex.getMessage(), ex);
         } catch (SQLException ex) {
             System.err.println("Lỗi kết nối cơ sở dữ liệu: " + ex.getMessage());
+            System.err.println("URL: jdbc:sqlserver://localhost:" + portNumber + ";databaseName=" + dbName);
+            System.err.println("User: " + userID);
             ex.printStackTrace();
+            throw ex; // Re-throw để caller có thể xử lý
         }
-        return null;
     }
     
     // Cấu hình cho SQL Server Express
     private final static String dbName = "RMS";  // Database 
     private final static String portNumber = "1433"; // Cổng mặc định của SQL Server
-    private final static String userID = "SWP";      // Tài khoản SQL Server
-    private final static String password = "1";  // Mật khẩu 
+    private final static String userID = "sa";      // Tài khoản SQL Server
+    private final static String password = "123";  // Mật khẩu 
 
     public static void main(String[] args) {
         Connection connection = getConnection();

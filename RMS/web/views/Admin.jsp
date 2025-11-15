@@ -212,6 +212,22 @@
             </div>
         </div>
 
+        <!-- ===== Thông báo ===== -->
+        <c:if test="${not empty sessionScope.successMessage}">
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>${sessionScope.successMessage}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <c:remove var="successMessage" scope="session"/>
+        </c:if>
+        <c:if test="${not empty sessionScope.errorMessage}">
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>${sessionScope.errorMessage}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <c:remove var="errorMessage" scope="session"/>
+        </c:if>
+
         <!-- ===== KPIs nhanh ===== -->
         <div class="section">
           <div class="row g-4">
@@ -288,6 +304,9 @@
                           <h5 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>Thao tác nhanh</h5>
                       </div>
                       <div class="card-body d-flex flex-wrap gap-2">
+                          <c:if test="${u.roleName == 'ADMIN' || u.roleName == 'Manager'}">
+                              <a href="<c:url value='/table-management'/>" class="btn btn-outline-success"><i class="bi bi-table me-1"></i> Quản lý bàn</a>
+                          </c:if>
                           <c:if test="${u.roleName == 'ADMIN'}">
                               <a href="<c:url value='/staff-management'/>" class="btn btn-outline-primary"><i class="bi bi-people me-1"></i> Nhân sự</a>
                               <a href="<c:url value='/inventory'/>" class="btn btn-outline-warning"><i class="bi bi-box-seam me-1"></i> Kho hàng</a>

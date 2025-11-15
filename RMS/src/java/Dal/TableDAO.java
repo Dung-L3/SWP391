@@ -26,16 +26,17 @@ public class TableDAO {
         """;
 
         List<TableArea> areas = new ArrayList<>();
-        try (Connection con = DBConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+        try (Connection con = DBConnect.getConnection()) {
+            try (PreparedStatement ps = con.prepareStatement(sql);
+                 ResultSet rs = ps.executeQuery()) {
 
-            while (rs.next()) {
-                TableArea area = new TableArea();
-                area.setAreaId(rs.getInt("area_id"));
-                area.setAreaName(rs.getString("area_name"));
-                area.setSortOrder(rs.getInt("sort_order"));
-                areas.add(area);
+                while (rs.next()) {
+                    TableArea area = new TableArea();
+                    area.setAreaId(rs.getInt("area_id"));
+                    area.setAreaName(rs.getString("area_name"));
+                    area.setSortOrder(rs.getInt("sort_order"));
+                    areas.add(area);
+                }
             }
         } catch (SQLException e) {
             System.err.println("Lỗi lấy danh sách khu vực: " + e.getMessage());
@@ -70,36 +71,37 @@ public class TableDAO {
         sql.append("ORDER BY ta.sort_order, dt.table_number");
 
         List<DiningTable> tables = new ArrayList<>();
-        try (Connection con = DBConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql.toString())) {
+        try (Connection con = DBConnect.getConnection()) {
+            try (PreparedStatement ps = con.prepareStatement(sql.toString())) {
 
-            if (areaId != null) {
-                ps.setInt(1, areaId);
-            }
+                if (areaId != null) {
+                    ps.setInt(1, areaId);
+                }
 
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    DiningTable table = new DiningTable();
-                    table.setTableId(rs.getInt("table_id"));
-                    table.setAreaId(rs.getInt("area_id"));
-                    table.setTableNumber(rs.getString("table_number"));
-                    table.setCapacity(rs.getInt("capacity"));
-                    table.setLocation(rs.getString("location"));
-                    table.setStatus(rs.getString("status"));
-                    table.setTableType(rs.getString("table_type"));
-                    table.setMapX(rs.getInt("map_x"));
-                    table.setMapY(rs.getInt("map_y"));
-                    table.setCreatedBy(rs.getInt("created_by"));
-                    // Area info
-                    table.setAreaName(rs.getString("area_name"));
-                    // Session info
-                    if (rs.getLong("table_session_id") > 0) {
-                        table.setCurrentSessionId(rs.getLong("table_session_id"));
-                        table.setSessionStatus(rs.getString("session_status"));
-                        table.setSessionOpenTime(rs.getTimestamp("open_time") != null ? rs.getTimestamp("open_time").toLocalDateTime() : null);
-                        table.setCurrentOrderId(rs.getLong("current_order_id"));
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        DiningTable table = new DiningTable();
+                        table.setTableId(rs.getInt("table_id"));
+                        table.setAreaId(rs.getInt("area_id"));
+                        table.setTableNumber(rs.getString("table_number"));
+                        table.setCapacity(rs.getInt("capacity"));
+                        table.setLocation(rs.getString("location"));
+                        table.setStatus(rs.getString("status"));
+                        table.setTableType(rs.getString("table_type"));
+                        table.setMapX(rs.getInt("map_x"));
+                        table.setMapY(rs.getInt("map_y"));
+                        table.setCreatedBy(rs.getInt("created_by"));
+                        // Area info
+                        table.setAreaName(rs.getString("area_name"));
+                        // Session info
+                        if (rs.getLong("table_session_id") > 0) {
+                            table.setCurrentSessionId(rs.getLong("table_session_id"));
+                            table.setSessionStatus(rs.getString("session_status"));
+                            table.setSessionOpenTime(rs.getTimestamp("open_time") != null ? rs.getTimestamp("open_time").toLocalDateTime() : null);
+                            table.setCurrentOrderId(rs.getLong("current_order_id"));
+                        }
+                        tables.add(table);
                     }
-                    tables.add(table);
                 }
             }
         } catch (SQLException e) {
@@ -123,25 +125,26 @@ public class TableDAO {
             WHERE dt.table_id = ?
         """;
 
-        try (Connection con = DBConnect.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+        try (Connection con = DBConnect.getConnection()) {
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
 
-            ps.setInt(1, tableId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    DiningTable table = new DiningTable();
-                    table.setTableId(rs.getInt("table_id"));
-                    table.setAreaId(rs.getInt("area_id"));
-                    table.setTableNumber(rs.getString("table_number"));
-                    table.setCapacity(rs.getInt("capacity"));
-                    table.setLocation(rs.getString("location"));
-                    table.setStatus(rs.getString("status"));
-                    table.setTableType(rs.getString("table_type"));
-                    table.setMapX(rs.getInt("map_x"));
-                    table.setMapY(rs.getInt("map_y"));
-                    table.setCreatedBy(rs.getInt("created_by"));
-                    table.setAreaName(rs.getString("area_name"));
-                    return table;
+                ps.setInt(1, tableId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        DiningTable table = new DiningTable();
+                        table.setTableId(rs.getInt("table_id"));
+                        table.setAreaId(rs.getInt("area_id"));
+                        table.setTableNumber(rs.getString("table_number"));
+                        table.setCapacity(rs.getInt("capacity"));
+                        table.setLocation(rs.getString("location"));
+                        table.setStatus(rs.getString("status"));
+                        table.setTableType(rs.getString("table_type"));
+                        table.setMapX(rs.getInt("map_x"));
+                        table.setMapY(rs.getInt("map_y"));
+                        table.setCreatedBy(rs.getInt("created_by"));
+                        table.setAreaName(rs.getString("area_name"));
+                        return table;
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -545,5 +548,149 @@ public class TableDAO {
         table.setMapY(rs.getInt("map_y"));
         table.setCreatedBy(rs.getInt("created_by"));
         return table;
+    }
+
+    /**
+     * Tạo bàn mới
+     */
+    public boolean createTable(DiningTable table) {
+        String sql = "INSERT INTO dining_table " +
+                "(area_id, table_number, capacity, location, status, table_type, map_x, map_y, created_by) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setObject(1, table.getAreaId());
+            ps.setString(2, table.getTableNumber());
+            ps.setInt(3, table.getCapacity());
+            ps.setString(4, table.getLocation());
+            ps.setString(5, table.getStatus() != null ? table.getStatus() : DiningTable.STATUS_VACANT);
+            ps.setString(6, table.getTableType() != null ? table.getTableType() : DiningTable.TYPE_REGULAR);
+            ps.setObject(7, table.getMapX());
+            ps.setObject(8, table.getMapY());
+            ps.setObject(9, table.getCreatedBy());
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Lỗi tạo bàn mới: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Cập nhật thông tin bàn
+     */
+    public boolean updateTable(DiningTable table) {
+        String sql = "UPDATE dining_table SET " +
+                "area_id = ?, table_number = ?, capacity = ?, location = ?, " +
+                "status = ?, table_type = ?, map_x = ?, map_y = ? " +
+                "WHERE table_id = ?";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setObject(1, table.getAreaId());
+            ps.setString(2, table.getTableNumber());
+            ps.setInt(3, table.getCapacity());
+            ps.setString(4, table.getLocation());
+            ps.setString(5, table.getStatus() != null ? table.getStatus() : DiningTable.STATUS_VACANT);
+            ps.setString(6, table.getTableType() != null ? table.getTableType() : DiningTable.TYPE_REGULAR);
+            ps.setObject(7, table.getMapX());
+            ps.setObject(8, table.getMapY());
+            ps.setInt(9, table.getTableId());
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Lỗi cập nhật bàn: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Xóa bàn
+     */
+    public boolean deleteTable(int tableId) {
+        String sql = "DELETE FROM dining_table WHERE table_id = ?";
+
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, tableId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Lỗi xóa bàn: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Lấy danh sách tất cả bàn với thông tin khu vực (có filter)
+     */
+    public List<DiningTable> getAllTablesWithArea(String tableNumberFilter, Integer areaIdFilter) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT dt.table_id, dt.area_id, dt.table_number, dt.capacity, ");
+        sql.append("       dt.location, dt.status, dt.table_type, dt.map_x, dt.map_y, ");
+        sql.append("       dt.created_by, ta.area_name ");
+        sql.append("FROM dining_table dt ");
+        sql.append("LEFT JOIN table_area ta ON ta.area_id = dt.area_id ");
+        sql.append("WHERE 1=1 ");
+        
+        List<Object> params = new ArrayList<>();
+        
+        if (tableNumberFilter != null && !tableNumberFilter.trim().isEmpty()) {
+            sql.append("AND dt.table_number LIKE ? ");
+            params.add("%" + tableNumberFilter.trim() + "%");
+        }
+        
+        if (areaIdFilter != null) {
+            sql.append("AND dt.area_id = ? ");
+            params.add(areaIdFilter);
+        }
+        
+        sql.append("ORDER BY ta.sort_order, dt.table_number");
+
+        List<DiningTable> tables = new ArrayList<>();
+        try (Connection con = DBConnect.getConnection()) {
+            try (PreparedStatement ps = con.prepareStatement(sql.toString())) {
+                
+                // Set parameters
+                for (int i = 0; i < params.size(); i++) {
+                    ps.setObject(i + 1, params.get(i));
+                }
+                
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        DiningTable table = new DiningTable();
+                        table.setTableId(rs.getInt("table_id"));
+                        table.setAreaId(rs.getInt("area_id"));
+                        table.setTableNumber(rs.getString("table_number"));
+                        table.setCapacity(rs.getInt("capacity"));
+                        table.setLocation(rs.getString("location"));
+                        table.setStatus(rs.getString("status"));
+                        table.setTableType(rs.getString("table_type"));
+                        table.setMapX(rs.getInt("map_x"));
+                        table.setMapY(rs.getInt("map_y"));
+                        table.setCreatedBy(rs.getInt("created_by"));
+                        table.setAreaName(rs.getString("area_name"));
+                        tables.add(table);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi lấy danh sách bàn: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return tables;
+    }
+    
+    /**
+     * Lấy danh sách tất cả bàn với thông tin khu vực (không filter)
+     */
+    public List<DiningTable> getAllTablesWithArea() {
+        return getAllTablesWithArea(null, null);
     }
 }

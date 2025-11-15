@@ -63,6 +63,17 @@
         <url-pattern>/admin</url-pattern>
     </servlet-mapping>
 
+    <!-- Table Management Servlet -->
+    <servlet>
+        <servlet-name>TableManagementServlet</servlet-name>
+        <servlet-class>Controller.TableManagementServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>TableManagementServlet</servlet-name>
+        <url-pattern>/table-management</url-pattern>
+    </servlet-mapping>
+
     <servlet>
         <servlet-name>AuditLogServlet</servlet-name>
         <servlet-class>Controller.AuditLogServlet</servlet-class>
