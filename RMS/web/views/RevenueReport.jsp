@@ -211,8 +211,7 @@
                         <div class="text-center p-3 bg-light rounded">
                             <div class="text-muted small">VNPay</div>
                             <div class="fw-bold text-primary">
-                                <c:set var="vnpayRevenue" value="${summary.totalRevenue - summary.cashRevenue}"/>
-                                <fmt:formatNumber value="${vnpayRevenue > 0 ? vnpayRevenue : 0}" pattern="#,##0" type="currency" currencySymbol="₫"/>
+                                <fmt:formatNumber value="${summary.onlineRevenue != null ? summary.onlineRevenue : 0}" pattern="#,##0" type="currency" currencySymbol="₫"/>
                             </div>
                         </div>
                     </div>

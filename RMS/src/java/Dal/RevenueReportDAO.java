@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.math.BigDecimal;
 
 /**
  * RevenueReportDAO - DAO cho báo cáo doanh thu
@@ -238,39 +239,71 @@ public class RevenueReportDAO {
                                           Integer staffId, String paymentMethod, String orderType) {
         RevenueReport report = new RevenueReport();
 
-        // Lấy dữ liệu trực tiếp từ orders table vì không có bills/payments
-        // Nếu sau này có bills/payments thì có thể sửa lại
+        // Lấy trực tiếp từ bills và payments vì bills có đầy đủ thông tin
+        // Bills được tạo khi thanh toán, nên dùng bills.created_at để filter
+        // Dùng subquery riêng để tính subtotal/tax/discount (mỗi bill một lần)
         StringBuilder sql = new StringBuilder("""
             SELECT 
-                COUNT(DISTINCT o.order_id) as total_orders,
-                COALESCE(SUM(o.total_amount), 0) as total_revenue,
-                COALESCE(SUM(o.subtotal), 0) as total_subtotal,
-                COALESCE(SUM(o.tax_amount), 0) as total_tax,
-                COALESCE(SUM(o.discount_amount), 0) as total_discount,
-                COALESCE(SUM(o.total_amount), 0) as cash_revenue
-            FROM orders o
-            WHERE CAST(o.opened_at AS DATE) BETWEEN ? AND ?
-                AND o.status = 'SETTLED'
+                (SELECT COUNT(DISTINCT o.order_id) 
+                 FROM orders o 
+                 WHERE CAST(o.opened_at AS DATE) BETWEEN ? AND ? 
+                   AND o.status = 'SETTLED') as total_orders,
+                COALESCE(SUM(p.amount), 0) as total_revenue,
+                (SELECT COALESCE(SUM(b2.subtotal), 0) 
+                 FROM bills b2 
+                 WHERE CAST(b2.created_at AS DATE) BETWEEN ? AND ?
+                   AND b2.voided = 0
+                   AND EXISTS (SELECT 1 FROM payments p2 WHERE p2.bill_id = b2.bill_id AND p2.status = 'SUCCESS')) as total_subtotal,
+                (SELECT COALESCE(SUM(b3.tax_amount), 0) 
+                 FROM bills b3 
+                 WHERE CAST(b3.created_at AS DATE) BETWEEN ? AND ?
+                   AND b3.voided = 0
+                   AND EXISTS (SELECT 1 FROM payments p3 WHERE p3.bill_id = b3.bill_id AND p3.status = 'SUCCESS')) as total_tax,
+                (SELECT COALESCE(SUM(b4.discount_amount), 0) 
+                 FROM bills b4 
+                 WHERE CAST(b4.created_at AS DATE) BETWEEN ? AND ?
+                   AND b4.voided = 0
+                   AND EXISTS (SELECT 1 FROM payments p4 WHERE p4.bill_id = b4.bill_id AND p4.status = 'SUCCESS')) as total_discount,
+                COALESCE(SUM(CASE WHEN p.method = 'CASH' THEN p.amount ELSE 0 END), 0) as cash_revenue,
+                COALESCE(SUM(CASE WHEN p.method = 'VNPAY' AND p.status = 'SUCCESS' THEN p.amount ELSE 0 END), 0) as vnpay_revenue
+            FROM bills b
+            INNER JOIN payments p ON b.bill_id = p.bill_id
+            WHERE CAST(b.created_at AS DATE) BETWEEN ? AND ?
+                AND p.status = 'SUCCESS'
+                AND b.voided = 0
         """);
 
         List<Object> params = new ArrayList<>();
+        // Tham số cho subquery đếm orders
+        params.add(Date.valueOf(fromDate));
+        params.add(Date.valueOf(toDate));
+        // Tham số cho subquery tính subtotal
+        params.add(Date.valueOf(fromDate));
+        params.add(Date.valueOf(toDate));
+        // Tham số cho subquery tính tax
+        params.add(Date.valueOf(fromDate));
+        params.add(Date.valueOf(toDate));
+        // Tham số cho subquery tính discount
+        params.add(Date.valueOf(fromDate));
+        params.add(Date.valueOf(toDate));
+        // Tham số cho main query filter bills
         params.add(Date.valueOf(fromDate));
         params.add(Date.valueOf(toDate));
 
         if (staffId != null) {
-            sql.append(" AND o.waiter_id = ?");
+            // Cần JOIN với orders để filter theo staffId
+            sql.append(" AND EXISTS (SELECT 1 FROM orders o WHERE (o.order_id = b.order_id OR o.table_id = b.table_id) AND o.waiter_id = ?)");
             params.add(staffId);
         }
 
-        // Note: Filter by paymentMethod không áp dụng được vì đang lấy từ orders table
-        // Nếu sau này có bills/payments thì có thể thêm lại filter này
-        // if (paymentMethod != null && !paymentMethod.isEmpty()) {
-        //     sql.append(" AND p.method = ?");
-        //     params.add(paymentMethod);
-        // }
+        if (paymentMethod != null && !paymentMethod.isEmpty()) {
+            sql.append(" AND p.method = ?");
+            params.add(paymentMethod);
+        }
 
         if (orderType != null && !orderType.isEmpty()) {
-            sql.append(" AND o.order_type = ?");
+            // Cần JOIN với orders để filter theo orderType
+            sql.append(" AND EXISTS (SELECT 1 FROM orders o WHERE (o.order_id = b.order_id OR o.table_id = b.table_id) AND o.order_type = ?)");
             params.add(orderType);
         }
 
@@ -295,15 +328,18 @@ public class RevenueReportDAO {
                     report.setTotalTax(rs.getBigDecimal("total_tax"));
                     report.setTotalDiscount(rs.getBigDecimal("total_discount"));
                     report.setCashRevenue(rs.getBigDecimal("cash_revenue"));
-                    // Set các payment methods không dùng về 0
+                    // VNPay revenue từ payments
+                    BigDecimal vnpayRev = rs.getBigDecimal("vnpay_revenue");
                     report.setCardRevenue(java.math.BigDecimal.ZERO);
-                    report.setOnlineRevenue(java.math.BigDecimal.ZERO);
+                    report.setOnlineRevenue(vnpayRev != null ? vnpayRev : java.math.BigDecimal.ZERO);
                     report.setTransferRevenue(java.math.BigDecimal.ZERO);
                     report.setVoucherRevenue(java.math.BigDecimal.ZERO);
                     
                     // Debug: Log results
                     System.out.println("Query Result - Orders: " + report.getTotalOrders() + 
-                                     ", Revenue: " + report.getTotalRevenue());
+                                     ", Revenue: " + report.getTotalRevenue() + 
+                                     ", Cash: " + report.getCashRevenue() + 
+                                     ", VNPay: " + vnpayRev);
                 } else {
                     System.out.println("Query returned no rows - initializing with zeros");
                     // Initialize với giá trị 0 để JSP vẫn hiển thị
@@ -464,6 +500,70 @@ public class RevenueReportDAO {
             }
         } catch (SQLException e) {
             System.err.println("Error checking bills count: " + e.getMessage());
+        }
+        
+        // Check bills structure: order_id vs table_id
+        String sqlBillsStructure = """
+            SELECT 
+                COUNT(*) as total,
+                COUNT(order_id) as bills_with_order_id,
+                COUNT(table_id) as bills_with_table_id,
+                COUNT(CASE WHEN order_id IS NULL AND table_id IS NOT NULL THEN 1 END) as bills_with_table_only
+            FROM bills
+        """;
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sqlBillsStructure);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                System.out.println("Bills structure - Total: " + rs.getInt("total") + 
+                                 ", With order_id: " + rs.getInt("bills_with_order_id") +
+                                 ", With table_id: " + rs.getInt("bills_with_table_id") +
+                                 ", Table only (no order_id): " + rs.getInt("bills_with_table_only"));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error checking bills structure: " + e.getMessage());
+        }
+        
+        // Check orders with bills via table_id
+        String sqlOrdersBillsViaTable = """
+            SELECT COUNT(DISTINCT o.order_id) as total
+            FROM orders o
+            INNER JOIN bills b ON o.table_id = b.table_id
+            WHERE CAST(o.opened_at AS DATE) BETWEEN ? AND ?
+        """;
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sqlOrdersBillsViaTable)) {
+            ps.setDate(1, Date.valueOf(fromDate));
+            ps.setDate(2, Date.valueOf(toDate));
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    System.out.println("Orders with bills (via table_id): " + rs.getInt("total"));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error checking orders+bills via table: " + e.getMessage());
+        }
+        
+        // Check payments
+        String sqlPayments = """
+            SELECT COUNT(*) as total, 
+                   COUNT(CASE WHEN method = 'CASH' THEN 1 END) as cash_count,
+                   COUNT(CASE WHEN method = 'VNPAY' THEN 1 END) as vnpay_count,
+                   COUNT(CASE WHEN method = 'VNPAY' AND status = 'SUCCESS' THEN 1 END) as vnpay_success
+            FROM payments
+        """;
+        try (Connection conn = DBConnect.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sqlPayments);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                System.out.println("Payments - Total: " + rs.getInt("total") + 
+                                 ", CASH: " + rs.getInt("cash_count") +
+                                 ", VNPAY: " + rs.getInt("vnpay_count") +
+                                 ", VNPAY SUCCESS: " + rs.getInt("vnpay_success"));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error checking payments: " + e.getMessage());
         }
         
         // Check orders with bills
